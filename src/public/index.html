@@ -1,0 +1,1724 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>MigraTech — Migration Made Smarter. Futures Made Better.</title>
+<meta name="description" content="MigraTech is a digital platform that connects people to global opportunities through technology, expertise and trust." />
+<link rel="icon" type="image/png" href="/brand/favicon.png" />
+<link rel="apple-touch-icon" href="/brand/logo-icon.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,900&display=swap" rel="stylesheet">
+
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: 'Inter', sans-serif;
+  color: #111;
+  background: #fff;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+a { text-decoration: none; color: inherit; }
+img { display: block; max-width: 100%; }
+.container { max-width: 1200px; margin: 0 auto; padding: 0 32px; }
+
+/* ═══════════════════════════════════════
+   NAVBAR
+═══════════════════════════════════════ */
+.nav {
+  position: sticky; top: 0; z-index: 500;
+  background: #fff;
+  border-bottom: 1px solid #e5e7eb;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+.nav-inner {
+  display: flex; align-items: center;
+  justify-content: space-between;
+  height: 68px;
+}
+/* Logo */
+.brand {
+  display: flex; align-items: center; gap: 6px;
+  font-weight: 900; font-size: 21px; color: #0B1E3F;
+  letter-spacing: -0.02em; flex: none;
+}
+.brand-logo { height: 38px; width: auto; display: block; }
+.brand-logo--invert { filter: brightness(0) invert(1); }
+
+/* Nav links */
+.nav-links {
+  display: flex; align-items: center; gap: 4px; flex: 1;
+  justify-content: center;
+}
+.nav-links a, .nav-links .nav-drop {
+  font-size: 14px; font-weight: 500; color: #374151;
+  padding: 6px 12px; border-radius: 6px;
+  transition: color 120ms, background 120ms;
+  display: flex; align-items: center; gap: 4px;
+  cursor: pointer;
+}
+.nav-links a:hover, .nav-links .nav-drop:hover { color: #0B1E3F; background: #f3f4f6; }
+.nav-links a.active {
+  color: #0B1E3F; font-weight: 600;
+  border-bottom: 2.5px solid #00B140;
+  border-radius: 0; padding-bottom: 4px;
+}
+.nav-links .nav-drop svg { width: 13px; height: 13px; }
+
+/* Nav actions */
+.nav-actions { display: flex; align-items: center; gap: 8px; flex: none; }
+.btn-login {
+  font-size: 14px; font-weight: 600; color: #0B1E3F;
+  padding: 8px 18px; border-radius: 7px;
+  border: none; background: transparent; cursor: pointer;
+  transition: background 120ms;
+}
+.btn-login:hover { background: #f3f4f6; }
+.btn-gs {
+  font-size: 14px; font-weight: 700; color: #fff;
+  padding: 9px 22px; border-radius: 7px;
+  border: none; background: #00B140; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 6px;
+  box-shadow: 0 2px 10px rgba(0,177,64,0.35);
+  transition: background 120ms, box-shadow 120ms;
+}
+.btn-gs:hover { background: #009935; box-shadow: 0 4px 16px rgba(0,177,64,0.45); }
+.btn-gs svg { width: 15px; height: 15px; }
+
+/* ═══════════════════════════════════════
+   HERO
+═══════════════════════════════════════ */
+.hero {
+  background: #fff;
+  padding: 80px 0 0;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Airplane canvas layer */
+#hero-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.9;
+}
+
+/* Ensure all hero content sits above canvas */
+.hero-pill,
+.hero h1,
+.hero-desc,
+.hero-btns,
+.hero-social-proof {
+  position: relative;
+  z-index: 2;
+}
+.hero-left { position: relative; z-index: 2; }
+
+.hero-inner {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  align-items: flex-end;
+  min-height: 520px;
+}
+
+/* Left content */
+.hero-left { padding-bottom: 72px; }
+
+.hero-pill {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 6px 14px; border-radius: 100px;
+  background: #e8f7ee; border: 1px solid rgba(0,177,64,0.3);
+  font-size: 12.5px; font-weight: 700; color: #007a2e;
+  margin-bottom: 24px;
+}
+.hero-pill-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: #00B140;
+  animation: blink 2s ease-in-out infinite;
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+.hero h1 {
+  font-size: clamp(40px, 4.8vw, 60px);
+  font-weight: 900;
+  line-height: 1.07;
+  letter-spacing: -0.035em;
+  color: #0B1E3F;
+}
+.hero h1 .green {
+  color: #00B140;
+  display: block;
+}
+
+.hero-desc {
+  margin-top: 20px;
+  font-size: 15px;
+  line-height: 1.7;
+  color: #4B5563;
+  max-width: 40ch;
+}
+
+.hero-btns {
+  display: flex; align-items: center; gap: 14px;
+  margin-top: 32px;
+}
+.hero-btn-primary {
+  display: inline-flex; align-items: center; gap: 10px;
+  padding: 13px 26px; border-radius: 8px;
+  background: #0B1E3F; color: #fff;
+  font-size: 14.5px; font-weight: 700; border: none; cursor: pointer;
+  transition: background 150ms;
+}
+.hero-btn-primary:hover { background: #0d2448; }
+.hero-btn-primary svg { width: 17px; height: 17px; }
+
+.hero-btn-ghost {
+  display: inline-flex; align-items: center; gap: 10px;
+  padding: 12px 24px; border-radius: 8px;
+  background: transparent; color: #0B1E3F;
+  font-size: 14.5px; font-weight: 600;
+  border: 1.5px solid #D1D5DB; cursor: pointer;
+  transition: border-color 150ms, color 150ms;
+}
+.hero-btn-ghost:hover { border-color: #0B1E3F; }
+.play-ring {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: #0B1E3F;
+  display: flex; align-items: center; justify-content: center; flex: none;
+}
+.play-ring svg { width: 10px; height: 10px; color: #fff; margin-left: 2px; }
+
+.hero-social-proof {
+  margin-top: 28px;
+  display: flex; align-items: center; gap: 12px;
+}
+.avatars-stack { display: flex; }
+.avatars-stack img {
+  width: 34px; height: 34px; border-radius: 50%;
+  border: 2.5px solid #fff;
+  margin-left: -10px; object-fit: cover;
+}
+.avatars-stack img:first-child { margin-left: 0; }
+.proof-text { font-size: 12.5px; color: #6B7280; }
+.proof-text strong { color: #00B140; font-size: 14px; }
+
+/* Right side — image area */
+.hero-right {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  height: 540px;
+}
+
+/* Big green circle / swoosh behind person */
+.hero-bg-circle {
+  position: absolute;
+  right: -30px; bottom: 0;
+  width: 480px; height: 500px;
+  background: linear-gradient(135deg, #e8f7ee 0%, #c8f0d8 100%);
+  border-radius: 50% 50% 0 0 / 60% 60% 0 0;
+  z-index: 0;
+}
+.hero-bg-arc {
+  position: absolute;
+  right: 20px; top: 20px;
+  width: 380px; height: 400px;
+  border: 2px dashed rgba(0,177,64,0.25);
+  border-radius: 50%;
+  z-index: 0;
+}
+
+/* Person photo */
+.hero-person {
+  position: relative; z-index: 2;
+  width: 320px;
+  height: 500px;
+  object-fit: cover;
+  object-position: top center;
+  border-radius: 0;
+}
+
+/* Floating cards */
+.float-card {
+  position: absolute; z-index: 10;
+  background: #fff;
+  border-radius: 14px;
+  padding: 12px 16px;
+  box-shadow: 0 12px 36px rgba(0,0,0,0.12);
+  display: flex; align-items: center; gap: 12px;
+  border: 1px solid rgba(0,0,0,0.06);
+}
+.float-card.card-a {
+  top: 40px; right: -10px;
+  animation: floatY 4s ease-in-out infinite;
+}
+.float-card.card-b {
+  bottom: 100px; right: -20px;
+  animation: floatY 4s ease-in-out infinite 2s;
+}
+@keyframes floatY {
+  0%,100% { transform: translateY(0); }
+  50%      { transform: translateY(-8px); }
+}
+.fc-icon {
+  width: 38px; height: 38px; border-radius: 10px;
+  background: #e8f7ee;
+  display: flex; align-items: center; justify-content: center; flex: none;
+}
+.fc-icon svg { width: 20px; height: 20px; color: #00B140; }
+.fc-num { font-size: 18px; font-weight: 900; color: #0B1E3F; line-height: 1; }
+.fc-lbl { font-size: 10.5px; color: #6B7280; margin-top: 2px; }
+
+/* ═══════════════════════════════════════
+   DARK FEATURES BAR
+═══════════════════════════════════════ */
+.feat-bar {
+  background: #0B1E3F;
+  padding: 42px 0;
+}
+.feat-grid {
+  display: grid; grid-template-columns: repeat(5, 1fr);
+}
+.feat-col {
+  padding: 8px 24px; text-align: center;
+  border-right: 1px solid rgba(255,255,255,0.08);
+}
+.feat-col:last-child { border-right: none; }
+.feat-ico {
+  width: 48px; height: 48px; border-radius: 12px;
+  background: rgba(0,177,64,0.14); border: 1px solid rgba(0,177,64,0.28);
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 14px;
+}
+.feat-ico svg { width: 22px; height: 22px; color: #00B140; }
+.feat-col h4 { font-size: 13px; font-weight: 700; color: #fff; margin-bottom: 7px; }
+.feat-col p { font-size: 11.5px; color: rgba(255,255,255,0.5); line-height: 1.6; }
+
+/* ═══════════════════════════════════════
+   STATS BAND
+═══════════════════════════════════════ */
+.stats-band {
+  padding: 52px 0;
+  border-bottom: 1px solid #E5E7EB;
+}
+.stats-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+}
+.stat-col {
+  display: flex; align-items: center; gap: 14px;
+  justify-content: center; padding: 12px 20px;
+  border-right: 1px solid #E5E7EB;
+}
+.stat-col:last-child { border-right: none; }
+.stat-ico {
+  width: 46px; height: 46px; border-radius: 50%;
+  background: #e8f7ee;
+  display: flex; align-items: center; justify-content: center; flex: none;
+}
+.stat-ico svg { width: 22px; height: 22px; color: #00B140; }
+.stat-num {
+  font-size: 30px; font-weight: 900; color: #0B1E3F;
+  line-height: 1; font-variant-numeric: tabular-nums;
+}
+.stat-lbl { font-size: 12.5px; color: #6B7280; margin-top: 4px; font-weight: 500; }
+
+/* ═══════════════════════════════════════
+   TRUSTED BY
+═══════════════════════════════════════ */
+.trusted {
+  padding: 52px 0;
+  background: #F9FAFB;
+}
+.trusted h3 {
+  text-align: center;
+  font-size: 14.5px; font-weight: 700; color: #6B7280;
+  margin-bottom: 30px; letter-spacing: 0.01em;
+}
+.logos {
+  display: flex; align-items: center; justify-content: center;
+  gap: 14px; flex-wrap: wrap;
+}
+.logo-chip {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 10px 18px; border-radius: 8px;
+  border: 1.5px solid #E5E7EB; background: #fff;
+  font-size: 13px; font-weight: 700; color: #1f2937;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+  transition: box-shadow 150ms, transform 150ms;
+  cursor: default; white-space: nowrap;
+}
+.logo-chip:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.1); transform: translateY(-2px); }
+.logo-chip svg { flex: none; }
+
+/* ═══════════════════════════════════════
+   SHARED SECTION HEAD
+═══════════════════════════════════════ */
+.container-narrow { max-width: 760px; }
+.section-head { max-width: 620px; margin: 0 auto 48px; text-align: center; }
+.section-eyebrow {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 6px 14px; border-radius: 100px;
+  background: #e8f7ee; border: 1px solid rgba(0,177,64,0.3);
+  font-size: 12.5px; font-weight: 700; color: #007a2e;
+  margin-bottom: 16px;
+}
+.section-head h2 {
+  font-size: clamp(24px, 2.6vw, 32px);
+  font-weight: 900; color: #0B1E3F; line-height: 1.2;
+  letter-spacing: -0.03em; margin-bottom: 10px;
+}
+.section-head p { font-size: 15px; color: #6B7280; line-height: 1.6; }
+
+/* ═══════════════════════════════════════
+   HOW IT WORKS
+═══════════════════════════════════════ */
+.how-section { padding: 80px 0; background: #fff; }
+.how-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 20px; counter-reset: how;
+}
+.how-step {
+  position: relative;
+  background: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 16px;
+  padding: 26px 22px; text-align: left;
+}
+.how-num {
+  font-size: 13px; font-weight: 800; color: #00B140;
+  letter-spacing: 0.04em; margin-bottom: 14px;
+}
+.how-ico {
+  width: 44px; height: 44px; border-radius: 11px;
+  background: #0B1E3F;
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 16px;
+}
+.how-ico svg { width: 21px; height: 21px; color: #fff; }
+.how-step h4 { font-size: 15.5px; font-weight: 700; color: #0B1E3F; margin-bottom: 8px; }
+.how-step p { font-size: 13px; color: #6B7280; line-height: 1.6; }
+.how-connector {
+  position: absolute; top: 34px; right: -20px;
+  width: 20px; height: 1px; background: repeating-linear-gradient(90deg, #D1D5DB 0 4px, transparent 4px 8px);
+}
+.how-step:last-child .how-connector { display: none; }
+
+/* ═══════════════════════════════════════
+   POPULAR DESTINATIONS
+═══════════════════════════════════════ */
+.dest-section { padding: 80px 0; background: #F9FAFB; }
+.dest-carousel { position: relative; }
+.dest-grid {
+  display: flex; gap: 22px; overflow-x: auto; scroll-snap-type: x mandatory;
+  scroll-behavior: smooth; padding: 4px 4px 20px; margin: -4px -4px 0;
+  scrollbar-width: none; -ms-overflow-style: none;
+}
+.dest-grid::-webkit-scrollbar { display: none; }
+.dest-card {
+  flex: 0 0 300px; scroll-snap-align: start;
+  background: #fff; border: 1px solid #E5E7EB; border-radius: 18px;
+  padding: 28px 26px; transition: box-shadow 150ms, transform 150ms;
+}
+.dest-nav {
+  position: absolute; top: 40%; transform: translateY(-50%);
+  width: 42px; height: 42px; border-radius: 50%; flex: none;
+  background: #fff; border: 1px solid #E5E7EB; box-shadow: 0 4px 14px rgba(0,0,0,0.1);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; color: #0B1E3F; z-index: 2; transition: box-shadow 150ms, background 150ms;
+}
+.dest-nav:hover { box-shadow: 0 6px 20px rgba(0,0,0,0.16); background: #F9FAFB; }
+.dest-nav:disabled { opacity: 0.35; cursor: default; box-shadow: none; }
+.dest-nav.prev { left: 4px; }
+.dest-nav.next { right: 4px; }
+.dest-nav svg { width: 18px; height: 18px; }
+@media (max-width: 680px) {
+  .dest-nav { display: none; }
+  .dest-card { flex-basis: 78vw; }
+}
+.dest-card:hover { box-shadow: 0 12px 32px rgba(0,0,0,0.08); transform: translateY(-3px); }
+.dest-flag {
+  width: 42px; height: 28px; margin-bottom: 14px;
+  border-radius: 4px; overflow: hidden; border: 1px solid rgba(0,0,0,0.08);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+.dest-flag svg { display: block; width: 100%; height: 100%; }
+.dest-card h3 { font-size: 18px; font-weight: 800; color: #0B1E3F; margin-bottom: 14px; }
+.dest-pathways { list-style: none; display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; }
+.dest-pathways li { display: flex; align-items: center; gap: 9px; font-size: 13.5px; color: #374151; font-weight: 500; }
+.dp-tag {
+  flex: none; font-size: 10.5px; font-weight: 800; letter-spacing: 0.03em;
+  text-transform: uppercase; padding: 3px 8px; border-radius: 5px;
+}
+.dp-tag.work { background: #e8f7ee; color: #007a2e; }
+.dp-tag.study { background: #e9edf7; color: #0B1E3F; }
+.dp-tag.family { background: #fdf1e0; color: #92640a; }
+.dest-card-link {
+  font-size: 13px; font-weight: 700; color: #00B140;
+  display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
+}
+.dest-card-link svg { width: 14px; height: 14px; }
+
+/* ═══════════════════════════════════════
+   FAQ
+═══════════════════════════════════════ */
+.faq-section { padding: 80px 0; background: #fff; }
+.faq-list { display: flex; flex-direction: column; gap: 10px; }
+.faq-item {
+  border: 1px solid #E5E7EB; border-radius: 12px; padding: 4px 20px;
+  background: #F9FAFB;
+}
+.faq-item summary {
+  list-style: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 16px 0; font-size: 14.5px; font-weight: 700; color: #0B1E3F;
+}
+.faq-item summary::-webkit-details-marker { display: none; }
+.faq-item summary .chev { flex: none; width: 18px; height: 18px; color: #6B7280; transition: transform 180ms; }
+.faq-item[open] summary .chev { transform: rotate(180deg); }
+.faq-item[open] { background: #fff; border-color: #00B140; }
+.faq-item p { font-size: 13.5px; color: #6B7280; line-height: 1.7; padding: 0 0 18px; margin: 0; }
+
+/* ═══════════════════════════════════════
+   FINAL CTA BAND
+═══════════════════════════════════════ */
+.cta-band {
+  background: linear-gradient(120deg, #00B140 0%, #00934f 100%);
+  padding: 56px 0;
+}
+.cta-band-inner {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 24px; flex-wrap: wrap;
+}
+.cta-band h2 { font-size: clamp(22px, 2.4vw, 28px); font-weight: 900; color: #fff; letter-spacing: -0.02em; margin-bottom: 6px; }
+.cta-band p { font-size: 14.5px; color: rgba(255,255,255,0.85); }
+.cta-band .btn-wa { background: #0B1E3F; box-shadow: 0 4px 16px rgba(0,0,0,0.2); }
+.cta-band .btn-wa:hover { background: #0d2448; }
+
+/* ═══════════════════════════════════════
+   WHATSAPP SECTION
+═══════════════════════════════════════ */
+.wa-section {
+  padding: 72px 0 80px;
+  background: #fff;
+}
+.wa-grid {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 60px; align-items: center;
+}
+
+.wa-left h2 {
+  font-size: clamp(26px, 3vw, 36px);
+  font-weight: 900; color: #0B1E3F; line-height: 1.18;
+  letter-spacing: -0.03em; margin-bottom: 10px;
+}
+.wa-left .wa-desc { font-size: 15px; color: #6B7280; margin-bottom: 28px; }
+
+.wa-list { list-style: none; display: flex; flex-direction: column; gap: 13px; margin-bottom: 32px; }
+.wa-list li { display: flex; align-items: center; gap: 10px; font-size: 14px; color: #374151; font-weight: 500; }
+.wa-tick {
+  width: 22px; height: 22px; border-radius: 50%;
+  border: 1.5px solid #00B140;
+  display: flex; align-items: center; justify-content: center; flex: none;
+}
+.wa-tick svg { width: 11px; height: 11px; color: #00B140; }
+
+.btn-wa {
+  display: inline-flex; align-items: center; gap: 10px;
+  padding: 14px 28px; border-radius: 9px;
+  background: #00B140; color: #fff;
+  font-size: 15px; font-weight: 700;
+  border: none; cursor: pointer; text-decoration: none;
+  box-shadow: 0 4px 16px rgba(0,177,64,0.35);
+  transition: background 150ms, transform 150ms;
+}
+.btn-wa:hover { background: #009935; transform: translateY(-2px); }
+.btn-wa svg { width: 22px; height: 22px; }
+
+/* Chat widget */
+.chat-box {
+  background: #fff;
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 16px 56px rgba(0,0,0,0.13);
+  border: 1px solid #E5E7EB;
+}
+.chat-top {
+  background: #0B1E3F;
+  padding: 14px 18px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.chat-top-left { display: flex; align-items: center; gap: 10px; }
+.chat-top-back { opacity: 0.5; }
+.chat-top-back svg { width: 16px; height: 16px; color: #fff; }
+.chat-av {
+  width: 38px; height: 38px; border-radius: 50%;
+  background: #fff;
+  display: flex; align-items: center; justify-content: center;
+  flex: none; overflow: hidden;
+}
+.chat-av img { width: 100%; height: 100%; object-fit: cover; }
+.chat-name-row .cn { font-size: 14px; font-weight: 700; color: #fff; }
+.chat-name-row .cs { font-size: 11px; color: #4ade80; margin-top: 1px; }
+.chat-top-right svg { width: 18px; height: 18px; color: rgba(255,255,255,0.5); }
+
+.chat-msgs {
+  background: #ece5dd;
+  padding: 16px 14px;
+  min-height: 230px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.bubble {
+  max-width: 80%; padding: 9px 13px; border-radius: 9px;
+  font-size: 13px; line-height: 1.5;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+.bubble.recv { background: #fff; align-self: flex-start; border-top-left-radius: 2px; color: #111; }
+.bubble.sent { background: #dcf8c6; align-self: flex-end; border-top-right-radius: 2px; color: #111; }
+.btime { font-size: 10px; color: #8c9aa5; margin-top: 4px; text-align: right; }
+
+.chat-input-row {
+  background: #f0f0f0; padding: 10px 14px;
+  display: flex; align-items: center; gap: 10px;
+}
+.ci-emoji { width: 22px; height: 22px; color: #54656f; }
+.ci-bar { flex: 1; background: #fff; border-radius: 22px; padding: 9px 14px; font-size: 13px; color: #aaa; }
+.ci-attach { width: 22px; height: 22px; color: #54656f; }
+.ci-mic {
+  width: 38px; height: 38px; border-radius: 50%;
+  background: #00B140; display: flex; align-items: center; justify-content: center; flex: none;
+}
+.ci-mic svg { width: 17px; height: 17px; color: #fff; }
+
+/* ═══════════════════════════════════════
+   FOOTER
+═══════════════════════════════════════ */
+.footer { background: #0B1E3F; color: #fff; padding: 60px 0 0; }
+.footer-grid {
+  display: grid; grid-template-columns: 1.7fr 1fr 1fr 1fr 1.5fr;
+  gap: 40px; padding-bottom: 48px;
+  border-bottom: 1px solid rgba(255,255,255,0.09);
+}
+
+.f-brand .brand { color: #fff; margin-bottom: 14px; }
+.f-desc { font-size: 13px; color: rgba(255,255,255,0.5); line-height: 1.7; margin-bottom: 20px; }
+.f-socials { display: flex; gap: 9px; }
+.f-soc {
+  width: 34px; height: 34px; border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.12);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: background 150ms;
+}
+.f-soc:hover { background: rgba(255,255,255,0.1); }
+.f-soc svg { width: 15px; height: 15px; color: rgba(255,255,255,0.6); }
+
+.f-col h5 { font-size: 13px; font-weight: 700; color: #fff; margin-bottom: 16px; }
+.f-col ul { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+.f-col ul a { font-size: 13px; color: rgba(255,255,255,0.5); transition: color 150ms; }
+.f-col ul a:hover { color: #fff; }
+
+.f-news h5 { font-size: 13px; font-weight: 700; color: #fff; margin-bottom: 8px; }
+.f-news p { font-size: 12px; color: rgba(255,255,255,0.45); line-height: 1.55; margin-bottom: 16px; }
+.news-row { display: flex; gap: 8px; }
+.news-input {
+  flex: 1; padding: 10px 14px; border-radius: 7px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.07);
+  color: #fff; font-size: 13px; outline: none;
+}
+.news-input::placeholder { color: rgba(255,255,255,0.3); }
+.news-input:focus { border-color: #00B140; }
+.btn-sub {
+  padding: 10px 18px; border-radius: 7px;
+  background: #00B140; color: #fff;
+  font-size: 13px; font-weight: 700; border: none; cursor: pointer;
+  transition: background 150ms;
+}
+.btn-sub:hover { background: #009935; }
+
+.footer-bar {
+  padding: 18px 0;
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 12.5px; color: rgba(255,255,255,0.38);
+}
+.footer-bar-links { display: flex; gap: 20px; }
+.footer-bar-links a { color: rgba(255,255,255,0.38); transition: color 150ms; }
+.footer-bar-links a:hover { color: #fff; }
+.footer-made { display: flex; align-items: center; gap: 4px; }
+.heart { color: #ef4444; }
+
+/* WhatsApp FAB */
+.wa-fab {
+  position: fixed; bottom: 26px; right: 26px; z-index: 999;
+  width: 56px; height: 56px; border-radius: 50%;
+  background: #25D366;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 6px 22px rgba(37,211,102,0.55);
+  transition: transform 200ms, box-shadow 200ms;
+  cursor: pointer;
+}
+.wa-fab:hover { transform: scale(1.1); box-shadow: 0 10px 30px rgba(37,211,102,0.65); }
+.wa-fab svg { width: 30px; height: 30px; color: #fff; }
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .nav-links { gap: 0; }
+  .nav-links a, .nav-links .nav-drop { padding: 6px 8px; font-size: 13px; }
+}
+@media (max-width: 900px) {
+  .nav-links { display: none; }
+  .hero-inner { grid-template-columns: 1fr; }
+  .hero-right { height: 380px; margin-top: 20px; }
+  .feat-grid { grid-template-columns: repeat(2, 1fr); gap: 1px; }
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .how-grid { grid-template-columns: repeat(2, 1fr); }
+  .how-connector { display: none; }
+  .dest-grid { grid-template-columns: 1fr; }
+  .wa-grid { grid-template-columns: 1fr; }
+  .cta-band-inner { justify-content: center; text-align: center; }
+  .footer-grid { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 640px) {
+  .how-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 560px) {
+  .footer-grid { grid-template-columns: 1fr; }
+  .footer-bar { flex-direction: column; gap: 10px; text-align: center; }
+}
+</style>
+</head>
+<body>
+
+<!-- ══════════════ NAVBAR ══════════════ -->
+<nav class="nav" aria-label="Main navigation">
+  <div class="container">
+    <div class="nav-inner">
+
+      <a href="/" class="brand" aria-label="MigraTech">
+        <img src="/brand/logo-full.png" alt="MigraTech" class="brand-logo" />
+      </a>
+
+      <div class="nav-links">
+        <a href="/" class="active">Home</a>
+        <a href="/about">About Us</a>
+        <span class="nav-drop">Services
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </span>
+        <a href="/programs">Programs</a>
+        <a href="/partners">For Partners</a>
+        <span class="nav-drop">Resources
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </span>
+        <a href="/contact">Contact</a>
+      </div>
+
+      <div class="nav-actions">
+        <button class="btn-login" id="nav-login">Login</button>
+        <button class="btn-gs" id="nav-gs">
+          Get Started
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<!-- ══════════════ HERO ══════════════ -->
+<section class="hero" aria-label="Hero">
+  <canvas id="hero-canvas" aria-hidden="true"></canvas>
+  <div class="container">
+    <div class="hero-inner">
+
+      <!-- Left text -->
+      <div class="hero-left">
+        <div class="hero-pill">
+          <div class="hero-pill-dot"></div>
+          Smart Solutions. Global Impact.
+        </div>
+
+        <h1>
+          Migration Made Smarter.<br>
+          <span class="green">Futures Made Better.</span>
+        </h1>
+
+        <p class="hero-desc">
+          MigraTech is a digital platform that connects people to global
+          opportunities through technology, expertise and trust.
+        </p>
+
+        <div class="hero-btns">
+          <button class="hero-btn-primary" id="btn-journey">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
+            </svg>
+            Start Your Journey
+          </button>
+          <button class="hero-btn-ghost" id="btn-watch">
+            <span class="play-ring" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="6,4 20,12 6,20"/></svg>
+            </span>
+            Watch How It Works
+          </button>
+        </div>
+
+        <div class="hero-social-proof">
+          <div class="avatars-stack">
+            <img src="https://i.pravatar.cc/68?img=32" alt="User">
+            <img src="https://i.pravatar.cc/68?img=47" alt="User">
+            <img src="https://i.pravatar.cc/68?img=28" alt="User">
+          </div>
+          <p class="proof-text">
+            <strong>25k+</strong> Join thousands of people building their future with us.
+          </p>
+        </div>
+      </div>
+
+      <!-- Right image -->
+      <div class="hero-right">
+        <!-- Green background shape -->
+        <div class="hero-bg-circle" aria-hidden="true"></div>
+        <div class="hero-bg-arc" aria-hidden="true"></div>
+
+        <!-- Person -->
+        <img
+          class="hero-person"
+          src="/hero-person.png"
+          alt="Professional man with phone — MigraTech client"
+        />
+
+        <!-- Card A: 15,000+ -->
+        <div class="float-card card-a" aria-label="15,000+ people assisted worldwide">
+          <div class="fc-icon">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6 5.87v-2a4 4 0 00-2-3.46M15 7a4 4 0 11-8 0 4 4 0 018 0z"/>
+            </svg>
+          </div>
+          <div>
+            <div class="fc-num">15,000+</div>
+            <div class="fc-lbl">People Assisted Worldwide</div>
+          </div>
+        </div>
+
+        <!-- Card B: 50+ -->
+        <div class="float-card card-b" aria-label="50+ countries connected">
+          <div class="fc-icon">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="12" cy="12" r="10" stroke-width="2"/>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2 12h20M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 000 20"/>
+            </svg>
+          </div>
+          <div>
+            <div class="fc-num">50+</div>
+            <div class="fc-lbl">Countries Connected</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════ FEATURES BAR ══════════════ -->
+<section class="feat-bar" aria-label="Key features">
+  <div class="container">
+    <div class="feat-grid">
+
+      <div class="feat-col">
+        <div class="feat-ico">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="12" r="10" stroke-width="2"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2 12h20M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 000 20"/>
+          </svg>
+        </div>
+        <h4>Global Opportunities</h4>
+        <p>Access opportunities to study, work, invest or live in 50+ countries worldwide.</p>
+      </div>
+
+      <div class="feat-col">
+        <div class="feat-ico">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+          </svg>
+        </div>
+        <h4>End-to-End Support</h4>
+        <p>From documentation to submission, we guide you every step of the way.</p>
+      </div>
+
+      <div class="feat-col">
+        <div class="feat-ico">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
+          </svg>
+        </div>
+        <h4>Expert Guidance</h4>
+        <p>Work with certified consultants and immigration experts you can trust.</p>
+      </div>
+
+      <div class="feat-col">
+        <div class="feat-ico">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" stroke-width="2"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 11V7a5 5 0 0110 0v4"/>
+          </svg>
+        </div>
+        <h4>Secure &amp; Reliable</h4>
+        <p>Your data and journey are protected with world-class security.</p>
+      </div>
+
+      <div class="feat-col">
+        <div class="feat-ico">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+          </svg>
+        </div>
+        <h4>Track &amp; Manage</h4>
+        <p>Real-time updates and transparent progress tracking on your dashboard.</p>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════ STATS ══════════════ -->
+<section class="stats-band" aria-label="Impact numbers">
+  <div class="container">
+    <div class="stats-grid">
+
+      <div class="stat-col">
+        <div class="stat-ico">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6 5.87v-2a4 4 0 00-2-3.46M15 7a4 4 0 11-8 0 4 4 0 018 0z"/>
+          </svg>
+        </div>
+        <div>
+          <div class="stat-num" id="s-people">15,000+</div>
+          <div class="stat-lbl">People Assisted</div>
+        </div>
+      </div>
+
+      <div class="stat-col">
+        <div class="stat-ico">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="12" r="10" stroke-width="2"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2 12h20M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 000 20"/>
+          </svg>
+        </div>
+        <div>
+          <div class="stat-num" id="s-countries">50+</div>
+          <div class="stat-lbl">Countries Connected</div>
+        </div>
+      </div>
+
+      <div class="stat-col">
+        <div class="stat-ico">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+          </svg>
+        </div>
+        <div>
+          <div class="stat-num" id="s-partners">2,500+</div>
+          <div class="stat-lbl">Partner Organizations</div>
+        </div>
+      </div>
+
+      <div class="stat-col">
+        <div class="stat-ico">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+        </div>
+        <div>
+          <div class="stat-num" id="s-rate">98%</div>
+          <div class="stat-lbl">Success Rate</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════ WHY TRUST MIGRATECH ══════════════ -->
+<section class="trusted" aria-label="Why people trust MigraTech">
+  <div class="container">
+    <h3>Built for Honest, Secure Migration Guidance</h3>
+    <div class="logos">
+
+      <div class="logo-chip">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#00B140" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="5" y="11" width="14" height="9" rx="1.5"/><path d="M8 11V7a4 4 0 018 0v4"/>
+        </svg>
+        Encrypted document storage
+      </div>
+
+      <div class="logo-chip">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#00B140" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z"/>
+        </svg>
+        Instant WhatsApp replies
+      </div>
+
+      <div class="logo-chip">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#00B140" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12 2 4 5v6c0 5 3.4 8.6 8 10 4.6-1.4 8-5 8-10V5l-8-3z"/>
+        </svg>
+        Fraud &amp; scam warnings built in
+      </div>
+
+      <div class="logo-chip">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#00B140" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.5 4 6 4 9s-1.5 6.5-4 9c-2.5-2.5-4-6-4-9s1.5-6.5 4-9z"/>
+        </svg>
+        Work, study &amp; family pathways
+      </div>
+
+      <div class="logo-chip">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#00B140" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="10" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
+        </svg>
+        Real specialists, not just AI
+      </div>
+
+      <div class="logo-chip">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#00B140" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/>
+        </svg>
+        Available 24/7
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════ HOW IT WORKS ══════════════ -->
+<section class="how-section" aria-label="How MigraTech works">
+  <div class="container">
+    <div class="section-head">
+      <div class="section-eyebrow">How It Works</div>
+      <h2>From your first message to a matched pathway</h2>
+      <p>One WhatsApp conversation, four steps — no forms to fill out, no account to create.</p>
+    </div>
+    <div class="how-grid">
+
+      <div class="how-step">
+        <div class="how-connector" aria-hidden="true"></div>
+        <div class="how-num">STEP 01</div>
+        <div class="how-ico">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 11.5a8.4 8.4 0 0 1-1 4 8.5 8.5 0 0 1-7.5 4.5 8.4 8.4 0 0 1-4-1L3 21l2-5.5a8.4 8.4 0 0 1-1-4A8.5 8.5 0 0 1 8.5 3a8.4 8.4 0 0 1 4-1H13a8.5 8.5 0 0 1 8 8.5z"/></svg>
+        </div>
+        <h4>Message us on WhatsApp</h4>
+        <p>Tap "Chat on WhatsApp" and say hello. No app to download, no account to create.</p>
+      </div>
+
+      <div class="how-step">
+        <div class="how-connector" aria-hidden="true"></div>
+        <div class="how-num">STEP 02</div>
+        <div class="how-ico">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+        </div>
+        <h4>Share your goals</h4>
+        <p>Tell us your destination, intent (work, study or family) and qualifications — takes a couple of minutes.</p>
+      </div>
+
+      <div class="how-step">
+        <div class="how-connector" aria-hidden="true"></div>
+        <div class="how-num">STEP 03</div>
+        <div class="how-ico">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" stroke-width="2"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2 12h20M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 000 20"/></svg>
+        </div>
+        <h4>Get matched to a pathway</h4>
+        <p>We check your profile against real migration pathways and tell you honestly where you stand.</p>
+      </div>
+
+      <div class="how-step">
+        <div class="how-num">STEP 04</div>
+        <div class="how-ico">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+        </div>
+        <h4>Work with a specialist</h4>
+        <p>A MigraTech specialist reviews your documents and tracks your application through to a decision.</p>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════ POPULAR DESTINATIONS ══════════════ -->
+<section class="dest-section" aria-label="Popular destinations">
+  <div class="container">
+    <div class="section-head">
+      <div class="section-eyebrow">Popular Destinations</div>
+      <h2>Migration pathways we actively support</h2>
+      <p>Real programs our specialists work with today — message us and we'll confirm what fits your profile.</p>
+    </div>
+    <div class="dest-carousel">
+    <button type="button" class="dest-nav prev" aria-label="Previous destinations" onclick="destScroll(-1)">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.4" d="M15 19l-7-7 7-7"/></svg>
+    </button>
+    <button type="button" class="dest-nav next" aria-label="Next destinations" onclick="destScroll(1)">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.4" d="M9 5l7 7-7 7"/></svg>
+    </button>
+    <div class="dest-grid" id="dest-grid">
+
+      <div class="dest-card">
+        <div class="dest-flag" aria-hidden="true">
+          <svg viewBox="0 0 30 20" xmlns="http://www.w3.org/2000/svg">
+            <rect width="30" height="20" fill="#fff"/>
+            <rect width="7.5" height="20" fill="#D80621"/>
+            <rect x="22.5" width="7.5" height="20" fill="#D80621"/>
+            <path d="M15 5l1 2.2 2.3-1.1-.5 2.4 2.2.4-1.7 1.6 1 .9-1.3.6.3 1.3-1.6-.5-.2 1.7h-1.6l-.2-1.7-1.6.5.3-1.3-1.3-.6 1-.9-1.7-1.6 2.2-.4-.5-2.4 2.3 1.1z" fill="#D80621"/>
+          </svg>
+        </div>
+        <h3>Canada</h3>
+        <ul class="dest-pathways">
+          <li><span class="dp-tag work">Work</span> Skilled Worker Pathway</li>
+        </ul>
+        <a class="dest-card-link" href="https://wa.me/2348153955718" target="_blank" rel="noopener">
+          Ask about eligibility
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.4" d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </a>
+      </div>
+
+      <div class="dest-card">
+        <div class="dest-flag" aria-hidden="true">
+          <svg viewBox="0 0 30 20" xmlns="http://www.w3.org/2000/svg">
+            <rect width="30" height="20" fill="#00247D"/>
+            <path d="M0 0L30 20M30 0L0 20" stroke="#fff" stroke-width="4"/>
+            <path d="M0 0L30 20M30 0L0 20" stroke="#CF142B" stroke-width="1.6"/>
+            <path d="M15 0V20M0 10H30" stroke="#fff" stroke-width="6.6"/>
+            <path d="M15 0V20M0 10H30" stroke="#CF142B" stroke-width="4"/>
+          </svg>
+        </div>
+        <h3>United Kingdom</h3>
+        <ul class="dest-pathways">
+          <li><span class="dp-tag work">Work</span> Skilled Worker Route</li>
+          <li><span class="dp-tag family">Family</span> Family Route</li>
+        </ul>
+        <a class="dest-card-link" href="https://wa.me/2348153955718" target="_blank" rel="noopener">
+          Ask about eligibility
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.4" d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </a>
+      </div>
+
+      <div class="dest-card">
+        <div class="dest-flag" aria-hidden="true">
+          <svg viewBox="0 0 30 20" xmlns="http://www.w3.org/2000/svg">
+            <rect width="10" height="20" fill="#169B62"/>
+            <rect x="10" width="10" height="20" fill="#fff"/>
+            <rect x="20" width="10" height="20" fill="#FF883E"/>
+          </svg>
+        </div>
+        <h3>Ireland</h3>
+        <ul class="dest-pathways">
+          <li><span class="dp-tag work">Work</span> Critical Skills Employment Permit</li>
+          <li><span class="dp-tag study">Study</span> Study Route</li>
+        </ul>
+        <a class="dest-card-link" href="https://wa.me/2348153955718" target="_blank" rel="noopener">
+          Ask about eligibility
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.4" d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </a>
+      </div>
+
+      <div class="dest-card">
+        <div class="dest-flag" aria-hidden="true">
+          <svg viewBox="0 0 30 20" xmlns="http://www.w3.org/2000/svg">
+            <rect width="30" height="20" fill="#006AA7"/>
+            <rect x="10" width="4" height="20" fill="#FECC00"/>
+            <rect y="8" width="30" height="4" fill="#FECC00"/>
+          </svg>
+        </div>
+        <h3>Sweden</h3>
+        <ul class="dest-pathways">
+          <li><span class="dp-tag work">Work</span> Work Permit Route</li>
+        </ul>
+        <a class="dest-card-link" href="https://wa.me/2348153955718" target="_blank" rel="noopener">
+          Ask about eligibility
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.4" d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </a>
+      </div>
+
+      <div class="dest-card">
+        <div class="dest-flag" aria-hidden="true">
+          <svg viewBox="0 0 30 20" xmlns="http://www.w3.org/2000/svg">
+            <rect width="30" height="20" fill="#00247D"/>
+            <rect width="15" height="10" fill="#00247D"/>
+            <path d="M0 0L15 10M15 0L0 10" stroke="#fff" stroke-width="1.6"/>
+            <path d="M7.5 0V10M0 5H15" stroke="#fff" stroke-width="2.4"/>
+            <path d="M7.5 0V10M0 5H15" stroke="#CF142B" stroke-width="1.4"/>
+            <circle cx="22" cy="5" r="1" fill="#fff"/>
+            <circle cx="25" cy="10" r="1" fill="#fff"/>
+            <circle cx="21" cy="14" r="1" fill="#fff"/>
+            <circle cx="26" cy="15" r="1" fill="#fff"/>
+            <circle cx="23.5" cy="12" r="0.6" fill="#fff"/>
+          </svg>
+        </div>
+        <h3>Australia</h3>
+        <ul class="dest-pathways">
+          <li><span class="dp-tag work">Work</span> Skilled Independent Visa</li>
+          <li><span class="dp-tag study">Study</span> Study Route</li>
+        </ul>
+        <a class="dest-card-link" href="https://wa.me/2348153955718" target="_blank" rel="noopener">
+          Ask about eligibility
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.4" d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </a>
+      </div>
+
+      <div class="dest-card">
+        <div class="dest-flag" aria-hidden="true">
+          <svg viewBox="0 0 30 20" xmlns="http://www.w3.org/2000/svg">
+            <rect width="30" height="20" fill="#21468B"/>
+            <rect width="30" height="13.34" fill="#fff"/>
+            <rect width="30" height="6.67" fill="#AE1C28"/>
+          </svg>
+        </div>
+        <h3>Netherlands</h3>
+        <ul class="dest-pathways">
+          <li><span class="dp-tag work">Work</span> Highly Skilled Migrant Route</li>
+        </ul>
+        <a class="dest-card-link" href="https://wa.me/2348153955718" target="_blank" rel="noopener">
+          Ask about eligibility
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.4" d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </a>
+      </div>
+
+      <div class="dest-card">
+        <div class="dest-flag" aria-hidden="true">
+          <svg viewBox="0 0 30 20" xmlns="http://www.w3.org/2000/svg">
+            <rect width="30" height="6.67" fill="#0072CE"/>
+            <rect y="6.67" width="30" height="6.67" fill="#000"/>
+            <rect y="13.34" width="30" height="6.66" fill="#fff"/>
+          </svg>
+        </div>
+        <h3>Estonia</h3>
+        <ul class="dest-pathways">
+          <li><span class="dp-tag work">Work</span> Work Permit Route</li>
+        </ul>
+        <a class="dest-card-link" href="https://wa.me/2348153955718" target="_blank" rel="noopener">
+          Ask about eligibility
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.4" d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </a>
+      </div>
+
+    </div>
+    </div>
+  </div>
+</section>
+
+<script>
+  // Destinations carousel: auto-advances on a timer, but manual arrow clicks/swipes always
+  // still work — hovering or touching the track just pauses the timer so autoplay doesn't
+  // fight whatever the visitor is doing, then resumes once they let go.
+  (function () {
+    var track = document.getElementById('dest-grid');
+    if (!track) return;
+    var AUTOPLAY_MS = 4000;
+    var timer = null;
+
+    function cardStep() {
+      var card = track.querySelector('.dest-card');
+      return card ? card.getBoundingClientRect().width + 22 : 300;
+    }
+
+    function advance(direction) {
+      var atEnd = track.scrollLeft + track.clientWidth >= track.scrollWidth - 4;
+      if (direction > 0 && atEnd) {
+        track.scrollTo({ left: 0, behavior: 'smooth' });
+      } else if (direction < 0 && track.scrollLeft <= 4) {
+        track.scrollTo({ left: track.scrollWidth, behavior: 'smooth' });
+      } else {
+        track.scrollBy({ left: direction * cardStep(), behavior: 'smooth' });
+      }
+    }
+
+    function startAutoplay() {
+      stopAutoplay();
+      timer = setInterval(function () { advance(1); }, AUTOPLAY_MS);
+    }
+    function stopAutoplay() {
+      if (timer) clearInterval(timer);
+      timer = null;
+    }
+
+    window.destScroll = function (direction) {
+      advance(direction);
+      startAutoplay(); // restart the clock so it doesn't double-advance right after a manual click
+    };
+
+    track.addEventListener('mouseenter', stopAutoplay);
+    track.addEventListener('mouseleave', startAutoplay);
+    track.addEventListener('touchstart', stopAutoplay, { passive: true });
+    track.addEventListener('touchend', function () { setTimeout(startAutoplay, 2500); }, { passive: true });
+
+    startAutoplay();
+  })();
+</script>
+
+<!-- ══════════════ WHATSAPP SECTION ══════════════ -->
+<section class="wa-section" aria-label="Chat with MigraTech on WhatsApp">
+  <div class="container">
+    <div class="wa-grid">
+
+      <!-- Left -->
+      <div class="wa-left">
+        <h2>Chat with MigraTech<br>on WhatsApp</h2>
+        <p class="wa-desc">Get instant answers to your questions.</p>
+
+        <ul class="wa-list">
+          <li>
+            <div class="wa-tick">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+              </svg>
+            </div>
+            Real-time support from our experts
+          </li>
+          <li>
+            <div class="wa-tick">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+              </svg>
+            </div>
+            Quick answers to all your questions
+          </li>
+          <li>
+            <div class="wa-tick">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+              </svg>
+            </div>
+            Guidance at every step of your journey
+          </li>
+          <li>
+            <div class="wa-tick">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+              </svg>
+            </div>
+            Available anytime, anywhere
+          </li>
+        </ul>
+
+        <a href="https://wa.me/2348153955718" target="_blank" rel="noopener" class="btn-wa" id="btn-wa">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347zm-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884zm8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893A11.821 11.821 0 0020.885 3.488"/>
+          </svg>
+          Chat on WhatsApp
+        </a>
+      </div>
+
+      <!-- Right: chat mockup -->
+      <div class="chat-box" role="img" aria-label="WhatsApp chat demo">
+        <div class="chat-top">
+          <div class="chat-top-left">
+            <div class="chat-top-back">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+              </svg>
+            </div>
+            <div class="chat-av"><img src="/brand/logo-icon.png" alt="" /></div>
+            <div class="chat-name-row">
+              <div class="cn">MigraTech Support ✓</div>
+              <div class="cs">● Online</div>
+            </div>
+          </div>
+          <div class="chat-top-right">
+            <svg fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/>
+            </svg>
+          </div>
+        </div>
+
+        <div class="chat-msgs">
+          <div class="bubble recv">
+            Hello! 👋<br>How can we assist you today?
+            <div class="btime">10:00 AM</div>
+          </div>
+          <div class="bubble sent">
+            I'd like to know about studying in Canada.
+            <div class="btime">10:01 AM ✓✓</div>
+          </div>
+          <div class="bubble recv">
+            Great choice! 🎓 Our experts are here to guide you every step of the way.
+            <div class="btime">10:02 AM</div>
+          </div>
+        </div>
+
+        <div class="chat-input-row">
+          <svg class="ci-emoji" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+          <div class="ci-bar">Type a message...</div>
+          <svg class="ci-attach" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.586-6.586a4 4 0 00-5.656-5.656l-6.586 6.586a6 6 0 008.486 8.486l6.586-6.586"/>
+          </svg>
+          <div class="ci-mic">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
+            </svg>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════ FAQ ══════════════ -->
+<section class="faq-section" aria-label="Frequently asked questions">
+  <div class="container container-narrow">
+    <div class="section-head">
+      <div class="section-eyebrow">FAQ</div>
+      <h2>Common questions, answered honestly</h2>
+      <p>Can't find what you need? Ask our team directly on WhatsApp.</p>
+    </div>
+    <div class="faq-list">
+
+      <details class="faq-item">
+        <summary>How much does migration cost?
+          <svg class="chev" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </summary>
+        <p>Costs vary widely by destination, pathway, and whether you use professional support — they typically include government/visa fees, language testing, document costs, and any service fees. A MigraTech specialist can give you a cost breakdown for your specific pathway.</p>
+      </details>
+
+      <details class="faq-item">
+        <summary>How long does the process take?
+          <svg class="chev" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </summary>
+        <p>Processing times depend on the destination country, pathway, and current government processing volumes. We can give you a general estimate once we know your destination and pathway, and a specialist can confirm current timelines.</p>
+      </details>
+
+      <details class="faq-item">
+        <summary>Can I migrate without a job offer?
+          <svg class="chev" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </summary>
+        <p>Some pathways require a job offer and some don't — it depends on the country and route (for example, some skilled-worker pathways assess points/eligibility independent of a job offer, while others require sponsorship). Tell us your destination and we can narrow this down.</p>
+      </details>
+
+      <details class="faq-item">
+        <summary>Can my family come with me?
+          <svg class="chev" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </summary>
+        <p>Many work and study pathways allow eligible family members to join you, subject to the destination country's rules. Let us know who you'd like to bring and we'll flag the relevant considerations.</p>
+      </details>
+
+      <details class="faq-item">
+        <summary>What documents do I need?
+          <svg class="chev" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </summary>
+        <p>This depends on your pathway. Common documents include your passport, academic certificates, CV, employment references, and language test results. Once we know your goal and destination, we can generate a personalized checklist.</p>
+      </details>
+
+      <details class="faq-item">
+        <summary>Do I need IELTS?
+          <svg class="chev" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </summary>
+        <p>Some pathways require a standardized language test (such as IELTS) and some don't, depending on the destination and your background. We can confirm this once we know your destination and occupation.</p>
+      </details>
+
+      <details class="faq-item">
+        <summary>What happens after my visa is approved?
+          <svg class="chev" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </summary>
+        <p>Next steps typically include travel/relocation logistics and any registration requirements in the destination country. A MigraTech specialist can walk you through this once you're at that stage.</p>
+      </details>
+
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════ FINAL CTA ══════════════ -->
+<section class="cta-band" aria-label="Start your journey">
+  <div class="container cta-band-inner">
+    <div>
+      <h2>Ready to start your journey?</h2>
+      <p>Chat with MigraTech on WhatsApp right now — no forms, no waiting rooms.</p>
+    </div>
+    <a href="https://wa.me/2348153955718" target="_blank" rel="noopener" class="btn-wa">
+      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347zm-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884zm8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893A11.821 11.821 0 0020.885 3.488"/>
+      </svg>
+      Start on WhatsApp
+    </a>
+  </div>
+</section>
+
+<!-- ══════════════ FOOTER ══════════════ -->
+<footer class="footer" role="contentinfo">
+  <div class="container">
+    <div class="footer-grid">
+
+      <!-- Brand col -->
+      <div class="f-brand">
+        <a href="/" class="brand"><img src="/brand/logo-full.png" alt="MigraTech" class="brand-logo brand-logo--invert" /></a>
+        <p class="f-desc">Enabling global opportunities through technology, expertise and trust. Your journey. Our mission.</p>
+        <div class="f-socials">
+          <div class="f-soc" aria-label="Facebook">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18 2h-3a5 5 0 00-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 011-1h3z"/></svg>
+          </div>
+          <div class="f-soc" aria-label="Instagram">
+            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="2" width="20" height="20" rx="5"/><path d="M16 11.37A4 4 0 1112.63 8 4 4 0 0116 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>
+          </div>
+          <div class="f-soc" aria-label="LinkedIn">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16 8a6 6 0 016 6v7h-4v-7a2 2 0 00-2-2 2 2 0 00-2 2v7h-4v-7a6 6 0 016-6zM2 9h4v12H2z"/><circle cx="4" cy="4" r="2"/></svg>
+          </div>
+          <div class="f-soc" aria-label="YouTube">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M22.54 6.42a2.78 2.78 0 00-1.95-1.96C18.88 4 12 4 12 4s-6.88 0-8.59.46a2.78 2.78 0 00-1.95 1.96A29 29 0 001 12a29 29 0 00.46 5.58A2.78 2.78 0 003.41 19.6C5.12 20 12 20 12 20s6.88 0 8.59-.46a2.78 2.78 0 001.95-1.95A29 29 0 0023 12a29 29 0 00-.46-5.58z"/><polygon points="9.75 15.02 15.5 12 9.75 8.98 9.75 15.02" fill="#0B1E3F"/></svg>
+          </div>
+        </div>
+      </div>
+
+      <!-- Company -->
+      <div class="f-col">
+        <h5>Company</h5>
+        <ul>
+          <li><a href="/about">About Us</a></li>
+          <li><a href="/team">Our Team</a></li>
+          <li><a href="/careers">Careers</a></li>
+          <li><a href="/news">News &amp; Updates</a></li>
+          <li><a href="/contact">Contact Us</a></li>
+        </ul>
+      </div>
+
+      <!-- Services -->
+      <div class="f-col">
+        <h5>Services</h5>
+        <ul>
+          <li><a href="/study">Study Abroad</a></li>
+          <li><a href="/work">Work Abroad</a></li>
+          <li><a href="/immigrate">Immigrate</a></li>
+          <li><a href="/visit">Visit Visa</a></li>
+          <li><a href="/business">Business Migration</a></li>
+        </ul>
+      </div>
+
+      <!-- Resources + Support -->
+      <div class="f-col">
+        <h5>Resources</h5>
+        <ul>
+          <li><a href="/blog">Blog</a></li>
+          <li><a href="/guides">Guides</a></li>
+          <li><a href="/faqs">FAQs</a></li>
+          <li><a href="/countries">Country Information</a></li>
+          <li><a href="/visas">Visa Resources</a></li>
+        </ul>
+        <h5 style="margin-top:20px;">Support</h5>
+        <ul>
+          <li><a href="/help">Help Center</a></li>
+          <li><a href="/support">Contact Support</a></li>
+          <li><a href="/terms">Terms of Service</a></li>
+          <li><a href="/privacy">Privacy Policy</a></li>
+        </ul>
+      </div>
+
+      <!-- Newsletter -->
+      <div class="f-news">
+        <h5>Subscribe to Newsletter</h5>
+        <p>Get the latest updates and opportunities straight to your inbox.</p>
+        <div class="news-row">
+          <input type="email" class="news-input" id="news-email" placeholder="Enter your email" aria-label="Newsletter email" />
+          <button class="btn-sub" id="btn-sub">Subscribe</button>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="footer-bar">
+      <span>© 2025 MigraTech. All rights reserved.</span>
+      <div class="footer-bar-links">
+        <a href="/privacy">Privacy Policy</a>
+        <a href="/terms">Terms of Service</a>
+      </div>
+      <div class="footer-made">
+        Made with <span class="heart">♥</span> for a borderless future.
+      </div>
+    </div>
+  </div>
+</footer>
+
+<!-- WhatsApp FAB -->
+<a href="https://wa.me/2348153955718" target="_blank" rel="noopener" class="wa-fab" id="wa-fab" aria-label="Chat on WhatsApp">
+  <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347zm-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884zm8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893A11.821 11.821 0 0020.885 3.488"/>
+  </svg>
+</a>
+
+<script>
+  // Newsletter
+  document.getElementById('btn-sub').addEventListener('click', function() {
+    const el = document.getElementById('news-email');
+    if (el.value && /\S+@\S+\.\S+/.test(el.value)) {
+      el.value = '';
+      el.placeholder = '✓ Subscribed! Thank you.';
+      setTimeout(() => { el.placeholder = 'Enter your email'; }, 3000);
+    } else {
+      el.style.borderColor = '#ef4444';
+      el.placeholder = 'Enter a valid email';
+      setTimeout(() => { el.style.borderColor = ''; el.placeholder = 'Enter your email'; }, 2500);
+    }
+  });
+
+  // Journey btn → scroll to WhatsApp
+  document.getElementById('btn-journey').addEventListener('click', () => {
+    document.querySelector('.wa-section').scrollIntoView({ behavior: 'smooth' });
+  });
+
+  // Animated stat counters
+  const counters = [
+    { id: 's-people',    end: 15000, suffix: '+', format: true },
+    { id: 's-countries', end: 50,    suffix: '+', format: false },
+    { id: 's-partners',  end: 2500,  suffix: '+', format: true },
+    { id: 's-rate',      end: 98,    suffix: '%', format: false },
+  ];
+  let fired = false;
+  const io = new IntersectionObserver(entries => {
+    if (entries[0].isIntersecting && !fired) {
+      fired = true;
+      counters.forEach(({ id, end, suffix, format }) => {
+        const el = document.getElementById(id);
+        let t0 = null;
+        const dur = 1600;
+        requestAnimationFrame(function tick(ts) {
+          if (!t0) t0 = ts;
+          const p = Math.min((ts - t0) / dur, 1);
+          const v = Math.floor((1 - Math.pow(1 - p, 3)) * end);
+          el.textContent = format ? v.toLocaleString() + suffix : v + suffix;
+          if (p < 1) requestAnimationFrame(tick);
+        });
+      });
+    }
+  }, { threshold: 0.3 });
+  io.observe(document.querySelector('.stats-band'));
+
+  // Hero motion background — flight routes with a traveling plane
+  (function heroFlightCanvas() {
+    const canvas = document.getElementById('hero-canvas');
+    const hero = document.querySelector('.hero');
+    if (!canvas || !hero) return;
+    const ctx = canvas.getContext('2d');
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    let W = 0, H = 0;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    let routes = [];
+
+    const ROUTE_DEFS = [
+      { y0f: 0.20, y1f: 0.12, bulge: -0.15, color: '11,30,63',  speed: 0.000085, phase: 0.05 },
+      { y0f: 0.60, y1f: 0.78, bulge: 0.16,  color: '0,177,64', speed: 0.000065, phase: 0.45 },
+      { y0f: 0.40, y1f: 0.30, bulge: -0.10, color: '11,30,63',  speed: 0.00005,  phase: 0.75 },
+    ];
+
+    function resize() {
+      const rect = hero.getBoundingClientRect();
+      W = rect.width;
+      H = rect.height;
+      canvas.width = Math.round(W * dpr);
+      canvas.height = Math.round(H * dpr);
+      canvas.style.width = W + 'px';
+      canvas.style.height = H + 'px';
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      routes = ROUTE_DEFS.map((r) => {
+        const x0 = W * 0.04, x1 = W * 0.97;
+        const y0 = H * r.y0f, y1 = H * r.y1f;
+        const cx = (x0 + x1) / 2;
+        const cy = (y0 + y1) / 2 + H * r.bulge;
+        return { ...r, x0, y0, x1, y1, cx, cy };
+      });
+    }
+
+    function pointOnCurve(r, t) {
+      const u = 1 - t;
+      return {
+        x: u * u * r.x0 + 2 * u * t * r.cx + t * t * r.x1,
+        y: u * u * r.y0 + 2 * u * t * r.cy + t * t * r.y1,
+      };
+    }
+    function angleOnCurve(r, t) {
+      const dx = 2 * (1 - t) * (r.cx - r.x0) + 2 * t * (r.x1 - r.cx);
+      const dy = 2 * (1 - t) * (r.cy - r.y0) + 2 * t * (r.y1 - r.cy);
+      return Math.atan2(dy, dx);
+    }
+
+    function drawRoute(r, t) {
+      // dashed arc
+      ctx.beginPath();
+      ctx.moveTo(r.x0, r.y0);
+      ctx.quadraticCurveTo(r.cx, r.cy, r.x1, r.y1);
+      ctx.setLineDash([1, 7]);
+      ctx.lineCap = 'round';
+      ctx.lineWidth = 1.3;
+      ctx.strokeStyle = `rgba(${r.color},0.20)`;
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // departure / arrival pulses
+      [
+        [r.x0, r.y0, t],
+        [r.x1, r.y1, (t + 0.5) % 1],
+      ].forEach(([x, y, pulseT]) => {
+        ctx.beginPath();
+        ctx.arc(x, y, 2.6, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(${r.color},0.55)`;
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(x, y, 3 + pulseT * 10, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(${r.color},${0.30 * (1 - pulseT)})`;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      });
+
+      // fading trail behind the plane
+      for (let i = 1; i <= 10; i++) {
+        const tt = t - i * 0.014;
+        if (tt < 0) continue;
+        const p = pointOnCurve(r, tt);
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, Math.max(0, 2 - i * 0.15), 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(${r.color},${0.16 * (1 - i / 10)})`;
+        ctx.fill();
+      }
+
+      // plane
+      const p = pointOnCurve(r, t);
+      const angle = angleOnCurve(r, t);
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(angle);
+      ctx.shadowColor = `rgba(${r.color},0.5)`;
+      ctx.shadowBlur = 5;
+      ctx.beginPath();
+      ctx.moveTo(8, 0);
+      ctx.lineTo(-6, 4.5);
+      ctx.lineTo(-3, 0);
+      ctx.lineTo(-6, -4.5);
+      ctx.closePath();
+      ctx.fillStyle = `rgba(${r.color},0.9)`;
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function frame(ts) {
+      ctx.clearRect(0, 0, W, H);
+      routes.forEach((r) => {
+        const t = (ts * r.speed + r.phase) % 1;
+        drawRoute(r, t);
+      });
+      if (!reduceMotion) requestAnimationFrame(frame);
+    }
+
+    resize();
+    window.addEventListener('resize', resize);
+    if (reduceMotion) {
+      frame(0);
+    } else {
+      requestAnimationFrame(frame);
+    }
+  })();
+</script>
+
+</body>
+</html>

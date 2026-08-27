@@ -1,0 +1,99 @@
+<%- include('partials/head') %>
+
+<p class="muted" style="margin-bottom:16px; font-size:12.5px;">
+  Internal fee record-keeping only — no card or bank details are collected or processed here. This is a staff-maintained ledger; amounts are marked paid/waived/refunded manually.
+</p>
+
+<div class="cards">
+  <div class="card">
+    <div class="label">Collected</div>
+    <div class="value">₦<%= paymentStats.collected.toLocaleString() %></div>
+  </div>
+  <div class="card">
+    <div class="label">Pending</div>
+    <div class="value">₦<%= paymentStats.pending.toLocaleString() %></div>
+    <div class="change"><%= paymentStats.pending_count %> awaiting payment</div>
+  </div>
+</div>
+
+<div class="tabs">
+  <a href="/admin/payments" class="<%= !statusFilter ? 'active' : '' %>">All</a>
+  <a href="/admin/payments?status=pending" class="<%= statusFilter === 'pending' ? 'active' : '' %>">Pending</a>
+  <a href="/admin/payments?status=paid" class="<%= statusFilter === 'paid' ? 'active' : '' %>">Paid</a>
+  <a href="/admin/payments?status=waived" class="<%= statusFilter === 'waived' ? 'active' : '' %>">Waived</a>
+  <a href="/admin/payments?status=refunded" class="<%= statusFilter === 'refunded' ? 'active' : '' %>">Refunded</a>
+</div>
+
+<div class="panel">
+  <table>
+    <tr><th>Client</th><th>Purpose</th><th>Amount</th><th>Status</th><th>Method / Ref</th><th>Recorded by</th><th>Date</th><th>Update</th></tr>
+    <% payments.forEach(p => { %>
+      <tr>
+        <td><%= p.name || p.whatsapp_number %><br/><span class="muted"><%= p.whatsapp_number %></span></td>
+        <td><%= p.purpose %><% if (p.notes) { %><br/><span class="muted"><%= p.notes %></span><% } %></td>
+        <td><%= p.currency %> <%= Number(p.amount).toLocaleString() %></td>
+        <td>
+          <% if (p.status === 'paid') { %><span class="badge green">paid</span>
+          <% } else if (p.status === 'refunded') { %><span class="badge red">refunded</span>
+          <% } else if (p.status === 'waived') { %><span class="badge neutral">waived</span>
+          <% } else { %><span class="badge warm">pending</span><% } %>
+        </td>
+        <td class="muted"><%= p.method || '—' %><% if (p.reference) { %><br/><%= p.reference %><% } %></td>
+        <td class="muted"><%= p.recorded_by || '—' %></td>
+        <td class="muted"><%= new Date(p.created_at).toLocaleDateString() %></td>
+        <td>
+          <form class="inline-form" method="post" action="/admin/payments/<%= p.id %>/update">
+            <select name="status">
+              <% ['pending','paid','waived','refunded'].forEach(s => { %>
+                <option value="<%= s %>" <%= s === p.status ? 'selected' : '' %>><%= s %></option>
+              <% }) %>
+            </select>
+            <button class="btn secondary" type="submit">Save</button>
+          </form>
+        </td>
+      </tr>
+    <% }) %>
+    <% if (!payments.length) { %><tr><td class="muted" colspan="8">No payments recorded yet.</td></tr><% } %>
+  </table>
+</div>
+
+<div class="panel">
+  <h2>Record a payment</h2>
+  <form method="post" action="/admin/payments">
+    <div class="form-row">
+      <div class="field"><label>Client</label>
+        <select name="user_id" required>
+          <option value="">Select client</option>
+          <% users.forEach(u => { %><option value="<%= u.id %>"><%= u.name || u.whatsapp_number %> (<%= u.whatsapp_number %>)</option><% }) %>
+        </select>
+      </div>
+      <div class="field"><label>Purpose</label><input name="purpose" placeholder="e.g. Consultation fee" required /></div>
+    </div>
+    <div class="form-row">
+      <div class="field"><label>Amount</label><input name="amount" type="number" min="0.01" step="0.01" required /></div>
+      <div class="field"><label>Currency</label>
+        <select name="currency">
+          <option value="NGN" selected>NGN</option>
+          <option value="USD">USD</option>
+          <option value="GBP">GBP</option>
+          <option value="EUR">EUR</option>
+        </select>
+      </div>
+      <div class="field"><label>Status</label>
+        <select name="status">
+          <option value="pending" selected>pending</option>
+          <option value="paid">paid</option>
+          <option value="waived">waived</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="field"><label>Method (optional)</label><input name="method" placeholder="e.g. Bank transfer, Cash" /></div>
+      <div class="field"><label>Reference (optional)</label><input name="reference" placeholder="Your own reconciliation reference" /></div>
+    </div>
+    <div class="field"><label>Notes (optional)</label><textarea name="notes" rows="2"></textarea></div>
+    <button class="btn" type="submit">Record payment</button>
+  </form>
+</div>
+
+<%- include('partials/foot') %>

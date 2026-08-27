@@ -1,0 +1,21 @@
+<%- include('partials/head') %>
+
+<div class="panel">
+  <table>
+    <tr><th>Name</th><th>WhatsApp</th><th>Pathway</th><th>Stage</th><th>Status</th><th>Specialist</th><th>Updated</th></tr>
+    <% applications.forEach(a => { %>
+      <tr>
+        <td><%= a.name || '—' %></td>
+        <td><%= a.whatsapp_number %></td>
+        <td><%= a.pathway %></td>
+        <td><%= a.stage %></td>
+        <td><%= a.status %></td>
+        <td><%= a.assigned_specialist || '—' %></td>
+        <td class="muted"><%= new Date(a.updated_at).toLocaleString() %></td>
+      </tr>
+    <% }) %>
+    <% if (!applications.length) { %><tr><td class="muted" colspan="7">No applications yet.</td></tr><% } %>
+  </table>
+</div>
+
+<%- include('partials/foot') %>

@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MigraTech Admin — Login</title>
+  <link rel="stylesheet" href="/admin/static/styles.css" />
+</head>
+<body>
+  <div class="login-wrap">
+    <div class="login-box">
+      <h1>MigraTech Admin</h1>
+      <% if (error) { %><div class="flash error"><%= error %></div><% } %>
+      <form method="post" action="/admin/login">
+        <div class="field">
+          <label for="username">Username</label>
+          <input id="username" name="username" required autofocus />
+        </div>
+        <div class="field">
+          <label for="password">Password</label>
+          <input id="password" name="password" type="password" required />
+        </div>
+        <button type="submit" class="btn" style="width:100%">Log in</button>
+      </form>
+    </div>
+  </div>
+</body>
+</html>

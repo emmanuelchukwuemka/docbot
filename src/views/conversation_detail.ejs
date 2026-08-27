@@ -1,0 +1,90 @@
+<%- include('partials/head') %>
+
+<p><a href="/admin/conversations">&larr; Back to conversations</a></p>
+
+<div class="panel">
+  <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
+    <div>
+      <p style="margin:0;"><strong><%= conversation.name || conversation.whatsapp_number %></strong> — <%= conversation.whatsapp_number %> — state: <%= conversation.state %></p>
+      <p style="margin:4px 0 0;">
+        Escalation:
+        <span class="badge <%= conversation.escalation_status === 'requested' ? 'red' : conversation.escalation_status === 'in_progress' ? 'warm' : 'neutral' %>"><%= conversation.escalation_status %></span>
+        <% if (conversation.escalation_reason) { %> — <span class="muted"><%= conversation.escalation_reason %></span><% } %>
+      </p>
+    </div>
+    <div class="inline-form">
+      <a class="btn secondary" href="/admin/conversations/<%= conversation.id %>">Refresh</a>
+      <% if (conversation.escalation_status === 'requested') { %>
+        <form method="post" action="/admin/conversations/<%= conversation.id %>/resolve">
+          <button class="btn" type="submit">Take over</button>
+        </form>
+      <% } %>
+      <% if (['requested', 'in_progress'].includes(conversation.escalation_status)) { %>
+        <form method="post" action="/admin/conversations/<%= conversation.id %>/return-to-bot" onsubmit="return confirm('Hand this conversation back to the bot?');">
+          <button class="btn secondary" type="submit">Return to bot</button>
+        </form>
+      <% } %>
+    </div>
+  </div>
+</div>
+
+<div class="panel">
+  <h2>Profile summary</h2>
+  <% if (!conversation.profile && !conversation.lead) { %>
+    <p class="muted">No profile collected yet for this user.</p>
+  <% } else { %>
+    <table>
+      <% if (conversation.email) { %><tr><td>Email</td><td><%= conversation.email %></td></tr><% } %>
+      <% if (conversation.location) { %><tr><td>Location</td><td><%= conversation.location %></td></tr><% } %>
+      <% if (conversation.profile) { %>
+        <% if (conversation.profile.destination_country) { %><tr><td>Destination</td><td><%= conversation.profile.destination_country %></td></tr><% } %>
+        <% if (conversation.profile.migration_objective) { %><tr><td>Goal</td><td><%= conversation.profile.migration_objective %></td></tr><% } %>
+        <% if (conversation.profile.age != null) { %><tr><td>Age</td><td><%= conversation.profile.age %></td></tr><% } %>
+        <% if (conversation.profile.occupation) { %><tr><td>Occupation</td><td><%= conversation.profile.occupation %></td></tr><% } %>
+        <% if (conversation.profile.education) { %><tr><td>Education</td><td><%= conversation.profile.education %></td></tr><% } %>
+        <% if (conversation.profile.experience_years != null) { %><tr><td>Experience</td><td><%= conversation.profile.experience_years %> years</td></tr><% } %>
+        <% if (conversation.profile.language_ability) { %><tr><td>Language ability</td><td><%= conversation.profile.language_ability %></td></tr><% } %>
+        <% if (conversation.profile.family_status) { %><tr><td>Family status</td><td><%= conversation.profile.family_status %></td></tr><% } %>
+        <% if (conversation.profile.timeline) { %><tr><td>Timeline</td><td><%= conversation.profile.timeline %></td></tr><% } %>
+        <% if (conversation.profile.financial_readiness) { %><tr><td>Financial readiness</td><td><%= conversation.profile.financial_readiness %></td></tr><% } %>
+        <% if (conversation.profile.job_offer_status != null) { %><tr><td>Job offer</td><td><%= conversation.profile.job_offer_status ? 'Yes' : 'No' %></td></tr><% } %>
+        <% if (conversation.profile.professional_registration != null) { %><tr><td>Professional registration</td><td><%= conversation.profile.professional_registration ? 'Yes' : 'No' %></td></tr><% } %>
+      <% } %>
+      <% if (conversation.latest_assessment_result) { %><tr><td>Latest eligibility assessment</td><td><%= conversation.latest_assessment_result.replaceAll('_', ' ') %></td></tr><% } %>
+      <% if (conversation.lead) { %>
+        <tr><td>Lead score</td><td><span class="badge <%= conversation.lead.classification === 'HOT' ? 'hot' : conversation.lead.classification === 'WARM' ? 'warm' : 'cold' %>"><%= conversation.lead.score %> — <%= conversation.lead.classification %></span></td></tr>
+        <tr><td>Lead status</td><td><%= conversation.lead.status %></td></tr>
+      <% } %>
+    </table>
+  <% } %>
+</div>
+
+<div class="panel">
+  <h2>Transcript</h2>
+  <div class="chat-transcript">
+    <% conversation.messages.forEach(m => { %>
+      <div class="chat-msg <%= m.direction === 'inbound' ? 'in' : 'out' %> sender-<%= m.sender %>">
+        <div class="chat-msg-meta">
+          <%= m.sender === 'human_agent' ? 'staff' : m.sender %> · <%= new Date(m.created_at).toLocaleString() %>
+          <% if (m.delivery_status === 'failed') { %><span class="badge red" title="WhatsApp rejected this — error <%= m.delivery_error %>">Failed to deliver</span><% } %>
+        </div>
+        <div class="chat-msg-text"><%= m.text %></div>
+      </div>
+    <% }) %>
+    <% if (!conversation.messages.length) { %><p class="muted">No messages yet.</p><% } %>
+  </div>
+</div>
+
+<div class="panel">
+  <h2>Reply as staff</h2>
+  <p class="muted" style="font-size:12.5px; margin-bottom:10px;">
+    Sends a real WhatsApp message to this user right now, and keeps the bot quiet on this
+    conversation until you hit "Return to bot" above.
+  </p>
+  <form method="post" action="/admin/conversations/<%= conversation.id %>/send">
+    <div class="field"><textarea name="text" rows="3" placeholder="Type your reply..." required></textarea></div>
+    <button class="btn" type="submit">Send</button>
+  </form>
+</div>
+
+<%- include('partials/foot') %>

@@ -1,0 +1,28 @@
+<%- include('partials/head') %>
+
+<div class="panel">
+  <table>
+    <tr><th>Name</th><th>WhatsApp</th><th>Email</th><th>Location</th><th>Destination</th><th>Consent</th><th>Joined</th><th></th></tr>
+    <% users.forEach(u => { %>
+      <tr>
+        <td><%= u.name || '—' %></td>
+        <td><%= u.whatsapp_number %></td>
+        <td><%= u.email || '—' %></td>
+        <td><%= u.location || '—' %></td>
+        <td><%= u.destination_country || '—' %></td>
+        <td><%= u.consent_given ? 'Yes' : 'No' %></td>
+        <td class="muted"><%= new Date(u.created_at).toLocaleDateString() %></td>
+        <td>
+          <% if (user.role === 'admin') { %>
+          <form method="post" action="/admin/users/<%= u.id %>/delete" onsubmit="return confirm('Permanently delete this user\'s data?');">
+            <button class="btn danger" type="submit">Delete data</button>
+          </form>
+          <% } %>
+        </td>
+      </tr>
+    <% }) %>
+    <% if (!users.length) { %><tr><td class="muted" colspan="8">No users yet.</td></tr><% } %>
+  </table>
+</div>
+
+<%- include('partials/foot') %>

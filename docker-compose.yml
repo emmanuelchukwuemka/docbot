@@ -1,0 +1,40 @@
+services:
+  db:
+    image: mysql:8.4
+    environment:
+      MYSQL_USER: migratech
+      MYSQL_PASSWORD: migratech
+      MYSQL_DATABASE: migratech
+      MYSQL_ROOT_PASSWORD: migratech_root
+    ports:
+      - "3306:3306"
+    volumes:
+      - migratech_mysqldata:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "migratech", "-pmigratech"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: mysql://migratech:migratech@db:3306/migratech
+      ENVIRONMENT: development
+    ports:
+      - "8000:8000"
+    volumes:
+      - migratech_baileys_auth:/app/storage/baileys-auth
+      - migratech_documents:/app/storage/documents
+    depends_on:
+      db:
+        condition: service_healthy
+    # Baileys prints a QR code to stdout on first run — watch it with:
+    #   docker compose logs -f app
+
+volumes:
+  migratech_mysqldata:
+  migratech_baileys_auth:
+  migratech_documents:

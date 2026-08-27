@@ -1,0 +1,30 @@
+<%- include('partials/head') %>
+
+<div class="panel">
+  <table>
+    <tr><th>Username</th><th>Role</th><th>Active</th></tr>
+    <% staff.forEach(s => { %>
+      <tr>
+        <td><%= s.username %></td>
+        <td><span class="badge neutral"><%= s.role %></span></td>
+        <td><%= s.is_active ? 'Yes' : 'No' %></td>
+      </tr>
+    <% }) %>
+  </table>
+</div>
+
+<div class="panel">
+  <h2>Add staff account</h2>
+  <form method="post" action="/admin/staff">
+    <div class="form-row">
+      <div class="field"><label>Username</label><input name="username" required /></div>
+      <div class="field"><label>Password</label><input name="password" type="password" required /></div>
+      <div class="field"><label>Role</label>
+        <select name="role"><option value="agent">agent</option><option value="admin">admin</option></select>
+      </div>
+    </div>
+    <button class="btn" type="submit">Create account</button>
+  </form>
+</div>
+
+<%- include('partials/foot') %>

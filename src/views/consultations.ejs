@@ -1,0 +1,29 @@
+<%- include('partials/head') %>
+
+<div class="panel">
+  <table>
+    <tr><th>WhatsApp</th><th>Preferred time</th><th>Email</th><th>Status</th><th>Requested</th><th>Update</th></tr>
+    <% consultations.forEach(c => { %>
+      <tr>
+        <td><%= c.whatsapp_number %></td>
+        <td><%= c.preferred_time_text || '—' %></td>
+        <td><%= c.contact_email || '—' %></td>
+        <td><%= c.status %></td>
+        <td class="muted"><%= new Date(c.created_at).toLocaleString() %></td>
+        <td>
+          <form class="inline-form" method="post" action="/admin/consultations/<%= c.id %>/update">
+            <select name="status">
+              <% ['requested','confirmed','completed','cancelled'].forEach(s => { %>
+                <option value="<%= s %>" <%= s === c.status ? 'selected' : '' %>><%= s %></option>
+              <% }) %>
+            </select>
+            <button class="btn secondary" type="submit">Save</button>
+          </form>
+        </td>
+      </tr>
+    <% }) %>
+    <% if (!consultations.length) { %><tr><td class="muted" colspan="6">No consultation requests.</td></tr><% } %>
+  </table>
+</div>
+
+<%- include('partials/foot') %>

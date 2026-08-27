@@ -1,0 +1,46 @@
+<%- include('partials/head') %>
+
+<div class="panel">
+  <table>
+    <tr><th>Title</th><th>Priority</th><th>Status</th><th>Agent</th><th>Lead</th><th>Due</th><th>Update</th></tr>
+    <% tasks.forEach(t => { %>
+      <tr>
+        <td><%= t.title %><% if (t.description) { %><br/><span class="muted"><%= t.description %></span><% } %></td>
+        <td><span class="badge <%= t.priority === 'high' ? 'red' : t.priority === 'medium' ? 'warm' : 'neutral' %>"><%= t.priority %></span></td>
+        <td><%= t.status %></td>
+        <td><%= t.assigned_agent || '—' %></td>
+        <td><%= t.lead_whatsapp_number || '—' %></td>
+        <td class="muted"><%= t.due_at ? new Date(t.due_at).toLocaleDateString() : '—' %></td>
+        <td>
+          <form class="inline-form" method="post" action="/admin/tasks/<%= t.id %>/update">
+            <select name="status">
+              <% ['pending','in_progress','completed'].forEach(s => { %>
+                <option value="<%= s %>" <%= s === t.status ? 'selected' : '' %>><%= s %></option>
+              <% }) %>
+            </select>
+            <button class="btn secondary" type="submit">Save</button>
+          </form>
+        </td>
+      </tr>
+    <% }) %>
+    <% if (!tasks.length) { %><tr><td class="muted" colspan="7">No tasks yet.</td></tr><% } %>
+  </table>
+</div>
+
+<div class="panel">
+  <h2>New task</h2>
+  <form method="post" action="/admin/tasks">
+    <div class="form-row">
+      <div class="field"><label>Title</label><input name="title" required /></div>
+      <div class="field"><label>Priority</label>
+        <select name="priority"><option value="low">low</option><option value="medium" selected>medium</option><option value="high">high</option></select>
+      </div>
+      <div class="field"><label>Assigned agent</label><input name="assigned_agent" /></div>
+      <div class="field"><label>Due</label><input name="due_at" type="date" /></div>
+    </div>
+    <div class="field"><label>Description</label><textarea name="description" rows="2"></textarea></div>
+    <button class="btn" type="submit">Create task</button>
+  </form>
+</div>
+
+<%- include('partials/foot') %>

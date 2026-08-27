@@ -1,0 +1,30 @@
+<%- include('partials/head') %>
+
+<div class="tabs">
+  <a href="/admin/conversations" class="<%= !escalatedOnly ? 'active' : '' %>">All</a>
+  <a href="/admin/conversations?escalated=1" class="<%= escalatedOnly ? 'active' : '' %>">Escalated only</a>
+</div>
+
+<div class="panel">
+  <table>
+    <tr><th>Name</th><th>WhatsApp</th><th>State</th><th>Escalation</th><th>Reason</th><th>Updated</th><th></th></tr>
+    <% conversations.forEach(c => { %>
+      <tr>
+        <td><%= c.name || '—' %></td>
+        <td><%= c.whatsapp_number %></td>
+        <td><%= c.state %></td>
+        <td>
+          <% if (c.escalation_status === 'requested') { %><span class="badge red">requested</span>
+          <% } else if (c.escalation_status === 'in_progress') { %><span class="badge warm">in progress</span>
+          <% } else { %><span class="badge neutral"><%= c.escalation_status %></span><% } %>
+        </td>
+        <td class="muted"><%= c.escalation_reason || '—' %></td>
+        <td class="muted"><%= new Date(c.updated_at).toLocaleString() %></td>
+        <td><a href="/admin/conversations/<%= c.id %>">View</a></td>
+      </tr>
+    <% }) %>
+    <% if (!conversations.length) { %><tr><td class="muted" colspan="7">No conversations.</td></tr><% } %>
+  </table>
+</div>
+
+<%- include('partials/foot') %>

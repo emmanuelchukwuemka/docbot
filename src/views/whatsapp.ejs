@@ -1,0 +1,81 @@
+<%- include('partials/head') %>
+
+<div class="panel">
+  <div class="panel-head">
+    <h2>Connection status</h2>
+    <span class="badge <%= { open: 'green', qr_pending: 'warm', connecting: 'warm', wrong_account: 'red', disconnected: 'red' }[connectionStatus] || 'neutral' %>" id="status-badge">
+      <%= { open: 'Connected', qr_pending: 'Waiting for QR scan', connecting: 'Connecting…', wrong_account: 'Wrong account linked', disconnected: 'Disconnected' }[connectionStatus] || connectionStatus %>
+    </span>
+  </div>
+  <table>
+    <tr><td>Expected number (BOT_PHONE_NUMBER)</td><td><%= botPhoneNumber || 'not set — no safety check enforced' %></td></tr>
+  </table>
+  <% if (connectionStatus === 'wrong_account') { %>
+    <p class="muted" style="margin-top:14px;color:var(--error);">
+      The linked WhatsApp account doesn't match BOT_PHONE_NUMBER — the bot has stopped and will not send/receive
+      messages until this is resolved. Relink below with the correct account, or update BOT_PHONE_NUMBER and restart.
+    </p>
+  <% } %>
+</div>
+
+<div class="panel">
+  <div class="panel-head">
+    <h2>Pairing</h2>
+  </div>
+
+  <div id="qr-area" style="text-align:center;">
+    <% if (qrDataUrl) { %>
+      <img src="<%= qrDataUrl %>" alt="WhatsApp pairing QR code" id="qr-img" style="width:280px;height:280px;border:1px solid var(--border);border-radius:10px;padding:12px;background:#fff;" />
+      <p class="muted" style="margin-top:10px;">Scan with WhatsApp (or WhatsApp Business) → Settings → Linked Devices → Link a Device. This refreshes automatically every 20-60 seconds until scanned.</p>
+    <% } else if (connectionStatus === 'open') { %>
+      <p class="muted">Already connected — no QR needed. Use "Relink" below to switch to a different device/app or a different number.</p>
+    <% } else { %>
+      <p class="muted">No QR available right now (status: <%= connectionStatus %>). If this doesn't change shortly, try relinking below.</p>
+    <% } %>
+  </div>
+
+  <form method="post" action="/admin/whatsapp/relink" style="margin-top:18px;"
+        onsubmit="return confirm('This disconnects the current WhatsApp session for good and starts a fresh pairing. Continue?');">
+    <button type="submit" class="btn danger">Relink (disconnect &amp; generate new QR)</button>
+  </form>
+</div>
+
+<script>
+  // Polls status/QR every 4s so this page reflects reality without a manual refresh —
+  // Baileys rotates the QR roughly every 20-60s while a pairing is pending.
+  async function pollWhatsappStatus() {
+    let data;
+    try {
+      const res = await fetch('/admin/whatsapp/status.json');
+      data = await res.json();
+    } catch {
+      return;
+    }
+    const badge = document.getElementById('status-badge');
+    const labels = { open: 'Connected', qr_pending: 'Waiting for QR scan', connecting: 'Connecting…', wrong_account: 'Wrong account linked', disconnected: 'Disconnected' };
+    const colors = { open: 'green', qr_pending: 'warm', connecting: 'warm', wrong_account: 'red', disconnected: 'red' };
+    if (badge) {
+      badge.textContent = labels[data.status] || data.status;
+      badge.className = 'badge ' + (colors[data.status] || 'neutral');
+    }
+    const qrArea = document.getElementById('qr-area');
+    const qrImg = document.getElementById('qr-img');
+    if (data.qrDataUrl) {
+      if (qrImg) {
+        qrImg.src = data.qrDataUrl;
+      } else if (qrArea) {
+        qrArea.innerHTML =
+          '<img src="' + data.qrDataUrl + '" alt="WhatsApp pairing QR code" id="qr-img" ' +
+          'style="width:280px;height:280px;border:1px solid var(--border);border-radius:10px;padding:12px;background:#fff;" />' +
+          '<p class="muted" style="margin-top:10px;">Scan with WhatsApp (or WhatsApp Business) → Settings → Linked Devices → Link a Device. ' +
+          'This refreshes automatically every 20-60 seconds until scanned.</p>';
+      }
+    } else if (data.status === 'open' && qrImg) {
+      // Connected since the last poll — drop the stale QR image.
+      location.reload();
+    }
+  }
+  setInterval(pollWhatsappStatus, 4000);
+</script>
+
+<%- include('partials/foot') %>

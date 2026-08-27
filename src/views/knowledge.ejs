@@ -1,0 +1,141 @@
+<%- include('partials/head') %>
+
+<div class="panel">
+  <h2>Countries</h2>
+  <table>
+    <tr><th>Name</th><th>Code</th></tr>
+    <% countries.forEach(c => { %><tr><td><%= c.name %></td><td><%= c.code %></td></tr><% }) %>
+  </table>
+  <% if (user.role === 'admin') { %>
+    <form method="post" action="/admin/knowledge/countries" style="margin-top:14px;">
+      <div class="form-row">
+        <div class="field"><label>Name</label><input name="name" required /></div>
+        <div class="field"><label>Code</label><input name="code" required maxlength="8" /></div>
+      </div>
+      <button class="btn" type="submit">Add country</button>
+    </form>
+  <% } %>
+</div>
+
+<div class="panel">
+  <h2>Pathways</h2>
+  <table>
+    <tr><th>Country</th><th>Name</th><th>Category</th><th>Verified</th><th></th></tr>
+    <% pathways.forEach(p => { %>
+      <tr>
+        <td><%= p.country %></td>
+        <td><%= p.name %></td>
+        <td><%= p.category %></td>
+        <td><% if (p.is_verified_content) { %><span class="badge green">verified</span><% } else { %><span class="badge neutral">sample</span><% } %></td>
+        <td>
+          <% if (user.role === 'admin') { %>
+          <details class="edit-row">
+            <summary>Edit</summary>
+            <form class="field-form" method="post" action="/admin/knowledge/pathways/<%= p.id %>/update">
+              <div class="form-row">
+                <div class="field"><label>Country</label>
+                  <select name="country_id" required>
+                    <% countries.forEach(c => { %><option value="<%= c.id %>" <%= c.id === p.country_id ? 'selected' : '' %>><%= c.name %></option><% }) %>
+                  </select>
+                </div>
+                <div class="field"><label>Name</label><input name="name" value="<%= p.name %>" required /></div>
+                <div class="field"><label>Category</label>
+                  <select name="category" required>
+                    <% ['work','study','family','business','visit'].forEach(cat => { %><option value="<%= cat %>" <%= cat === p.category ? 'selected' : '' %>><%= cat %></option><% }) %>
+                  </select>
+                </div>
+              </div>
+              <div class="field"><label>Summary</label><textarea name="summary" rows="2"><%= p.summary || '' %></textarea></div>
+              <div class="form-row">
+                <div class="field"><label>Documents (one per line)</label><textarea name="documents" rows="3"><%= (p.documents || []).join('\n') %></textarea></div>
+                <div class="field"><label>Requirements (one per line)</label><textarea name="requirements" rows="3"><%= (p.requirements || []).join('\n') %></textarea></div>
+              </div>
+              <div class="field"><label>Source URL</label><input name="source_url" value="<%= p.source_url || '' %>" /></div>
+              <div class="field"><label><input type="checkbox" name="is_verified_content" style="width:auto" <%= p.is_verified_content ? 'checked' : '' %> /> Verified content (specialist-reviewed)</label></div>
+              <button class="btn secondary" type="submit">Save changes</button>
+            </form>
+          </details>
+          <form method="post" action="/admin/knowledge/pathways/<%= p.id %>/delete" onsubmit="return confirm('Delete this pathway?');" style="margin-top:6px;">
+            <button class="btn danger" type="submit">Delete</button>
+          </form>
+          <% } %>
+        </td>
+      </tr>
+    <% }) %>
+    <% if (!pathways.length) { %><tr><td class="muted" colspan="5">No pathways yet.</td></tr><% } %>
+  </table>
+  <% if (user.role === 'admin') { %>
+    <form method="post" action="/admin/knowledge/pathways" style="margin-top:14px;">
+      <div class="form-row">
+        <div class="field"><label>Country</label>
+          <select name="country_id" required>
+            <% countries.forEach(c => { %><option value="<%= c.id %>"><%= c.name %></option><% }) %>
+          </select>
+        </div>
+        <div class="field"><label>Name</label><input name="name" required /></div>
+        <div class="field"><label>Category</label>
+          <select name="category" required>
+            <% ['work','study','family','business','visit'].forEach(cat => { %><option value="<%= cat %>"><%= cat %></option><% }) %>
+          </select>
+        </div>
+      </div>
+      <div class="field"><label>Summary</label><textarea name="summary" rows="2"></textarea></div>
+      <div class="form-row">
+        <div class="field"><label>Documents (one per line)</label><textarea name="documents" rows="3"></textarea></div>
+        <div class="field"><label>Requirements (one per line)</label><textarea name="requirements" rows="3"></textarea></div>
+      </div>
+      <div class="field"><label>Source URL</label><input name="source_url" /></div>
+      <div class="field"><label><input type="checkbox" name="is_verified_content" style="width:auto" /> Verified content (specialist-reviewed)</label></div>
+      <button class="btn" type="submit">Add pathway</button>
+    </form>
+  <% } %>
+</div>
+
+<div class="panel">
+  <h2>FAQs</h2>
+  <table>
+    <tr><th>Question</th><th>Category</th><th>Verified</th><th></th></tr>
+    <% faqs.forEach(f => { %>
+      <tr>
+        <td><%= f.question %></td>
+        <td><%= f.category || '—' %></td>
+        <td><% if (f.is_verified_content) { %><span class="badge green">verified</span><% } else { %><span class="badge neutral">sample</span><% } %></td>
+        <td>
+          <% if (user.role === 'admin') { %>
+          <details class="edit-row">
+            <summary>Edit</summary>
+            <form class="field-form" method="post" action="/admin/knowledge/faqs/<%= f.id %>/update">
+              <div class="field"><label>Question</label><input name="question" value="<%= f.question %>" required /></div>
+              <div class="field"><label>Answer</label><textarea name="answer" rows="2" required><%= f.answer %></textarea></div>
+              <div class="form-row">
+                <div class="field"><label>Category</label><input name="category" value="<%= f.category || '' %>" /></div>
+                <div class="field"><label>Source URL</label><input name="source_url" value="<%= f.source_url || '' %>" /></div>
+              </div>
+              <div class="field"><label><input type="checkbox" name="is_verified_content" style="width:auto" <%= f.is_verified_content ? 'checked' : '' %> /> Verified content</label></div>
+              <button class="btn secondary" type="submit">Save changes</button>
+            </form>
+          </details>
+          <form method="post" action="/admin/knowledge/faqs/<%= f.id %>/delete" onsubmit="return confirm('Delete this FAQ?');" style="margin-top:6px;">
+            <button class="btn danger" type="submit">Delete</button>
+          </form>
+          <% } %>
+        </td>
+      </tr>
+    <% }) %>
+    <% if (!faqs.length) { %><tr><td class="muted" colspan="4">No FAQs yet.</td></tr><% } %>
+  </table>
+  <% if (user.role === 'admin') { %>
+    <form method="post" action="/admin/knowledge/faqs" style="margin-top:14px;">
+      <div class="field"><label>Question</label><input name="question" required /></div>
+      <div class="field"><label>Answer</label><textarea name="answer" rows="2" required></textarea></div>
+      <div class="form-row">
+        <div class="field"><label>Category</label><input name="category" /></div>
+        <div class="field"><label>Source URL</label><input name="source_url" /></div>
+      </div>
+      <div class="field"><label><input type="checkbox" name="is_verified_content" style="width:auto" /> Verified content</label></div>
+      <button class="btn" type="submit">Add FAQ</button>
+    </form>
+  <% } %>
+</div>
+
+<%- include('partials/foot') %>

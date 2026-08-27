@@ -1,0 +1,33 @@
+<%- include('partials/head') %>
+
+<div class="panel">
+  <table>
+    <tr><th>Name</th><th>WhatsApp</th><th>Destination</th><th>Goal</th><th>Score</th><th>Class</th><th>Status</th><th>Agent</th><th>Update</th></tr>
+    <% leads.forEach(l => { %>
+      <tr>
+        <td><%= l.name || '—' %><br/><span class="muted"><%= l.email || '' %></span></td>
+        <td><%= l.whatsapp_number %></td>
+        <td><%= l.destination_country || '—' %></td>
+        <td><%= l.migration_objective || '—' %></td>
+        <td><%= l.score %></td>
+        <td><span class="badge <%= l.classification.toLowerCase() %>"><%= l.classification %></span></td>
+        <td><%= l.status %></td>
+        <td><%= l.assigned_agent || '—' %></td>
+        <td>
+          <form class="inline-form" method="post" action="/admin/leads/<%= l.id %>/update">
+            <select name="status">
+              <% ['new','contacted','qualified','consultation_booked','converted','lost'].forEach(s => { %>
+                <option value="<%= s %>" <%= s === l.status ? 'selected' : '' %>><%= s %></option>
+              <% }) %>
+            </select>
+            <input name="assigned_agent" placeholder="agent" value="<%= l.assigned_agent || '' %>" style="width:100px" />
+            <button class="btn secondary" type="submit">Save</button>
+          </form>
+        </td>
+      </tr>
+    <% }) %>
+    <% if (!leads.length) { %><tr><td class="muted" colspan="9">No leads yet.</td></tr><% } %>
+  </table>
+</div>
+
+<%- include('partials/foot') %>

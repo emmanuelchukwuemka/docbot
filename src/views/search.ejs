@@ -1,0 +1,31 @@
+<%- include('partials/head') %>
+
+<div class="panel">
+  <form method="get" action="/admin/search" style="margin-bottom: 18px;">
+    <div class="field">
+      <label>Search by name, WhatsApp number, or email</label>
+      <input name="q" value="<%= q %>" placeholder="e.g. +234... or a name" autofocus />
+    </div>
+  </form>
+
+  <% if (q && q.trim().length < 2) { %>
+    <p class="muted">Keep typing — at least 2 characters.</p>
+  <% } else if (q) { %>
+    <table>
+      <tr><th>Name</th><th>WhatsApp</th><th>Email</th><th>Destination</th></tr>
+      <% results.forEach(r => { %>
+        <tr>
+          <td><%= r.name || '—' %></td>
+          <td><%= r.whatsapp_number %></td>
+          <td><%= r.email || '—' %></td>
+          <td><%= r.destination_country || '—' %></td>
+        </tr>
+      <% }) %>
+      <% if (!results.length) { %><tr><td class="muted" colspan="4">No matches for "<%= q %>".</td></tr><% } %>
+    </table>
+  <% } else { %>
+    <p class="muted">Search across everyone who's messaged MigraTech on WhatsApp.</p>
+  <% } %>
+</div>
+
+<%- include('partials/foot') %>

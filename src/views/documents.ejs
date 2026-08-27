@@ -1,0 +1,38 @@
+<%- include('partials/head') %>
+
+<div class="panel">
+  <table>
+    <tr><th>WhatsApp</th><th>Type</th><th>Filename</th><th>Status</th><th>Verification</th><th>Verified by</th><th>Uploaded</th><th>Review</th></tr>
+    <% documents.forEach(d => { %>
+      <tr>
+        <td><%= d.whatsapp_number %></td>
+        <td><%= d.document_type %></td>
+        <td><%= d.original_filename || '—' %></td>
+        <td><%= d.status %></td>
+        <td>
+          <% if (d.verification_status === 'verified') { %><span class="badge green">verified</span>
+          <% } else if (d.verification_status === 'rejected') { %><span class="badge red">rejected</span>
+          <% } else { %><span class="badge neutral">unreviewed</span><% } %>
+        </td>
+        <td class="muted"><%= d.verified_by || '—' %></td>
+        <td class="muted"><%= d.uploaded_at ? new Date(d.uploaded_at).toLocaleString() : '—' %></td>
+        <td>
+          <div class="inline-form">
+            <% if (d.status !== 'missing') { %>
+              <a class="btn secondary" href="/admin/documents/<%= d.id %>/file" target="_blank" rel="noopener">View</a>
+            <% } %>
+            <% if (d.verification_status === 'unreviewed') { %>
+            <form class="inline-form" method="post" action="/admin/documents/<%= d.id %>/review">
+              <button class="btn secondary" type="submit" name="verification_status" value="verified">Verify</button>
+              <button class="btn danger" type="submit" name="verification_status" value="rejected">Reject</button>
+            </form>
+            <% } %>
+          </div>
+        </td>
+      </tr>
+    <% }) %>
+    <% if (!documents.length) { %><tr><td class="muted" colspan="8">No documents.</td></tr><% } %>
+  </table>
+</div>
+
+<%- include('partials/foot') %>
