@@ -313,7 +313,11 @@ export class ConversationManager {
       if (await this._tryShortcutFromFreeText(user, conversation, text)) return;
       conversation.fallback_count += 1;
       await conversation.save();
-      await this._sendMainMenu(user, conversation, "Sorry, I didn't quite catch that.");
+      const acknowledged = await this._conversationalNudge(
+        user, conversation, text,
+        "The user is at MigraTech's main menu and just replied with something that isn't one of the menu options."
+      );
+      await this._sendMainMenu(user, conversation, acknowledged ? null : "Sorry, I didn't quite catch that.");
       return;
     }
 
@@ -363,7 +367,15 @@ export class ConversationManager {
       if (await this._tryShortcutFromFreeText(user, conversation, text)) return;
       conversation.fallback_count += 1;
       await conversation.save();
-      await this._send(user, conversation, "Sorry, I didn't catch that — what is your primary goal?", flows.GOAL_OPTIONS);
+      const acknowledged = await this._conversationalNudge(
+        user, conversation, text,
+        "The user is being asked their primary migration goal (work, study, family, business, etc.) and just replied with something that isn't one of the goal options."
+      );
+      await this._send(
+        user, conversation,
+        acknowledged ? "What is your primary goal?" : "Sorry, I didn't catch that — what is your primary goal?",
+        flows.GOAL_OPTIONS
+      );
       return;
     }
 
@@ -390,7 +402,15 @@ export class ConversationManager {
     if (idx === null) {
       conversation.fallback_count += 1;
       await conversation.save();
-      await this._send(user, conversation, "Could you pick one of the options below?", flows.DESTINATION_DISCOVERY_OPTIONS);
+      const acknowledged = await this._conversationalNudge(
+        user, conversation, text,
+        "The user is being asked what matters most to them in choosing a migration destination (cost, speed, PR prospects, etc.) and just replied with something that isn't one of the options."
+      );
+      await this._send(
+        user, conversation,
+        acknowledged ? "What is most important to you?" : "Could you pick one of the options below?",
+        flows.DESTINATION_DISCOVERY_OPTIONS
+      );
       return;
     }
 
@@ -438,7 +458,12 @@ export class ConversationManager {
     if (value === null) {
       conversation.fallback_count += 1;
       await conversation.save();
-      await this._send(user, conversation, "Sorry, I didn't quite catch that. " + q.prompt, q.options);
+      const acknowledged = await this._conversationalNudge(
+        user, conversation, text,
+        `The user is being asked: "${q.prompt}" (as part of MigraTech's ${category} migration ` +
+          "assessment) and their reply didn't give a usable answer to that specific question."
+      );
+      await this._send(user, conversation, (acknowledged ? "" : "Sorry, I didn't quite catch that. ") + q.prompt, q.options);
       return;
     }
 
@@ -461,7 +486,17 @@ export class ConversationManager {
     if (idx === null) {
       conversation.fallback_count += 1;
       await conversation.save();
-      await this._send(user, conversation, "Could you pick one of the options below?", ASSESSMENT_MENU_OPTIONS);
+      const acknowledged = await this._conversationalNudge(
+        user, conversation, text,
+        "The user just received a preliminary migration eligibility assessment and is being " +
+          "asked what to do next (check documents, speak to a specialist, or go back to the " +
+          "main menu) — they replied with something that isn't one of those options."
+      );
+      await this._send(
+        user, conversation,
+        acknowledged ? "Would you like to:" : "Could you pick one of the options below?",
+        ASSESSMENT_MENU_OPTIONS
+      );
       return;
     }
 
@@ -509,7 +544,17 @@ export class ConversationManager {
     if (idx === null) {
       conversation.fallback_count += 1;
       await conversation.save();
-      await this._send(user, conversation, "Could you pick one of the options below?", flows.CONSULTATION_MENU_OPTIONS);
+      const acknowledged = await this._conversationalNudge(
+        user, conversation, text,
+        "The user is being asked whether they'd like to book a consultation, talk to an " +
+          "expert now, or continue later — they replied with something that isn't one of " +
+          "those options."
+      );
+      await this._send(
+        user, conversation,
+        acknowledged ? "Would you like to speak with a MigraTech migration specialist?" : "Could you pick one of the options below?",
+        flows.CONSULTATION_MENU_OPTIONS
+      );
       return;
     }
 
@@ -843,6 +888,27 @@ export class ConversationManager {
   // ------------------------------------------------------------------ //
   // Cross-cutting helpers
   // ------------------------------------------------------------------ //
+
+  /** Used wherever a message doesn't match any menu option / parseable answer and there's no
+   * more specific shortcut to try (a bare "no", "why", "not sure", etc.) — gets a short,
+   * natural AI acknowledgment of what the user actually said instead of jumping straight to
+   * a canned "sorry, pick an option" (that generic text is still sent right after by the
+   * caller, so navigation never breaks even when this returns false). Returns true if it sent
+   * something, so callers can skip their own canned prefix. Silently does nothing if AI isn't
+   * configured/rate-limited/erroring or its reply trips a guardrail. */
+  async _conversationalNudge(user, conversation, text, situationContext) {
+    const reply = await this.llmClient.chatReply(text, situationContext);
+    if (!reply) return false;
+
+    const banned = findBannedClaim(reply);
+    if (banned) {
+      logger.warn({ banned }, "Blocked banned claim in conversational fallback reply");
+      return false;
+    }
+
+    await this._send(user, conversation, reply);
+    return true;
+  }
 
   async _bestMatchingPathway(profile, category) {
     if (profile.destination_country) {

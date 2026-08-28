@@ -169,6 +169,45 @@ export class LLMClient {
       return { answer: contextSnippets[0], confidence: 0.4 };
     }
   }
+
+  /** General open-ended conversational reply — used when the structured flow has no specific
+   * action for what the user said (e.g. a bare "no" that doesn't match any menu option, or
+   * any other free text outside what a parser/menu expects). Not grounded in KB snippets like
+   * answerGrounded — just a short, natural, on-brand, guardrail-constrained acknowledgment
+   * that a canned "sorry, pick an option" doesn't provide. Returns null (caller falls back to
+   * its own canned text) when not configured/rate-limited/erroring — same degrade-gracefully
+   * pattern as the other methods here. */
+  async chatReply(userMessage, situationContext) {
+    if (!this._client) return null;
+    if (!aiRateLimiter.consume()) {
+      logger.warn("AI rate limit hit — skipping conversational fallback reply.");
+      return null;
+    }
+
+    try {
+      const response = await this._client.chat.completions.create({
+        model: settings.openaiModel,
+        max_tokens: 120,
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          {
+            role: "user",
+            content:
+              `Current situation: ${situationContext}\n\n` +
+              `The user just replied: "${userMessage}"\n\n` +
+              "Write a short, natural WhatsApp reply (1-2 sentences) that actually responds " +
+              "to what they said and gently guides them back to the current step. Don't list " +
+              "or repeat the menu options verbatim — those are shown again right after your " +
+              "reply, separately.",
+          },
+        ],
+      });
+      return response.choices[0]?.message?.content?.trim() || null;
+    } catch (err) {
+      logger.error({ err }, "LLM conversational fallback reply failed");
+      return null;
+    }
+  }
 }
 
 /** Rule-based fallback used when no OPENAI_API_KEY is configured. Deliberately
