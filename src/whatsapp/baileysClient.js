@@ -72,6 +72,12 @@ export class WhatsAppClient {
     this.profilePictureSynced = false;
     this.numberMismatch = false;
     this.relinking = false;
+    // Counts consecutive failed connection attempts so reconnects back off exponentially
+    // instead of retrying immediately forever — a sustained rejection (e.g. a 403) with no
+    // backoff turns into a tight loop hammering WhatsApp's servers every few seconds, which
+    // is itself a pattern that gets an unofficial client flagged/banned (see the 2026-08-21
+    // incident this was written in response to). Reset to 0 on a successful "open".
+    this.reconnectAttempts = 0;
   }
 
   /** Starts the Baileys socket and wires `onMessage(waId, message)` for every inbound,
@@ -128,6 +134,7 @@ export class WhatsAppClient {
           }
         }
         connectionState.status = "open";
+        this.reconnectAttempts = 0;
         logger.info("WhatsApp connection open.");
         this.syncProfilePicture().catch((err) => logger.warn({ err }, "Failed to sync WhatsApp profile"));
       } else if (connection === "close") {
@@ -137,7 +144,13 @@ export class WhatsAppClient {
         logger.warn({ statusCode }, "WhatsApp connection closed.");
         if (shouldReconnect) {
           connectionState.status = "disconnected";
-          this.start(onMessage, onDeliveryError);
+          this.reconnectAttempts += 1;
+          const delayMs = Math.min(2000 * 2 ** (this.reconnectAttempts - 1), 5 * 60 * 1000);
+          logger.warn(
+            { attempt: this.reconnectAttempts, delayMs },
+            "Reconnecting to WhatsApp after a backoff delay (not immediately) to avoid hammering it."
+          );
+          setTimeout(() => this.start(onMessage, onDeliveryError), delayMs);
         } else if (this.numberMismatch) {
           connectionState.status = "wrong_account";
           logger.error("Not reconnecting: linked WhatsApp account does not match BOT_PHONE_NUMBER.");
@@ -292,6 +305,7 @@ export class WhatsAppClient {
     await rm(settings.baileysAuthDir, { recursive: true, force: true });
     this.numberMismatch = false;
     this.profilePictureSynced = false;
+    this.reconnectAttempts = 0;
     connectionState.qr = null;
     connectionState.status = "connecting";
     this.relinking = false;
