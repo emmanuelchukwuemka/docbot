@@ -1,13 +1,22 @@
-// Wrapper around the Anthropic Claude API for the two AI-layer jobs the PRD (section 25)
+// Wrapper around the OpenAI API for the two AI-layer jobs the PRD (section 25)
 // calls for: entity/intent extraction from a free-text message, and grounded FAQ answering.
 //
-// Both methods degrade gracefully to a rule-based fallback when ANTHROPIC_API_KEY isn't
+// Both methods degrade gracefully to a rule-based fallback when OPENAI_API_KEY isn't
 // set, so the rest of the bot is runnable/testable without a live API key.
 
-import Anthropic from "@anthropic-ai/sdk";
+import OpenAI from "openai";
 import { settings } from "../config.js";
 import { logger } from "../logger.js";
 import { SYSTEM_PROMPT } from "./guardrails.js";
+import { RateLimiter } from "../security/rateLimiter.js";
+
+// Module-level (not per-instance) so every LLMClient shares one budget — matches how
+// ConversationManager actually uses this in practice (see manager.js), and means the cap
+// holds even if something ever constructs more than one LLMClient.
+export const aiRateLimiter = new RateLimiter({
+  max: settings.aiRateLimitMax,
+  windowMs: settings.aiRateLimitWindowMs,
+});
 
 export const INTENTS = [
   "migration_enquiry",
@@ -26,42 +35,50 @@ export const INTENTS = [
 ];
 
 const EXTRACTION_TOOL = {
-  name: "extract_migration_entities",
-  description:
-    "Extract structured migration-related entities and classify intent from a " +
-    "WhatsApp message sent to a migration guidance bot.",
-  input_schema: {
-    type: "object",
-    properties: {
-      intent: { type: "string", enum: INTENTS },
-      destination_country: { type: ["string", "null"] },
-      migration_objective: {
-        type: ["string", "null"],
-        enum: ["work", "study", "family", "business", "visit", "unsure", null],
+  type: "function",
+  function: {
+    name: "extract_migration_entities",
+    description:
+      "Extract structured migration-related entities and classify intent from a " +
+      "WhatsApp message sent to a migration guidance bot.",
+    parameters: {
+      type: "object",
+      properties: {
+        intent: { type: "string", enum: INTENTS },
+        destination_country: { type: ["string", "null"] },
+        migration_objective: {
+          type: ["string", "null"],
+          enum: ["work", "study", "family", "business", "visit", "unsure", null],
+        },
+        occupation: { type: ["string", "null"] },
+        education: { type: ["string", "null"] },
+        experience_years: { type: ["integer", "null"] },
+        age: { type: ["integer", "null"] },
+        language_ability: { type: ["string", "null"] },
+        family_status: { type: ["string", "null"] },
+        timeline: {
+          type: ["string", "null"],
+          enum: ["within_3_months", "3_6_months", "6_12_months", "more_than_12_months", null],
+        },
+        budget: {
+          type: ["string", "null"],
+          description: "The user's stated budget or financial readiness for migration costs, if " +
+            "mentioned (free text, e.g. '₦2 million' or 'not sure yet').",
+        },
+        wants_human_agent: { type: "boolean" },
+        confidence: {
+          type: "number",
+          description: "Your confidence (0.0-1.0) that this extraction is correct and complete.",
+        },
       },
-      occupation: { type: ["string", "null"] },
-      education: { type: ["string", "null"] },
-      experience_years: { type: ["integer", "null"] },
-      age: { type: ["integer", "null"] },
-      language_ability: { type: ["string", "null"] },
-      family_status: { type: ["string", "null"] },
-      timeline: {
-        type: ["string", "null"],
-        enum: ["within_3_months", "3_6_months", "6_12_months", "more_than_12_months", null],
-      },
-      wants_human_agent: { type: "boolean" },
-      confidence: {
-        type: "number",
-        description: "Your confidence (0.0-1.0) that this extraction is correct and complete.",
-      },
+      required: ["intent", "confidence", "wants_human_agent"],
     },
-    required: ["intent", "confidence", "wants_human_agent"],
   },
 };
 
 export class LLMClient {
   constructor() {
-    this._client = settings.aiConfigured ? new Anthropic({ apiKey: settings.anthropicApiKey }) : null;
+    this._client = settings.aiConfigured ? new OpenAI({ apiKey: settings.openaiApiKey }) : null;
   }
 
   get configured() {
@@ -70,19 +87,24 @@ export class LLMClient {
 
   async extractEntities(text) {
     if (!this._client) return fallbackExtractEntities(text);
+    if (!aiRateLimiter.consume()) {
+      logger.warn("AI rate limit hit — falling back to rule-based extraction for this message.");
+      return fallbackExtractEntities(text);
+    }
 
     try {
-      const response = await this._client.messages.create({
-        model: settings.anthropicModel,
+      const response = await this._client.chat.completions.create({
+        model: settings.openaiModel,
         max_tokens: 512,
-        system: SYSTEM_PROMPT,
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          { role: "user", content: text },
+        ],
         tools: [EXTRACTION_TOOL],
-        tool_choice: { type: "tool", name: "extract_migration_entities" },
-        messages: [{ role: "user", content: text }],
+        tool_choice: { type: "function", function: { name: "extract_migration_entities" } },
       });
-      for (const block of response.content) {
-        if (block.type === "tool_use") return block.input;
-      }
+      const toolCall = response.choices[0]?.message?.tool_calls?.[0];
+      if (toolCall) return JSON.parse(toolCall.function.arguments);
     } catch (err) {
       logger.error({ err }, "LLM entity extraction failed, falling back to rule-based extraction");
     }
@@ -104,6 +126,10 @@ export class LLMClient {
     if (!this._client) {
       return { answer: contextSnippets[0], confidence: 0.5 };
     }
+    if (!aiRateLimiter.consume()) {
+      logger.warn("AI rate limit hit — returning best matching snippet without a live LLM call.");
+      return { answer: contextSnippets[0], confidence: 0.5 };
+    }
 
     const contextBlock = contextSnippets.map((s) => `- ${s}`).join("\n\n");
     const prompt =
@@ -117,13 +143,16 @@ export class LLMClient {
       '"answer" and set confidence low.';
 
     try {
-      const response = await this._client.messages.create({
-        model: settings.anthropicModel,
+      const response = await this._client.chat.completions.create({
+        model: settings.openaiModel,
         max_tokens: 400,
-        system: SYSTEM_PROMPT,
-        messages: [{ role: "user", content: prompt }],
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          { role: "user", content: prompt },
+        ],
       });
-      const textBlock = response.content.find((b) => b.type === "text")?.text ?? "{}";
+      const textBlock = response.choices[0]?.message?.content ?? "{}";
       const data = JSON.parse(textBlock);
       return {
         answer: data.answer ?? contextSnippets[0],
@@ -136,7 +165,7 @@ export class LLMClient {
   }
 }
 
-/** Rule-based fallback used when no ANTHROPIC_API_KEY is configured. Deliberately
+/** Rule-based fallback used when no OPENAI_API_KEY is configured. Deliberately
  * conservative confidence so downstream code (see ai/nlu.js) tends to escalate rather
  * than act on a shaky guess. */
 function fallbackExtractEntities(text) {
@@ -177,6 +206,7 @@ function fallbackExtractEntities(text) {
     language_ability: null,
     family_status: null,
     timeline: null,
+    budget: null,
     wants_human_agent: intent === "human_agent",
     confidence: 0.5,
   };

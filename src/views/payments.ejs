@@ -67,7 +67,7 @@
           <% users.forEach(u => { %><option value="<%= u.id %>"><%= u.name || u.whatsapp_number %> (<%= u.whatsapp_number %>)</option><% }) %>
         </select>
       </div>
-      <div class="field"><label>Purpose</label><input name="purpose" placeholder="e.g. Consultation fee" required /></div>
+      <div class="field"><label>Purpose</label><input name="purpose" placeholder="e.g. MIGRA GO — Relocate package" required /></div>
     </div>
     <div class="form-row">
       <div class="field"><label>Amount</label><input name="amount" type="number" min="0.01" step="0.01" required /></div>
@@ -79,6 +79,15 @@
           <option value="EUR">EUR</option>
         </select>
       </div>
+      <div class="field"><label>Package (optional)</label>
+        <select name="tier">
+          <option value="" selected>— none —</option>
+          <option value="navigate">NAVIGATE</option>
+          <option value="relocate">RELOCATE</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
       <div class="field"><label>Status</label>
         <select name="status">
           <option value="pending" selected>pending</option>
@@ -86,12 +95,26 @@
           <option value="waived">waived</option>
         </select>
       </div>
-    </div>
-    <div class="form-row">
       <div class="field"><label>Method (optional)</label><input name="method" placeholder="e.g. Bank transfer, Cash" /></div>
       <div class="field"><label>Reference (optional)</label><input name="reference" placeholder="Your own reconciliation reference" /></div>
     </div>
     <div class="field"><label>Notes (optional)</label><textarea name="notes" rows="2"></textarea></div>
+
+    <div class="panel" style="margin:12px 0; padding:12px;">
+      <label style="display:flex; align-items:center; gap:8px; font-weight:600;">
+        <input type="checkbox" name="send_paystack_link" <%= paystackConfigured ? '' : 'disabled' %> />
+        Generate a Paystack link for this amount and send it via WhatsApp instead of recording manually
+      </label>
+      <p class="muted" style="font-size:12.5px; margin:6px 0 0;">
+        <% if (paystackConfigured) { %>
+          Mainly for RELOCATE, since its price varies by pathway/service and the bot never auto-charges for it. Ignores Status/Method/Reference above — the payment starts "pending" until Paystack confirms it.
+        <% } else { %>
+          Unavailable — PAYSTACK_SECRET_KEY isn't configured yet.
+        <% } %>
+      </p>
+      <div class="field" style="margin-top:8px;"><label>Payer email (only needed if the client has none on file)</label><input name="payer_email" type="email" placeholder="client@example.com" /></div>
+    </div>
+
     <button class="btn" type="submit">Record payment</button>
   </form>
 </div>

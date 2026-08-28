@@ -287,10 +287,14 @@ export const Task = sequelize.define(
   { tableName: "tasks", timestamps: false }
 );
 
-/** Internal fee/payment record-keeping — a staff-maintained ledger entry, not a live
- * payment processor integration. No card/bank details are ever collected or stored here;
- * `method`/`reference` are free-text notes staff enter for their own reconciliation
- * (e.g. "Bank transfer", "REF-20260820-01"). */
+/** Fee/payment record-keeping. Two provenances share this one table:
+ * - `provider: "manual"` — a staff-maintained ledger entry (the original design): no card/
+ *   bank details ever collected or stored here; `method`/`reference` are free-text notes
+ *   staff enter for their own reconciliation (e.g. "Bank transfer", "REF-20260820-01").
+ * - `provider: "paystack"` — a real Paystack transaction. `reference` is the Paystack
+ *   transaction reference (used to look the row up from the webhook); `method` is unused.
+ * `tier` links a payment to the DISCOVER/NAVIGATE/RELOCATE package it unlocks (null for
+ * ad-hoc/legacy manual entries that don't correspond to a package). */
 export const Payment = sequelize.define(
   "Payment",
   {
@@ -302,6 +306,10 @@ export const Payment = sequelize.define(
     purpose: { type: DataTypes.STRING(255), allowNull: false },
     status: { type: DataTypes.STRING(20), defaultValue: "pending" },
     /** pending | paid | waived | refunded */
+    tier: { type: DataTypes.STRING(20), allowNull: true },
+    /** null | navigate | relocate */
+    provider: { type: DataTypes.STRING(20), defaultValue: "manual" },
+    /** manual | paystack */
     method: { type: DataTypes.STRING(60), allowNull: true },
     reference: { type: DataTypes.STRING(120), allowNull: true },
     notes: { type: DataTypes.TEXT, allowNull: true },

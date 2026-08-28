@@ -15,7 +15,6 @@
     "node": ">=20"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.32.1",
     "@hapi/boom": "^10.0.1",
     "@whiskeysockets/baileys": "^6.7.9",
     "bcryptjs": "^2.4.3",
@@ -26,6 +25,7 @@
     "express-session": "^1.18.1",
     "mysql2": "^3.11.4",
     "node-cron": "^3.0.3",
+    "openai": "^4.104.0",
     "pino": "^9.5.0",
     "pino-pretty": "^12.1.0",
     "qrcode": "^1.5.4",

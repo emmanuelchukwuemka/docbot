@@ -15,6 +15,8 @@ import { settings } from "./config.js";
 import { logger } from "./logger.js";
 import { AuditLog, ConsultationBooking, Conversation, Document, Lead, Pathway, Payment, User, Country } from "./db/models.js";
 import { generateChecklist, renderChecklistWhatsappText } from "./documents/checklist.js";
+import { inboundRateLimiter } from "./whatsapp/ingest.js";
+import { aiRateLimiter } from "./ai/llmClient.js";
 
 const DOCUMENT_REMINDER_INTERVAL_DAYS = 3;
 const CONSULTATION_STAFF_REMINDER_AFTER_HOURS = 24;
@@ -171,6 +173,15 @@ export async function runDataRetentionCleanup() {
   return candidateIds.length;
 }
 
+/** Drops expired entries from the rate limiters' internal maps — see RateLimiter.sweep().
+ * Without this, a long-running process accumulates one Map entry per WhatsApp number/
+ * recipient that ever sent or received a message, even long after their window expired. */
+function runRateLimiterSweep(whatsappClient) {
+  inboundRateLimiter.sweep();
+  aiRateLimiter.sweep();
+  whatsappClient.outboundLimiter.sweep();
+}
+
 function guardedJob(name, fn) {
   return async () => {
     try {
@@ -194,10 +205,11 @@ export function startScheduler(whatsappClient) {
     cron.schedule("0 * * * *", guardedJob("consultation_reminders", runConsultationStaffReminders)),
     cron.schedule("0 9 * * *", guardedJob("payment_reminders", () => runPaymentReminders(whatsappClient))),
     cron.schedule("0 0 * * *", guardedJob("data_retention", runDataRetentionCleanup)),
+    cron.schedule("30 * * * *", guardedJob("rate_limiter_sweep", () => runRateLimiterSweep(whatsappClient))),
   ];
   logger.info(
     "Scheduler started (document reminders every 6h, consultation reminders hourly, " +
-      "payment reminders daily at 9am, retention daily)."
+      "payment reminders daily at 9am, retention daily, rate-limiter sweep hourly)."
   );
   return tasks;
 }

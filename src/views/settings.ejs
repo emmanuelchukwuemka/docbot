@@ -4,7 +4,7 @@
   <h2>Runtime configuration</h2>
   <table>
     <tr><td>Environment</td><td><%= settings.environment %></td></tr>
-    <tr><td>AI (Anthropic) configured</td><td><%= settings.aiConfigured ? 'Yes' : 'No — falling back to rule-based extraction' %></td></tr>
+    <tr><td>AI (OpenAI) configured</td><td><%= settings.aiConfigured ? 'Yes' : 'No — falling back to rule-based extraction' %></td></tr>
     <tr><td>Scheduler enabled</td><td><%= settings.enableScheduler ? 'Yes' : 'No' %></td></tr>
     <tr><td>Data retention job</td><td><%= settings.enableDataRetentionJob ? `Enabled (${settings.dataRetentionDays} days)` : 'Disabled' %></td></tr>
   </table>

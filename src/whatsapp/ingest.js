@@ -7,6 +7,16 @@
 import { Conversation, Message, User } from "../db/models.js";
 import { ConversationManager } from "../conversation/manager.js";
 import { logger } from "../logger.js";
+import { settings } from "../config.js";
+import { RateLimiter } from "../security/rateLimiter.js";
+
+// Per-sender inbound cap — see config.js for why. Module-level so it persists across
+// reconnects/relinks, which construct a fresh WhatsAppClient/ingest handler but should not
+// reset anyone's rate-limit window.
+export const inboundRateLimiter = new RateLimiter({
+  max: settings.whatsappInboundRateLimitMax,
+  windowMs: settings.whatsappInboundRateLimitWindowMs,
+});
 
 async function getOrCreateUser(waId, profileName) {
   let user = await User.findOne({ where: { whatsapp_number: waId } });
@@ -66,6 +76,11 @@ export function createIngestHandler({ whatsappClient, conversationManager }) {
   const manager = conversationManager || new ConversationManager({ whatsappClient });
 
   return async function handleIncomingMessage(waId, waMessage) {
+    if (!inboundRateLimiter.consume(waId)) {
+      logger.warn({ waId }, "Inbound WhatsApp rate limit hit — dropping message without processing.");
+      return;
+    }
+
     const content = waMessage.message;
     if (!content) return;
 

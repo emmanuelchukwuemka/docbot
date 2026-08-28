@@ -27,6 +27,7 @@ import { rm } from "node:fs/promises";
 import { settings } from "../config.js";
 import { logger } from "../logger.js";
 import { SendQueue } from "./sendQueue.js";
+import { RateLimiter } from "../security/rateLimiter.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PROFILE_PICTURE_PATH = path.join(__dirname, "..", "public", "brand", "logo-whatsapp.png");
@@ -67,6 +68,12 @@ export class WhatsAppClient {
     // Every outbound send (replies + the scheduler's bulk reminders) goes through this one
     // queue so message pacing is enforced in exactly one place — see sendQueue.js.
     this.sendQueue = new SendQueue();
+    // Per-recipient volume cap, on top of the queue's pacing — see config.js for why a bug
+    // or loop hammering one number is worth guarding against separately from send pacing.
+    this.outboundLimiter = new RateLimiter({
+      max: settings.whatsappOutboundRateLimitMax,
+      windowMs: settings.whatsappOutboundRateLimitWindowMs,
+    });
     this.profilePictureSynced = false;
     this.numberMismatch = false;
     this.relinking = false;
@@ -176,11 +183,21 @@ export class WhatsAppClient {
     return sock;
   }
 
+  /** Returns false (and logs) if `to` has already received outboundLimiter's cap of
+   * messages within the window — callers must skip the send entirely, not queue it for
+   * later, so a stuck sender can't build up an unbounded backlog. */
+  _checkOutboundLimit(to) {
+    if (this.outboundLimiter.consume(to)) return true;
+    logger.warn({ to }, "Outbound WhatsApp rate limit hit for this recipient — skipping send.");
+    return false;
+  }
+
   async sendText(to, body) {
     if (!this.sock) {
       logger.info({ to }, "WhatsApp not connected — skipping send.");
       return { skipped: true };
     }
+    if (!this._checkOutboundLimit(to)) return { skipped: true, reason: "rate_limited" };
     return this.sendQueue.enqueue(() => this.sock.sendMessage(toJid(to), { text: body }));
   }
 
@@ -193,6 +210,7 @@ export class WhatsAppClient {
       logger.info({ to }, "WhatsApp not connected — skipping send.");
       return { skipped: true };
     }
+    if (!this._checkOutboundLimit(to)) return { skipped: true, reason: "rate_limited" };
     return this.sendQueue.enqueue(async () => {
       try {
         return await this.sock.sendMessage(toJid(to), {
@@ -217,6 +235,7 @@ export class WhatsAppClient {
       logger.info({ to }, "WhatsApp not connected — skipping send.");
       return { skipped: true };
     }
+    if (!this._checkOutboundLimit(to)) return { skipped: true, reason: "rate_limited" };
     return this.sendQueue.enqueue(async () => {
       try {
         return await this.sock.sendMessage(toJid(to), {

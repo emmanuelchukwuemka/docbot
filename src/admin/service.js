@@ -4,10 +4,13 @@
 // (admin/uiRoutes.js) — a form POST from the dashboard calls the exact same function a JSON
 // client would hit, so behavior (including audit logging) never drifts between the two.
 
+import { randomUUID } from "node:crypto";
 import { Op, literal } from "sequelize";
+import { settings } from "../config.js";
 import * as analytics from "./analytics.js";
 import { logAction } from "./audit.js";
 import { HttpError } from "./httpError.js";
+import { initializeTransaction } from "../payments/paystackClient.js";
 import {
   AdminUser,
   Application,
@@ -348,9 +351,10 @@ export async function sendStaffMessage(conversationId, text, actor) {
   return { id: conversation.id, escalation_status: conversation.escalation_status };
 }
 
-/** Hands the conversation back to the bot — the opposite of resolveConversation/
- * sendStaffMessage. Once escalation_status is anything other than "requested"/"in_progress",
- * the bot resumes answering the user's next message normally. Also resets fallback_count —
+/** Hands the conversation back to full bot control after a staff takeover. The bot only
+ * ever goes quiet while escalation_status is "in_progress" (see conversation/manager.js) —
+ * a bare "requested" flag never silences it — so this mainly matters after resolveConversation/
+ * sendStaffMessage put a conversation in "in_progress". Also resets fallback_count —
  * without this, a conversation that crossed FALLBACK_ESCALATION_THRESHOLD once would
  * immediately re-escalate on the very next message forever, since detectEscalationReason()
  * checks that counter unconditionally on every turn, not just while actively escalated. */
@@ -797,6 +801,8 @@ export async function listPayments(status = null) {
     currency: p.currency,
     purpose: p.purpose,
     status: p.status,
+    tier: p.tier,
+    provider: p.provider,
     method: p.method,
     reference: p.reference,
     notes: p.notes,
@@ -824,11 +830,67 @@ export async function paymentStats() {
   };
 }
 
+const PAYMENT_TIERS = ["navigate", "relocate"];
+
 export async function createPayment(payload, actor) {
   if (!payload.user_id) throw new HttpError(400, "user_id is required");
   const amount = Number(payload.amount);
   if (!Number.isFinite(amount) || amount <= 0) throw new HttpError(400, "amount must be a positive number");
   if (!payload.purpose) throw new HttpError(400, "purpose is required");
+
+  const tier = PAYMENT_TIERS.includes(payload.tier) ? payload.tier : null;
+
+  // "Generate & send Paystack link" — mainly for RELOCATE, whose price varies by pathway/
+  // service (product spec) so the bot never auto-prices it; staff issue a custom-amount
+  // link here instead of marking a manual ledger entry paid after an offline transfer.
+  if (payload.send_paystack_link) {
+    if (!settings.paystackConfigured) throw new HttpError(400, "Paystack isn't configured (PAYSTACK_SECRET_KEY is not set)");
+    const user = await User.findByPk(payload.user_id);
+    if (!user) throw new HttpError(404, "User not found");
+
+    const email = payload.payer_email || user.email;
+    if (!email) throw new HttpError(400, "This client has no email on file — provide a payer email to generate a Paystack link");
+    if (email !== user.email) {
+      user.email = email;
+      await user.save();
+    }
+
+    const reference = `${tier || "custom"}-${randomUUID()}`;
+    const payment = await Payment.create({
+      user_id: payload.user_id,
+      lead_id: payload.lead_id || null,
+      amount,
+      currency: payload.currency || "NGN",
+      purpose: payload.purpose,
+      status: "pending",
+      tier,
+      provider: "paystack",
+      reference,
+      notes: payload.notes || null,
+      recorded_by: actor,
+    });
+
+    const { authorization_url } = await initializeTransaction({
+      email,
+      amountNaira: amount,
+      reference,
+      metadata: { user_id: payload.user_id, tier },
+    });
+    await whatsappClient.sendText(
+      user.whatsapp_number,
+      `MigraTech: here's your payment link for "${payload.purpose}" (${payment.currency} ` +
+        `${amount.toLocaleString()}):\n${authorization_url}\n\nI'll confirm automatically once it's paid.`
+    );
+
+    await logAction({
+      actor,
+      action: "create_payment",
+      targetType: "payment",
+      targetId: payment.id,
+      details: { amount, currency: payment.currency, purpose: payment.purpose, status: "pending", provider: "paystack", tier },
+    });
+    return { id: payment.id, status: payment.status, checkout_url: authorization_url };
+  }
 
   const status = payload.status && PAYMENT_STATUSES.includes(payload.status) ? payload.status : "pending";
   const payment = await Payment.create({
@@ -838,6 +900,8 @@ export async function createPayment(payload, actor) {
     currency: payload.currency || "NGN",
     purpose: payload.purpose,
     status,
+    tier,
+    provider: "manual",
     method: payload.method || null,
     reference: payload.reference || null,
     notes: payload.notes || null,

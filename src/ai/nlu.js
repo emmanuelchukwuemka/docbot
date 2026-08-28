@@ -11,6 +11,7 @@ const KNOWN_FIELDS = [
   "language_ability",
   "family_status",
   "timeline",
+  "budget",
 ];
 
 export function extractedEntitiesFromDict(data) {

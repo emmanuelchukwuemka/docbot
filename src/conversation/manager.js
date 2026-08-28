@@ -6,6 +6,7 @@
 // else is run through NLU extraction, and if it yields a destination and/or goal, the
 // relevant fields are saved and the user is fast-forwarded past questions already answered.
 
+import { randomUUID } from "node:crypto";
 import { settings } from "../config.js";
 import { logger } from "../logger.js";
 import { logAction } from "../admin/audit.js";
@@ -25,12 +26,16 @@ import {
   Message,
   MigrationProfile,
   Pathway,
+  Payment,
+  User,
 } from "../db/models.js";
 import { generateChecklist, renderChecklistWhatsappText } from "../documents/checklist.js";
 import { LocalEncryptedStorage } from "../documents/storage.js";
 import { assess } from "../eligibility/engine.js";
 import { getPathwaysForCountry, searchFaqs, searchPathways } from "../knowledgeBase/service.js";
 import { scoreLead } from "../leads/scoring.js";
+import { initializeTransaction } from "../payments/paystackClient.js";
+import { hasPaidTier } from "../payments/tierAccess.js";
 
 export const APPLICATION_STAGE_ORDER = [
   "profile_assessment",
@@ -145,8 +150,21 @@ export class ConversationManager {
       return;
     }
 
-    if (["requested", "in_progress"].includes(conversation.escalation_status)) {
-      // A human has (or is about to) take over — stay quiet so we don't talk over them.
+    if (conversation.escalation_status === "in_progress") {
+      // Staff have actively taken this conversation over (resolveConversation/
+      // sendStaffMessage in admin/service.js) — stay quiet so we don't talk over them.
+      // Deliberately NOT triggered by "requested" — an automatically-detected escalation
+      // trigger flags the conversation for staff and keeps the bot talking; only an
+      // explicit staff action stops it.
+      return;
+    }
+
+    if (conversation.state === "awaiting_payment_email") {
+      await this._handleAwaitingPaymentEmail(user, conversation, text);
+      return;
+    }
+    if (conversation.state === "awaiting_payment") {
+      await this._handleAwaitingPayment(user, conversation, text);
       return;
     }
 
@@ -175,7 +193,7 @@ export class ConversationManager {
    * through the state machine). `content` is the already-downloaded file bytes, or null if
    * the download failed. */
   async handleDocumentUpload(user, conversation, { content, mimeType, filename, whatsappMediaId }) {
-    if (["requested", "in_progress"].includes(conversation.escalation_status)) return;
+    if (conversation.escalation_status === "in_progress") return;
 
     if (content == null) {
       await this._send(
@@ -267,8 +285,9 @@ export class ConversationManager {
     } else if (option === "Speak to an Expert") {
       await this._offerConsultation(user, conversation);
     } else if (option === "Track My Application") {
-      await this._handleTrackApplication(user, conversation);
-      await this._sendMainMenu(user, conversation);
+      if (await this._handleTrackApplication(user, conversation)) {
+        await this._sendMainMenu(user, conversation);
+      }
     } else if (option === "FAQs") {
       conversation.state = "faq_waiting_question";
       await conversation.save();
@@ -489,6 +508,12 @@ export class ConversationManager {
   }
 
   async _offerConsultation(user, conversation) {
+    const unlocked = await this._requireTier(user, conversation, "navigate", {
+      purpose: "MIGRA PLAN — human expert review",
+      pendingAction: "consultation",
+    });
+    if (!unlocked) return;
+
     conversation.state = "consultation_menu";
     await conversation.save();
     await this._send(user, conversation, "Would you like to speak with a MigraTech migration specialist?", flows.CONSULTATION_MENU_OPTIONS);
@@ -649,6 +674,9 @@ export class ConversationManager {
     return application;
   }
 
+  /** Returns true if tracking was shown (or there was nothing to track yet) — false if the
+   * user got redirected into the payment flow instead, so callers know whether it's still
+   * safe to follow up with the main menu (see the two call sites) without clobbering that. */
   async _handleTrackApplication(user, conversation) {
     const application = await Application.findOne({ where: { user_id: user.id }, order: [["created_at", "DESC"]] });
     if (!application) {
@@ -657,8 +685,14 @@ export class ConversationManager {
         "You don't have a migration journey started yet — choose \"Explore Migration " +
           'Options" from the main menu to begin.'
       );
-      return;
+      return true;
     }
+
+    const unlocked = await this._requireTier(user, conversation, "relocate", {
+      purpose: "MIGRA GO — application tracking",
+      pendingAction: "track_application",
+    });
+    if (!unlocked) return false;
 
     const documents = await Document.findAll({ where: { user_id: user.id } });
     const pathway = application.pathway_id ? await Pathway.findByPk(application.pathway_id) : null;
@@ -681,6 +715,7 @@ export class ConversationManager {
     });
 
     await this._send(user, conversation, lines.join("\n"));
+    return true;
   }
 
   async _tryShortcutFromFreeText(user, conversation, text) {
@@ -688,8 +723,9 @@ export class ConversationManager {
     if (await this._maybeEscalate(user, conversation, text, extracted)) return true;
 
     if (extracted.intent === "application_status") {
-      await this._handleTrackApplication(user, conversation);
-      await this._sendMainMenu(user, conversation);
+      if (await this._handleTrackApplication(user, conversation)) {
+        await this._sendMainMenu(user, conversation);
+      }
       return true;
     }
 
@@ -773,6 +809,185 @@ export class ConversationManager {
     return true;
   }
 
+  // ------------------------------------------------------------------ //
+  // DISCOVER / NAVIGATE / RELOCATE payment gate
+  // ------------------------------------------------------------------ //
+
+  /** Returns true if `user` already has `tier` unlocked. Otherwise puts the conversation
+   * into the payment-loop state (awaiting_payment / awaiting_payment_email) and sends the
+   * appropriate prompt, then returns false — callers must stop and not perform the gated
+   * action. NAVIGATE is a fixed self-serve Paystack checkout; RELOCATE's price varies by
+   * pathway/service (product spec), so it's always a staff-quoted custom link instead. */
+  async _requireTier(user, conversation, tier, { purpose, pendingAction }) {
+    if (await hasPaidTier(user.id, tier)) return true;
+
+    if (tier !== "navigate") {
+      conversation.context = { ...conversation.context, pending_tier: tier, pending_action: pendingAction, pending_purpose: purpose };
+      conversation.state = "awaiting_payment";
+      await conversation.save();
+      await this._send(
+        user, conversation,
+        `"${purpose}" is part of MigraTech's Relocate package, which is priced to your ` +
+          "specific migration pathway. A MigraTech specialist will follow up with a custom " +
+          'quote and payment link. Reply "menu" anytime to go back for now.'
+      );
+      await this._escalate(conversation, `Relocate package requested (${purpose}) — needs a custom quote.`);
+      return false;
+    }
+
+    if (!user.email) {
+      conversation.context = { ...conversation.context, pending_tier: tier, pending_action: pendingAction, pending_purpose: purpose };
+      conversation.state = "awaiting_payment_email";
+      await conversation.save();
+      await this._send(
+        user, conversation,
+        `To unlock "${purpose}", I first need an email address for your payment receipt. ` +
+          'What\'s a good email to use? (or reply "cancel")'
+      );
+      return false;
+    }
+
+    await this._sendNavigatePaymentLink(user, conversation, purpose, pendingAction);
+    return false;
+  }
+
+  async _sendNavigatePaymentLink(user, conversation, purpose, pendingAction) {
+    if (!settings.paystackConfigured) {
+      await this._send(
+        user, conversation,
+        "Online payment isn't set up yet — a MigraTech specialist will reach out to " +
+          `arrange payment for "${purpose}".`
+      );
+      await this._escalate(conversation, `Wanted to pay for "${purpose}" but Paystack isn't configured yet.`);
+      return;
+    }
+
+    const reference = `navigate-${randomUUID()}`;
+    const payment = await Payment.create({
+      user_id: user.id,
+      amount: settings.navigatePriceNgn,
+      currency: "NGN",
+      purpose,
+      status: "pending",
+      tier: "navigate",
+      provider: "paystack",
+      reference,
+    });
+
+    try {
+      const { authorization_url } = await initializeTransaction({
+        email: user.email,
+        amountNaira: settings.navigatePriceNgn,
+        reference,
+        metadata: { user_id: user.id, tier: "navigate" },
+      });
+      conversation.context = {
+        ...conversation.context,
+        pending_tier: "navigate",
+        pending_action: pendingAction,
+        pending_purpose: purpose,
+        pending_payment_id: payment.id,
+        pending_checkout_url: authorization_url,
+      };
+      conversation.state = "awaiting_payment";
+      await conversation.save();
+      await this._send(
+        user, conversation,
+        `To unlock "${purpose}" (₦${settings.navigatePriceNgn.toLocaleString()}), complete ` +
+          `payment here:\n${authorization_url}\n\nI'll confirm automatically as soon as it ` +
+          'goes through — message me anytime to check, or reply "menu" to go back for now.'
+      );
+    } catch (err) {
+      logger.error({ err }, "Failed to create Paystack payment link");
+      await this._send(
+        user, conversation,
+        "I couldn't generate a payment link just now — a MigraTech specialist will follow up to arrange payment."
+      );
+      await this._escalate(conversation, "Failed to generate Paystack payment link.");
+    }
+  }
+
+  async _handleAwaitingPaymentEmail(user, conversation, text) {
+    const stripped = text.trim();
+    if (["cancel", "menu", "back"].includes(stripped.toLowerCase())) {
+      conversation.context = { ...conversation.context, pending_tier: null, pending_action: null, pending_purpose: null };
+      await this._sendMainMenu(user, conversation);
+      return;
+    }
+
+    const emailMatch = stripped.match(/[\w.+-]+@[\w-]+\.[\w.-]+/);
+    if (!emailMatch) {
+      await this._send(user, conversation, 'That doesn\'t look like a valid email — what\'s a good email to use? (or reply "cancel")');
+      return;
+    }
+    user.email = emailMatch[0];
+    await user.save();
+
+    const { pending_purpose: purpose, pending_action: pendingAction } = conversation.context;
+    await this._sendNavigatePaymentLink(user, conversation, purpose, pendingAction);
+  }
+
+  async _handleAwaitingPayment(user, conversation, text) {
+    const stripped = text.trim().toLowerCase();
+    if (["cancel", "menu", "back"].includes(stripped)) {
+      conversation.context = {
+        ...conversation.context,
+        pending_tier: null, pending_action: null, pending_purpose: null, pending_checkout_url: null, pending_payment_id: null,
+      };
+      await this._sendMainMenu(user, conversation);
+      return;
+    }
+
+    const { pending_tier: tier, pending_checkout_url: checkoutUrl, pending_purpose: purpose } = conversation.context;
+    if (tier === "navigate" && checkoutUrl) {
+      await this._send(
+        user, conversation,
+        `Still waiting on payment for "${purpose || "your MIGRA PLAN package"}" — complete ` +
+          `it here:\n${checkoutUrl}\n\nI'll confirm automatically once it clears, or reply ` +
+          '"menu" to go back for now.'
+      );
+    } else {
+      await this._send(
+        user, conversation,
+        "A MigraTech specialist is still preparing your custom Relocate quote — they'll " +
+          'follow up soon. Reply "menu" to go back for now.'
+      );
+    }
+  }
+
+  /** Called by the Paystack webhook (see payments/webhookRoutes.js) once a payment is
+   * verified paid. Picks the user's most recent conversation back up and re-runs whatever
+   * gated action they were originally trying to reach — now that the payment exists,
+   * _requireTier's hasPaidTier check passes and it proceeds normally instead of re-gating. */
+  async handlePaymentConfirmed(payment) {
+    const user = await User.findByPk(payment.user_id);
+    if (!user) return;
+
+    const conversation = await Conversation.findOne({ where: { user_id: user.id }, order: [["updated_at", "DESC"]] });
+    if (!conversation) return;
+
+    const pendingAction = conversation.context?.pending_action;
+
+    await this._send(user, conversation, `✅ Payment received for "${payment.purpose}" — you're all set.`);
+
+    conversation.context = {
+      ...conversation.context,
+      pending_tier: null, pending_action: null, pending_purpose: null, pending_checkout_url: null, pending_payment_id: null,
+    };
+    conversation.state = "main_menu";
+    await conversation.save();
+
+    if (pendingAction === "consultation") {
+      await this._offerConsultation(user, conversation);
+    } else if (pendingAction === "track_application") {
+      if (await this._handleTrackApplication(user, conversation)) {
+        await this._sendMainMenu(user, conversation);
+      }
+    } else {
+      await this._sendMainMenu(user, conversation);
+    }
+  }
+
   async _maybeEscalate(user, conversation, text, extracted) {
     const reason = detectEscalationReason(text, extracted, conversation.fallback_count);
     if (!reason) return false;
@@ -785,9 +1000,13 @@ export class ConversationManager {
   }
 
   async _escalate(conversation, reason) {
+    // Deliberately does NOT touch conversation.state: the bot keeps talking (see the
+    // handleInbound guard above), so the conversation must stay wherever it already was
+    // (main_menu, collecting, etc.) rather than being parked in a dead state. escalation_status
+    // is only a flag for staff visibility/notification here — a human must explicitly act
+    // (resolveConversation/sendStaffMessage) to actually silence the bot.
     conversation.escalation_status = "requested";
     conversation.escalation_reason = reason;
-    conversation.state = "escalated";
     await conversation.save();
     await this._notifyStaff(conversation, reason);
   }

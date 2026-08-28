@@ -16,6 +16,7 @@ import { router as adminUiRouter } from "./admin/uiRoutes.js";
 import { whatsappClient, connectionState } from "./whatsapp/baileysClient.js";
 import { createIngestHandler, handleDeliveryError } from "./whatsapp/ingest.js";
 import { ConversationManager } from "./conversation/manager.js";
+import { createPaymentsWebhookRouter } from "./payments/webhookRoutes.js";
 import { startScheduler } from "./scheduler.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -31,6 +32,14 @@ async function main() {
   const app = express();
   app.set("views", path.join(__dirname, "views"));
   app.set("view engine", "ejs");
+
+  // conversationManager is needed by the payments webhook (to resume a gated flow once a
+  // payment clears), so it's built before the app rather than down by whatsappClient.start().
+  const conversationManager = new ConversationManager({ whatsappClient });
+
+  // Mounted BEFORE express.json() — Paystack signs the raw body, so this route parses its
+  // own body with express.raw() and must never have express.json() consume it first.
+  app.use("/webhooks", createPaymentsWebhookRouter({ conversationManager }));
 
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
@@ -76,7 +85,6 @@ async function main() {
     });
   });
 
-  const conversationManager = new ConversationManager({ whatsappClient });
   const handleIncomingMessage = createIngestHandler({ whatsappClient, conversationManager });
   await whatsappClient.start(handleIncomingMessage, handleDeliveryError);
 

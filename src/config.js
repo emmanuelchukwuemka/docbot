@@ -17,9 +17,15 @@ export const settings = {
 
   databaseUrl: process.env.DATABASE_URL || "mysql://migratech:migratech@localhost:3306/migratech",
 
-  anthropicApiKey: process.env.ANTHROPIC_API_KEY || "",
-  anthropicModel: process.env.ANTHROPIC_MODEL || "claude-sonnet-5",
+  openaiApiKey: process.env.OPENAI_API_KEY || "",
+  openaiModel: process.env.OPENAI_MODEL || "gpt-4o-mini",
   aiConfidenceThreshold: num(process.env.AI_CONFIDENCE_THRESHOLD, 0.6),
+  // Global cap on OpenAI calls (entity extraction + grounded FAQ answers share one budget) —
+  // bounds worst-case cost and stays clear of OpenAI's own per-minute rate limits regardless
+  // of how many conversations are active at once. Calls beyond the cap fall back to the same
+  // rule-based/raw-snippet paths used when no API key is configured at all.
+  aiRateLimitMax: num(process.env.AI_RATE_LIMIT_MAX, 30),
+  aiRateLimitWindowMs: num(process.env.AI_RATE_LIMIT_WINDOW_MS, 60_000),
 
   adminUsername: process.env.ADMIN_USERNAME || "admin",
   adminPassword: process.env.ADMIN_PASSWORD || "change-me",
@@ -37,6 +43,17 @@ export const settings = {
 
   baileysAuthDir: process.env.BAILEYS_AUTH_DIR || "./storage/baileys-auth",
   whatsappMinSendIntervalMs: num(process.env.WHATSAPP_MIN_SEND_INTERVAL_MS, 1200),
+  // Per-sender cap on inbound messages we'll actually process — protects against a single
+  // flooding number (bug, retry storm, or deliberate abuse) running up AI cost and driving
+  // a burst of outbound replies, which is exactly the pattern that gets an unofficial
+  // WhatsApp client flagged. Messages beyond the cap are dropped, not queued.
+  whatsappInboundRateLimitMax: num(process.env.WHATSAPP_INBOUND_RATE_LIMIT_MAX, 10),
+  whatsappInboundRateLimitWindowMs: num(process.env.WHATSAPP_INBOUND_RATE_LIMIT_WINDOW_MS, 60_000),
+  // Per-recipient cap on outbound sends — a ceiling independent of WHATSAPP_MIN_SEND_INTERVAL_MS
+  // (which paces gaps between sends but not total volume). Stops any bug/loop from hammering
+  // one number, which is a known trigger for WhatsApp banning an unofficial client.
+  whatsappOutboundRateLimitMax: num(process.env.WHATSAPP_OUTBOUND_RATE_LIMIT_MAX, 30),
+  whatsappOutboundRateLimitWindowMs: num(process.env.WHATSAPP_OUTBOUND_RATE_LIMIT_WINDOW_MS, 3_600_000),
   // Safety check, not a way to "set" the bot's number — Baileys has no concept of configuring
   // which account to use; the number is whatever WhatsApp account the QR code was scanned
   // with. If set, the bot refuses to run against a linked session that doesn't match, so an
@@ -48,7 +65,21 @@ export const settings = {
 
   port: num(process.env.PORT, 8000),
 
+  // --- Payments (Paystack) — the DISCOVER/NAVIGATE/RELOCATE package model ---
+  // NAVIGATE is a fixed "first payment" the bot can sell itself via a self-serve Paystack
+  // link. RELOCATE is explicitly variable "depending on the migration pathway and service"
+  // (product spec), so it is never auto-priced by the bot — staff issue a custom-amount
+  // Paystack link from the admin dashboard instead (see admin/service.js createPayment).
+  paystackSecretKey: process.env.PAYSTACK_SECRET_KEY || "",
+  // Placeholder — this is not a real price. Set to MigraTech's actual NAVIGATE fee before
+  // taking real payments.
+  navigatePriceNgn: num(process.env.NAVIGATE_PRICE_NGN, 15000),
+
+  get paystackConfigured() {
+    return Boolean(this.paystackSecretKey);
+  },
+
   get aiConfigured() {
-    return Boolean(this.anthropicApiKey);
+    return Boolean(this.openaiApiKey);
   },
 };

@@ -5,6 +5,7 @@
 import { Router } from "express";
 import { Op } from "sequelize";
 import QRCode from "qrcode";
+import { settings } from "../config.js";
 import { getSessionAdminUser, SESSION_KEY } from "./deps.js";
 import { HttpError } from "./httpError.js";
 import * as svc from "./service.js";
@@ -444,12 +445,13 @@ router.get("/payments", async (req, res) => {
     paymentStats: await svc.paymentStats(),
     users: await svc.listUsers(),
     statusFilter: req.query.status || null,
+    paystackConfigured: settings.paystackConfigured,
   });
 });
 
 router.post("/payments", async (req, res) => {
   await withError(req, res, "/admin/payments", async () => {
-    await svc.createPayment(
+    const result = await svc.createPayment(
       {
         user_id: req.body.user_id,
         lead_id: req.body.lead_id || null,
@@ -457,13 +459,16 @@ router.post("/payments", async (req, res) => {
         currency: req.body.currency || "NGN",
         purpose: req.body.purpose,
         status: req.body.status || "pending",
+        tier: req.body.tier || null,
         method: req.body.method || null,
         reference: req.body.reference || null,
         notes: req.body.notes || null,
+        send_paystack_link: req.body.send_paystack_link === "on",
+        payer_email: req.body.payer_email || null,
       },
       req.adminUser.username
     );
-    redirect(res, "/admin/payments", "Payment recorded.");
+    redirect(res, "/admin/payments", result.checkout_url ? "Payment link sent via WhatsApp." : "Payment recorded.");
   });
 });
 
