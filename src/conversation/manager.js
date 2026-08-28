@@ -255,6 +255,14 @@ export class ConversationManager {
   }
 
   async _handleMainMenu(user, conversation, text, interactiveId) {
+    // A bare "hi"/"hello" mid-conversation isn't a failed answer — it's the user checking
+    // back in. Re-show the menu plainly rather than scolding them with "didn't catch that"
+    // and burning a fallback_count strike (which would otherwise push them toward escalation).
+    if (isGreeting(text)) {
+      await this._sendMainMenu(user, conversation);
+      return;
+    }
+
     const idx = resolveSelection(text, interactiveId, flows.MAIN_MENU_OPTIONS);
     if (idx === null) {
       if (await this._tryShortcutFromFreeText(user, conversation, text)) return;
@@ -298,6 +306,11 @@ export class ConversationManager {
   }
 
   async _handleGoalSelection(user, conversation, text, interactiveId) {
+    if (isGreeting(text)) {
+      await this._send(user, conversation, "What is your primary goal?", flows.GOAL_OPTIONS);
+      return;
+    }
+
     const idx = resolveSelection(text, interactiveId, flows.GOAL_OPTIONS);
     if (idx === null) {
       if (await this._tryShortcutFromFreeText(user, conversation, text)) return;
@@ -319,6 +332,11 @@ export class ConversationManager {
   }
 
   async _handleDestinationDiscovery(user, conversation, text, interactiveId) {
+    if (isGreeting(text)) {
+      await this._send(user, conversation, "What is most important to you?", flows.DESTINATION_DISCOVERY_OPTIONS);
+      return;
+    }
+
     const idx = resolveSelection(text, interactiveId, flows.DESTINATION_DISCOVERY_OPTIONS);
     if (idx === null) {
       conversation.fallback_count += 1;
@@ -383,6 +401,11 @@ export class ConversationManager {
   }
 
   async _handleAssessmentMenu(user, conversation, text, interactiveId) {
+    if (isGreeting(text)) {
+      await this._send(user, conversation, "Would you like to:", ASSESSMENT_MENU_OPTIONS);
+      return;
+    }
+
     const idx = resolveSelection(text, interactiveId, ASSESSMENT_MENU_OPTIONS);
     if (idx === null) {
       conversation.fallback_count += 1;
@@ -411,12 +434,22 @@ export class ConversationManager {
   }
 
   async _handleFaqWaitingQuestion(user, conversation, text) {
+    if (isGreeting(text)) {
+      await this._send(user, conversation, "What would you like to know?");
+      return;
+    }
+
     if (await this._answerFaq(user, conversation, text)) {
       await this._sendMainMenu(user, conversation, "Anything else I can help with?");
     }
   }
 
   async _handleConsultationMenu(user, conversation, text, interactiveId) {
+    if (isGreeting(text)) {
+      await this._send(user, conversation, "Would you like to speak with a MigraTech migration specialist?", flows.CONSULTATION_MENU_OPTIONS);
+      return;
+    }
+
     const idx = resolveSelection(text, interactiveId, flows.CONSULTATION_MENU_OPTIONS);
     if (idx === null) {
       conversation.fallback_count += 1;
