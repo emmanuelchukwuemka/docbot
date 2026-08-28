@@ -65,7 +65,13 @@ const EXTRACTION_TOOL = {
           description: "The user's stated budget or financial readiness for migration costs, if " +
             "mentioned (free text, e.g. '₦2 million' or 'not sure yet').",
         },
-        wants_human_agent: { type: "boolean" },
+        wants_human_agent: {
+          type: "boolean",
+          description: "True ONLY if the user explicitly asked to speak with a human, agent, " +
+            "or specialist (e.g. 'let me talk to someone', 'I want a real person'). Do NOT set " +
+            "this true just because the message is about migration, work, study, family, or any " +
+            "other topic — those are exactly what the bot itself should help with, not escalate.",
+        },
         confidence: {
           type: "number",
           description: "Your confidence (0.0-1.0) that this extraction is correct and complete.",
