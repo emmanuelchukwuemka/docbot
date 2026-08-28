@@ -180,6 +180,7 @@ export class ConversationManager {
 
     const handlers = {
       welcome: this._handleWelcome,
+      collecting_name: this._handleCollectingName,
       main_menu: this._handleMainMenu,
       goal_selection: this._handleGoalSelection,
       destination_discovery: this._handleDestinationDiscovery,
@@ -251,15 +252,44 @@ export class ConversationManager {
   // ------------------------------------------------------------------ //
 
   async _handleWelcome(user, conversation, text) {
-    if (isGreeting(text)) {
-      await this._send(user, conversation, WELCOME_TEXT);
-      await this._sendMainMenu(user, conversation);
+    await this._send(user, conversation, WELCOME_TEXT);
+
+    if (user.name) {
+      // A returning user we've already been introduced to — no need to ask again.
+      if (isGreeting(text) || !(await this._tryShortcutFromFreeText(user, conversation, text))) {
+        await this._sendMainMenu(user, conversation, `Good to see you again, ${user.name}!`);
+      }
       return;
     }
-    if (!(await this._tryShortcutFromFreeText(user, conversation, text))) {
-      await this._send(user, conversation, WELCOME_TEXT);
-      await this._sendMainMenu(user, conversation);
+
+    // First contact — introduce ourselves properly before anything else, like a human
+    // assistant would, rather than silently pulling a name from WhatsApp account metadata.
+    // Whatever they said (a real migration statement, not just "hi") is remembered and
+    // resumed right after they answer, so asking for a name doesn't waste it.
+    conversation.context = { pending_first_message: isGreeting(text) ? null : text };
+    conversation.state = "collecting_name";
+    await conversation.save();
+    await this._send(user, conversation, "Before we get started — what should I call you?");
+  }
+
+  async _handleCollectingName(user, conversation, text) {
+    const name = text.trim().slice(0, 80);
+    if (!name) {
+      await this._send(user, conversation, "What should I call you?");
+      return;
     }
+
+    user.name = name;
+    await user.save();
+
+    const pendingFirstMessage = conversation.context?.pending_first_message;
+    conversation.context = {};
+    await conversation.save();
+
+    await this._send(user, conversation, `Great to meet you, ${name}! 👋`);
+
+    if (pendingFirstMessage && (await this._tryShortcutFromFreeText(user, conversation, pendingFirstMessage))) return;
+    await this._sendMainMenu(user, conversation);
   }
 
   async _handleMainMenu(user, conversation, text, interactiveId) {

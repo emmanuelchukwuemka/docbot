@@ -18,9 +18,13 @@ export const inboundRateLimiter = new RateLimiter({
   windowMs: settings.whatsappInboundRateLimitWindowMs,
 });
 
-async function getOrCreateUser(waId, profileName) {
+// Deliberately does NOT seed `name` from WhatsApp's own pushName — the bot asks for the
+// user's name itself as part of the welcome flow (see conversation/manager.js's
+// _handleWelcome/_handleCollectingName), same as a human assistant introducing themselves
+// would, rather than silently inferring it from account metadata the user never confirmed.
+async function getOrCreateUser(waId) {
   let user = await User.findOne({ where: { whatsapp_number: waId } });
-  if (!user) user = await User.create({ whatsapp_number: waId, name: profileName || null });
+  if (!user) user = await User.create({ whatsapp_number: waId });
   return user;
 }
 
@@ -84,8 +88,7 @@ export function createIngestHandler({ whatsappClient, conversationManager }) {
     const content = waMessage.message;
     if (!content) return;
 
-    const profileName = waMessage.pushName || null;
-    const user = await getOrCreateUser(waId, profileName);
+    const user = await getOrCreateUser(waId);
     const conversation = await getOrCreateOpenConversation(user);
 
     const media = extractMedia(content);
