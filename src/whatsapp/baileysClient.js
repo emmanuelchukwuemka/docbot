@@ -57,11 +57,6 @@ export function jidToWhatsappNumber(jid) {
   return domain ? `${number}@${domain}` : number;
 }
 
-function numberedFallbackText(body, options) {
-  const numbered = options.map((o, i) => `${i + 1}. ${o}`).join("\n");
-  return `${body}\n\n${numbered}`;
-}
-
 export class WhatsAppClient {
   constructor() {
     this.sock = null;
@@ -202,9 +197,11 @@ export class WhatsAppClient {
   }
 
   /** Interactive reply buttons. WhatsApp allows a max of 3 buttons — for longer menus use
-   * sendListOptions instead. Falls back to one plain numbered text message (not a second,
-   * separate queued send — a fallback is still only one logical outbound message) if the
-   * interactive send fails. */
+   * sendListOptions instead. `body` is expected to already spell the options out as numbered
+   * text (see conversation/manager.js's _send) since native buttons aren't guaranteed to
+   * render on every client — so on send failure, falling back to plain `body` text (not a
+   * second, separate queued send — still only one logical outbound message) is already
+   * self-sufficient, no re-appending needed. */
   async sendButtonOptions(to, body, options) {
     if (!this.sock) {
       logger.info({ to }, "WhatsApp not connected — skipping send.");
@@ -225,7 +222,7 @@ export class WhatsAppClient {
         });
       } catch (err) {
         logger.warn({ err }, "Interactive buttons send failed — falling back to plain text");
-        return this.sock.sendMessage(toJid(to), { text: numberedFallbackText(body, options) });
+        return this.sock.sendMessage(toJid(to), { text: body });
       }
     });
   }
@@ -255,7 +252,7 @@ export class WhatsAppClient {
         });
       } catch (err) {
         logger.warn({ err }, "Interactive list send failed — falling back to plain text");
-        return this.sock.sendMessage(toJid(to), { text: numberedFallbackText(body, options) });
+        return this.sock.sendMessage(toJid(to), { text: body });
       }
     });
   }

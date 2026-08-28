@@ -1134,24 +1134,30 @@ export class ConversationManager {
   }
 
   async _send(user, conversation, text, options = null, listButtonText = null) {
+    // Native tappable buttons/lists aren't guaranteed to render on every WhatsApp client
+    // version for an unofficial (Baileys) connection — see whatsapp/baileysClient.js's own
+    // doc comment. When they silently fail to render, a bare lead-in like "Would you like
+    // to:" with nothing tappable leaves the user with no visible options at all. Always
+    // spelling the choices out as numbered text in the body itself (in addition to, not
+    // instead of, the native buttons) means the message is self-sufficient either way.
+    const bodyText = options && options.length
+      ? text + "\n\n" + options.map((o, i) => `${i + 1}. ${o}`).join("\n")
+      : text;
+
     let result;
     if (options && options.length > 3) {
-      result = await this.whatsappClient.sendListOptions(user.whatsapp_number, text, listButtonText || "Choose", options);
+      result = await this.whatsappClient.sendListOptions(user.whatsapp_number, bodyText, listButtonText || "Choose", options);
     } else if (options && options.length) {
-      result = await this.whatsappClient.sendButtonOptions(user.whatsapp_number, text, options);
+      result = await this.whatsappClient.sendButtonOptions(user.whatsapp_number, bodyText, options);
     } else {
-      result = await this.whatsappClient.sendText(user.whatsapp_number, text);
+      result = await this.whatsappClient.sendText(user.whatsapp_number, bodyText);
     }
 
-    let loggedText = text;
-    if (options && options.length) {
-      loggedText += "\n\n" + options.map((o, i) => `${i + 1}. ${o}`).join("\n");
-    }
     await Message.create({
       conversation_id: conversation.id,
       direction: "outbound",
       sender: "bot",
-      text: loggedText,
+      text: bodyText,
       whatsapp_message_id: result?.key?.id ?? null,
     });
   }
