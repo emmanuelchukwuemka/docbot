@@ -34,9 +34,17 @@ You are not a lawyer, licensed immigration adviser, embassy, consulate, or gover
 authority. Keep answers concise (this is WhatsApp), in plain language, avoiding \
 unnecessary immigration jargon.`;
 
+// PRD section 26's exact required wording — reserved for cases that actually escalate (a
+// banned claim slipping through), so it never promises a specialist hand-off that doesn't
+// happen. Routine low-confidence answers (2026-08-28: no longer escalated) use
+// LOW_CONFIDENCE_MESSAGE instead, which stays honest about the limitation without that promise.
 export const CONFIDENCE_FALLBACK_MESSAGE =
   "I don't want to give you inaccurate information. Let me connect you with a " +
   "MigraTech specialist who can review your case.";
+
+export const LOW_CONFIDENCE_MESSAGE =
+  "I don't have confident, verified information on that yet — I don't want to guess. " +
+  "Is there something else I can help with?";
 
 const BANNED_PATTERNS = [
   /\bguarantee(d|s)?\s+(you\s+)?(a\s+)?visa/i,

@@ -354,10 +354,9 @@ export async function sendStaffMessage(conversationId, text, actor) {
 /** Hands the conversation back to full bot control after a staff takeover. The bot only
  * ever goes quiet while escalation_status is "in_progress" (see conversation/manager.js) —
  * a bare "requested" flag never silences it — so this mainly matters after resolveConversation/
- * sendStaffMessage put a conversation in "in_progress". Also resets fallback_count —
- * without this, a conversation that crossed FALLBACK_ESCALATION_THRESHOLD once would
- * immediately re-escalate on the very next message forever, since detectEscalationReason()
- * checks that counter unconditionally on every turn, not just while actively escalated. */
+ * sendStaffMessage put a conversation in "in_progress". Also resets fallback_count as a clean
+ * slate for the returning conversation (fallback_count no longer drives escalation on its own —
+ * see escalation.js — but it's still tracked per-menu-state for "pick an option" reprompts). */
 export async function returnConversationToBot(conversationId, actor) {
   const conversation = await Conversation.findByPk(conversationId);
   if (!conversation) throw new HttpError(404, "Conversation not found");

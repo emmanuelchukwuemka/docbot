@@ -10,11 +10,11 @@ import { randomUUID } from "node:crypto";
 import { settings } from "../config.js";
 import { logger } from "../logger.js";
 import { logAction } from "../admin/audit.js";
-import { CONFIDENCE_FALLBACK_MESSAGE, findBannedClaim, passesConfidenceThreshold } from "../ai/guardrails.js";
+import { CONFIDENCE_FALLBACK_MESSAGE, LOW_CONFIDENCE_MESSAGE, findBannedClaim, passesConfidenceThreshold } from "../ai/guardrails.js";
 import { LLMClient } from "../ai/llmClient.js";
 import { understand } from "../ai/nlu.js";
 import * as flows from "./flows.js";
-import { ESCALATION_MESSAGE, FALLBACK_ESCALATION_THRESHOLD, FRAUD_WARNING_MESSAGE, detectEscalationReason } from "./escalation.js";
+import { ESCALATION_MESSAGE, FRAUD_WARNING_MESSAGE, detectEscalationReason } from "./escalation.js";
 import {
   Application,
   ConsultationBooking,
@@ -168,15 +168,13 @@ export class ConversationManager {
       return;
     }
 
-    // Keyword-based triggers (fraud/legal/human-request/etc.) apply everywhere, on every
-    // message. The "confused after repeated fallbacks" trigger deliberately does NOT run
-    // here — it must only fire from within the state handler whose own match attempt just
-    // failed (see _tryShortcutFromFreeText, _handleCollecting, _bumpFallbackOrEscalate),
-    // never as a blanket pre-dispatch check. Otherwise, once fallback_count ever crosses the
-    // threshold, EVERY future message — including a perfectly valid menu reply or greeting —
-    // gets intercepted here before the handler that would have processed it correctly ever
-    // runs, permanently trapping the conversation in a re-escalation loop.
-    if (await this._maybeEscalate(user, conversation, text, null, { checkFallbackThreshold: false })) return;
+    // Only genuine safety/liability triggers hand off here (fraud, legal, visa refusal,
+    // immigration violation, sensitive family circumstances, document concerns) — see
+    // escalation.js. Routine friction (confused user, a bare "let me talk to a human",
+    // low-confidence FAQ answers) no longer escalates at all; the only other ways a
+    // conversation goes quiet are the payment gate (_requireTier) and a staff member
+    // manually taking over in the admin dashboard.
+    if (await this._maybeEscalate(user, conversation, text, null)) return;
 
     const handlers = {
       welcome: this._handleWelcome,
@@ -382,7 +380,8 @@ export class ConversationManager {
 
     const idx = resolveSelection(text, interactiveId, flows.DESTINATION_DISCOVERY_OPTIONS);
     if (idx === null) {
-      if (await this._bumpFallbackOrEscalate(user, conversation)) return;
+      conversation.fallback_count += 1;
+      await conversation.save();
       await this._send(user, conversation, "Could you pick one of the options below?", flows.DESTINATION_DISCOVERY_OPTIONS);
       return;
     }
@@ -452,7 +451,8 @@ export class ConversationManager {
 
     const idx = resolveSelection(text, interactiveId, ASSESSMENT_MENU_OPTIONS);
     if (idx === null) {
-      if (await this._bumpFallbackOrEscalate(user, conversation)) return;
+      conversation.fallback_count += 1;
+      await conversation.save();
       await this._send(user, conversation, "Could you pick one of the options below?", ASSESSMENT_MENU_OPTIONS);
       return;
     }
@@ -499,7 +499,8 @@ export class ConversationManager {
 
     const idx = resolveSelection(text, interactiveId, flows.CONSULTATION_MENU_OPTIONS);
     if (idx === null) {
-      if (await this._bumpFallbackOrEscalate(user, conversation)) return;
+      conversation.fallback_count += 1;
+      await conversation.save();
       await this._send(user, conversation, "Could you pick one of the options below?", flows.CONSULTATION_MENU_OPTIONS);
       return;
     }
@@ -660,10 +661,6 @@ export class ConversationManager {
           "destination, but a MigraTech specialist can help you explore options there."
       );
       await this._upsertLead(user, profile, null);
-      if (category === "business") {
-        await this._escalateHighValueBusiness(user, conversation);
-        return;
-      }
       await this._sendMainMenu(user, conversation);
       return;
     }
@@ -712,19 +709,6 @@ export class ConversationManager {
 
     await this._send(user, conversation, lines.join("\n"), ASSESSMENT_MENU_OPTIONS);
     await this._upsertLead(user, profile, assessment);
-
-    if (category === "business") {
-      await this._escalateHighValueBusiness(user, conversation);
-    }
-  }
-
-  /** FR-11 "high-value client" trigger: business/investment migration is MigraTech's own
-   * highest-touch segment (PRD section 6E). Runs after the automated assessment so the user
-   * gets immediate value and the specialist inherits a filled-out profile, rather than going
-   * straight to silence the moment "business" is mentioned. */
-  async _escalateHighValueBusiness(user, conversation) {
-    await this._send(user, conversation, ESCALATION_MESSAGE);
-    await this._escalate(conversation, "Business/investment migration pathway — high-value case routed to a specialist.");
   }
 
   async _handleDocumentsRequest(user, conversation) {
@@ -871,9 +855,10 @@ export class ConversationManager {
     const result = await this.llmClient.answerGrounded(questionText, snippets);
 
     if (!passesConfidenceThreshold(result.confidence)) {
-      await this._send(user, conversation, CONFIDENCE_FALLBACK_MESSAGE);
-      await this._escalate(conversation, "Low AI confidence answering a user question.");
-      return false;
+      // Routine trigger, no longer escalated (2026-08-28) — stay honest about not knowing
+      // rather than guessing, but keep going instead of handing off.
+      await this._send(user, conversation, LOW_CONFIDENCE_MESSAGE);
+      return true;
     }
 
     const banned = findBannedClaim(result.answer);
@@ -1067,26 +1052,8 @@ export class ConversationManager {
     }
   }
 
-  /** For menu-driven states with no AI shortcut of their own (destination discovery,
-   * assessment menu, consultation menu) — increments fallback_count and escalates once it
-   * hits the threshold, scoped to genuinely repeated failure in THIS state. Returns true if
-   * the caller should stop (escalated), false if it should send its own "pick an option"
-   * reprompt. Deliberately separate from the top-level pre-check in handleInbound, which
-   * must never trigger this on its own — see the comment there. */
-  async _bumpFallbackOrEscalate(user, conversation) {
-    conversation.fallback_count += 1;
-    if (conversation.fallback_count >= FALLBACK_ESCALATION_THRESHOLD) {
-      await conversation.save();
-      await this._send(user, conversation, ESCALATION_MESSAGE);
-      await this._escalate(conversation, "User is confused or has repeatedly failed an automated flow.");
-      return true;
-    }
-    await conversation.save();
-    return false;
-  }
-
-  async _maybeEscalate(user, conversation, text, extracted, options = {}) {
-    const reason = detectEscalationReason(text, extracted, conversation.fallback_count, options);
+  async _maybeEscalate(user, conversation, text, extracted) {
+    const reason = detectEscalationReason(text, extracted);
     if (!reason) return false;
     await this._send(user, conversation, ESCALATION_MESSAGE);
     if (reason.toLowerCase().includes("suspicious") || reason.toLowerCase().includes("fraud")) {
