@@ -14,7 +14,7 @@ import { CONFIDENCE_FALLBACK_MESSAGE, findBannedClaim, passesConfidenceThreshold
 import { LLMClient } from "../ai/llmClient.js";
 import { understand } from "../ai/nlu.js";
 import * as flows from "./flows.js";
-import { ESCALATION_MESSAGE, FRAUD_WARNING_MESSAGE, detectEscalationReason } from "./escalation.js";
+import { ESCALATION_MESSAGE, FALLBACK_ESCALATION_THRESHOLD, FRAUD_WARNING_MESSAGE, detectEscalationReason } from "./escalation.js";
 import {
   Application,
   ConsultationBooking,
@@ -168,7 +168,15 @@ export class ConversationManager {
       return;
     }
 
-    if (await this._maybeEscalate(user, conversation, text, null)) return;
+    // Keyword-based triggers (fraud/legal/human-request/etc.) apply everywhere, on every
+    // message. The "confused after repeated fallbacks" trigger deliberately does NOT run
+    // here — it must only fire from within the state handler whose own match attempt just
+    // failed (see _tryShortcutFromFreeText, _handleCollecting, _bumpFallbackOrEscalate),
+    // never as a blanket pre-dispatch check. Otherwise, once fallback_count ever crosses the
+    // threshold, EVERY future message — including a perfectly valid menu reply or greeting —
+    // gets intercepted here before the handler that would have processed it correctly ever
+    // runs, permanently trapping the conversation in a re-escalation loop.
+    if (await this._maybeEscalate(user, conversation, text, null, { checkFallbackThreshold: false })) return;
 
     const handlers = {
       welcome: this._handleWelcome,
@@ -259,6 +267,7 @@ export class ConversationManager {
     // back in. Re-show the menu plainly rather than scolding them with "didn't catch that"
     // and burning a fallback_count strike (which would otherwise push them toward escalation).
     if (isGreeting(text)) {
+      conversation.fallback_count = 0;
       await this._sendMainMenu(user, conversation);
       return;
     }
@@ -307,6 +316,8 @@ export class ConversationManager {
 
   async _handleGoalSelection(user, conversation, text, interactiveId) {
     if (isGreeting(text)) {
+      conversation.fallback_count = 0;
+      await conversation.save();
       await this._send(user, conversation, "What is your primary goal?", flows.GOAL_OPTIONS);
       return;
     }
@@ -333,14 +344,15 @@ export class ConversationManager {
 
   async _handleDestinationDiscovery(user, conversation, text, interactiveId) {
     if (isGreeting(text)) {
+      conversation.fallback_count = 0;
+      await conversation.save();
       await this._send(user, conversation, "What is most important to you?", flows.DESTINATION_DISCOVERY_OPTIONS);
       return;
     }
 
     const idx = resolveSelection(text, interactiveId, flows.DESTINATION_DISCOVERY_OPTIONS);
     if (idx === null) {
-      conversation.fallback_count += 1;
-      await conversation.save();
+      if (await this._bumpFallbackOrEscalate(user, conversation)) return;
       await this._send(user, conversation, "Could you pick one of the options below?", flows.DESTINATION_DISCOVERY_OPTIONS);
       return;
     }
@@ -402,14 +414,15 @@ export class ConversationManager {
 
   async _handleAssessmentMenu(user, conversation, text, interactiveId) {
     if (isGreeting(text)) {
+      conversation.fallback_count = 0;
+      await conversation.save();
       await this._send(user, conversation, "Would you like to:", ASSESSMENT_MENU_OPTIONS);
       return;
     }
 
     const idx = resolveSelection(text, interactiveId, ASSESSMENT_MENU_OPTIONS);
     if (idx === null) {
-      conversation.fallback_count += 1;
-      await conversation.save();
+      if (await this._bumpFallbackOrEscalate(user, conversation)) return;
       await this._send(user, conversation, "Could you pick one of the options below?", ASSESSMENT_MENU_OPTIONS);
       return;
     }
@@ -435,6 +448,8 @@ export class ConversationManager {
 
   async _handleFaqWaitingQuestion(user, conversation, text) {
     if (isGreeting(text)) {
+      conversation.fallback_count = 0;
+      await conversation.save();
       await this._send(user, conversation, "What would you like to know?");
       return;
     }
@@ -446,14 +461,15 @@ export class ConversationManager {
 
   async _handleConsultationMenu(user, conversation, text, interactiveId) {
     if (isGreeting(text)) {
+      conversation.fallback_count = 0;
+      await conversation.save();
       await this._send(user, conversation, "Would you like to speak with a MigraTech migration specialist?", flows.CONSULTATION_MENU_OPTIONS);
       return;
     }
 
     const idx = resolveSelection(text, interactiveId, flows.CONSULTATION_MENU_OPTIONS);
     if (idx === null) {
-      conversation.fallback_count += 1;
-      await conversation.save();
+      if (await this._bumpFallbackOrEscalate(user, conversation)) return;
       await this._send(user, conversation, "Could you pick one of the options below?", flows.CONSULTATION_MENU_OPTIONS);
       return;
     }
@@ -1021,8 +1037,26 @@ export class ConversationManager {
     }
   }
 
-  async _maybeEscalate(user, conversation, text, extracted) {
-    const reason = detectEscalationReason(text, extracted, conversation.fallback_count);
+  /** For menu-driven states with no AI shortcut of their own (destination discovery,
+   * assessment menu, consultation menu) — increments fallback_count and escalates once it
+   * hits the threshold, scoped to genuinely repeated failure in THIS state. Returns true if
+   * the caller should stop (escalated), false if it should send its own "pick an option"
+   * reprompt. Deliberately separate from the top-level pre-check in handleInbound, which
+   * must never trigger this on its own — see the comment there. */
+  async _bumpFallbackOrEscalate(user, conversation) {
+    conversation.fallback_count += 1;
+    if (conversation.fallback_count >= FALLBACK_ESCALATION_THRESHOLD) {
+      await conversation.save();
+      await this._send(user, conversation, ESCALATION_MESSAGE);
+      await this._escalate(conversation, "User is confused or has repeatedly failed an automated flow.");
+      return true;
+    }
+    await conversation.save();
+    return false;
+  }
+
+  async _maybeEscalate(user, conversation, text, extracted, options = {}) {
+    const reason = detectEscalationReason(text, extracted, conversation.fallback_count, options);
     if (!reason) return false;
     await this._send(user, conversation, ESCALATION_MESSAGE);
     if (reason.toLowerCase().includes("suspicious") || reason.toLowerCase().includes("fraud")) {

@@ -36,4 +36,23 @@ describe("escalation detection", () => {
     expect(detectEscalationReason("I lost my passport", null, 0)).toMatch(/document/i);
     expect(detectEscalationReason("my document was rejected", null, 0)).toMatch(/document/i);
   });
+
+  test("checkFallbackThreshold: false suppresses only the fallback-count trigger, not keyword triggers", () => {
+    // Regression test: manager.js's top-level pre-dispatch check must pass this false, or
+    // once fallback_count crosses the threshold every future message — including one that
+    // would otherwise be handled correctly — gets permanently intercepted here before it
+    // ever reaches the state handler that would have processed it.
+    const overThreshold = FALLBACK_ESCALATION_THRESHOLD + 5;
+    expect(
+      detectEscalationReason("hi", null, overThreshold, { checkFallbackThreshold: false })
+    ).toBeNull();
+    expect(
+      detectEscalationReason("I need a lawyer for this", null, overThreshold, { checkFallbackThreshold: false })
+    ).toMatch(/legal/);
+    // Default (and explicit true) behavior is unchanged.
+    expect(detectEscalationReason("hi", null, overThreshold)).toMatch(/confused/);
+    expect(
+      detectEscalationReason("hi", null, overThreshold, { checkFallbackThreshold: true })
+    ).toMatch(/confused/);
+  });
 });

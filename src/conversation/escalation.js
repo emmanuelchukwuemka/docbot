@@ -33,7 +33,7 @@ export const FRAUD_WARNING_MESSAGE =
   "officers, and fake embassy messages. Thank you for flagging this — a member of our " +
   "team will follow up with you.";
 
-export function detectEscalationReason(text, extracted, fallbackCount) {
+export function detectEscalationReason(text, extracted, fallbackCount, { checkFallbackThreshold = true } = {}) {
   if ((extracted && extracted.wants_human_agent) || HUMAN_REQUEST_KEYWORDS.test(text)) {
     return "User requested a human agent.";
   }
@@ -58,7 +58,7 @@ export function detectEscalationReason(text, extracted, fallbackCount) {
   if (DOCUMENT_CONCERN_KEYWORDS.test(text)) {
     return "Document concern raised (lost/stolen/rejected) — needs human review.";
   }
-  if (fallbackCount >= FALLBACK_ESCALATION_THRESHOLD) {
+  if (checkFallbackThreshold && fallbackCount >= FALLBACK_ESCALATION_THRESHOLD) {
     return "User is confused or has repeatedly failed an automated flow.";
   }
   return null;
