@@ -61,14 +61,18 @@ const FRAUD_EDUCATION_TIP =
   "personal bank account, and no one can guarantee visa approval — watch out for " +
   "anyone who claims otherwise.";
 
-const WELCOME_TEXT =
-  "Welcome to MigraTech 👋\n\n" +
-  "I can help you explore legitimate migration options for work, study, family " +
-  "relocation and more.\n\n" +
-  "This is general guidance, not a visa guarantee — official decisions are made only " +
-  "by the relevant government/immigration authority. By continuing, you agree to " +
-  "MigraTech processing your information to provide this guidance (reply STOP anytime " +
-  "to opt out).";
+// Sent as separate messages (not one paragraph) so the very first contact feels like a
+// human assistant introducing themselves — a brand line, then what we do, then the
+// disclaimer/consent — rather than one wall of text.
+const WELCOME_MESSAGES = [
+  "👋 Welcome to MigraTech — Migration, Simplified.",
+  "I'm your migration assistant — I can help you explore legitimate options to work, " +
+    "study, join family abroad, start a business, or figure out where to go if you're " +
+    "not sure yet.",
+  "This is general guidance, not a visa guarantee — official decisions are always made " +
+    "by the relevant government/immigration authority. By continuing, you agree to " +
+    "MigraTech processing your information to help you (reply STOP anytime to opt out).",
+];
 
 const STOP_KEYWORDS = new Set(["stop", "unsubscribe", "opt out", "optout"]);
 const DELETE_DATA_KEYWORDS = new Set(["delete my data", "delete data", "delete my account"]);
@@ -250,20 +254,24 @@ export class ConversationManager {
   // ------------------------------------------------------------------ //
 
   async _handleWelcome(user, conversation, text) {
-    await this._send(user, conversation, WELCOME_TEXT);
-
     if (user.name) {
-      // A returning user we've already been introduced to — no need to ask again.
+      // A returning user we've already been introduced to — no need for the full intro
+      // (or asking their name) again.
       if (isGreeting(text) || !(await this._tryShortcutFromFreeText(user, conversation, text))) {
         await this._sendMainMenu(user, conversation, `Good to see you again, ${user.name}!`);
       }
       return;
     }
 
-    // First contact — introduce ourselves properly before anything else, like a human
-    // assistant would, rather than silently pulling a name from WhatsApp account metadata.
-    // Whatever they said (a real migration statement, not just "hi") is remembered and
-    // resumed right after they answer, so asking for a name doesn't waste it.
+    // First contact — introduce ourselves properly, one short message at a time (like a
+    // human assistant would, not one wall of text) before anything else, rather than
+    // silently pulling a name from WhatsApp account metadata. Whatever they said (a real
+    // migration statement, not just "hi") is remembered and resumed right after they answer,
+    // so asking for a name doesn't waste it.
+    for (const msg of WELCOME_MESSAGES) {
+      await this._send(user, conversation, msg);
+    }
+
     conversation.context = { pending_first_message: isGreeting(text) ? null : text };
     conversation.state = "collecting_name";
     await conversation.save();
