@@ -965,9 +965,10 @@ export class ConversationManager {
       await conversation.save();
       await this._send(
         user, conversation,
-        `"${purpose}" is part of MigraTech's Relocate package, which is priced to your ` +
-          "specific migration pathway. A MigraTech specialist will follow up with a custom " +
-          'quote and payment link. Reply "menu" anytime to go back for now.'
+        `"${purpose}" is part of MigraTech's Relocate package — pricing is tailored to your ` +
+          `specific migration pathway, typically starting around ₦${settings.relocateReferencePriceNgn.toLocaleString()} ` +
+          `(~$${settings.relocateReferencePriceUsdDisplay}). A MigraTech specialist will follow up ` +
+          'with your exact quote and payment link. Reply "menu" anytime to go back for now.'
       );
       await this._escalate(conversation, `Relocate package requested (${purpose}) — needs a custom quote.`);
       return false;
@@ -1031,9 +1032,10 @@ export class ConversationManager {
       await conversation.save();
       await this._send(
         user, conversation,
-        `To unlock "${purpose}" (₦${settings.navigatePriceNgn.toLocaleString()}), complete ` +
-          `payment here:\n${authorization_url}\n\nI'll confirm automatically as soon as it ` +
-          'goes through — message me anytime to check, or reply "menu" to go back for now.'
+        `To unlock "${purpose}" (₦${settings.navigatePriceNgn.toLocaleString()} / ` +
+          `~$${settings.navigatePriceUsdDisplay}), complete payment here:\n${authorization_url}\n\n` +
+          'I\'ll confirm automatically as soon as it goes through — message me anytime to ' +
+          'check, or reply "menu" to go back for now.'
       );
     } catch (err) {
       logger.error({ err }, "Failed to create Paystack payment link");

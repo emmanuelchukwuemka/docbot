@@ -71,9 +71,16 @@ export const settings = {
   // (product spec), so it is never auto-priced by the bot — staff issue a custom-amount
   // Paystack link from the admin dashboard instead (see admin/service.js createPayment).
   paystackSecretKey: process.env.PAYSTACK_SECRET_KEY || "",
-  // Placeholder — this is not a real price. Set to MigraTech's actual NAVIGATE fee before
-  // taking real payments.
-  navigatePriceNgn: num(process.env.NAVIGATE_PRICE_NGN, 15000),
+  // NAVIGATE is the fixed self-serve price actually charged. The USD figures are display-only
+  // (shown as an approximate parenthetical alongside the real NGN charge) — no live FX
+  // conversion, just what MigraTech quotes internationally.
+  navigatePriceNgn: num(process.env.NAVIGATE_PRICE_NGN, 99_000),
+  navigatePriceUsdDisplay: num(process.env.NAVIGATE_PRICE_USD_DISPLAY, 70),
+  // RELOCATE has no fixed price — staff issue a custom-amount quote per pathway/service (see
+  // admin/service.js createPayment). This is only a "starting around" figure mentioned to set
+  // expectations while they wait for their real quote.
+  relocateReferencePriceNgn: num(process.env.RELOCATE_REFERENCE_PRICE_NGN, 150_000),
+  relocateReferencePriceUsdDisplay: num(process.env.RELOCATE_REFERENCE_PRICE_USD_DISPLAY, 125),
 
   get paystackConfigured() {
     return Boolean(this.paystackSecretKey);
