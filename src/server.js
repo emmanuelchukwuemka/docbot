@@ -13,10 +13,14 @@ import { getSessionSecret } from "./security/sessionSecret.js";
 import { ensureDefaultAdmin } from "./admin/bootstrap.js";
 import { router as adminApiRouter } from "./admin/apiRoutes.js";
 import { router as adminUiRouter } from "./admin/uiRoutes.js";
+import { router as portalRouter } from "./portal/routes.js";
+import { router as contentPublicRouter } from "./content/publicRoutes.js";
+import { router as knowledgePublicRouter } from "./content/knowledgeRoutes.js";
 import { whatsappClient, connectionState } from "./whatsapp/baileysClient.js";
 import { createIngestHandler, handleDeliveryError } from "./whatsapp/ingest.js";
 import { ConversationManager } from "./conversation/manager.js";
 import { createPaymentsWebhookRouter } from "./payments/webhookRoutes.js";
+import { createPortalPaymentsRouter } from "./payments/portalRoutes.js";
 import { startScheduler } from "./scheduler.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -76,6 +80,10 @@ async function main() {
 
   app.use("/admin/api", adminApiRouter);
   app.use("/admin", adminUiRouter);
+  app.use("/", portalRouter);
+  app.use("/", createPortalPaymentsRouter({ conversationManager }));
+  app.use("/", contentPublicRouter);
+  app.use("/", knowledgePublicRouter);
 
   app.get("/health", (req, res) => {
     res.json({

@@ -1,0 +1,48 @@
+<%- include('partials/head') %>
+
+<div class="panel">
+  <h2>Messages</h2>
+  <table>
+    <tr><th>From</th><th>Message</th><th>Received</th><th>Status</th><th></th></tr>
+    <% messages.forEach(function(m) { %>
+      <tr>
+        <td>
+          <b><%= m.name %></b><br/>
+          <span class="muted"><%= m.email || '—' %></span>
+          <% if (m.whatsapp_number) { %><br/><span class="muted"><%= m.whatsapp_number.replace('@s.whatsapp.net', '') %></span><% } %>
+          <% if (m.user_id) { %><br/><span class="badge neutral">registered client</span><% } %>
+        </td>
+        <td style="max-width:380px;white-space:pre-wrap"><%= m.message %></td>
+        <td class="muted"><%= new Date(m.created_at).toLocaleString() %></td>
+        <td>
+          <% if (m.status === 'new') { %><span class="badge hot">new</span>
+          <% } else if (m.status === 'read') { %><span class="badge neutral">read</span>
+          <% } else { %><span class="badge green">replied</span><% } %>
+        </td>
+        <td>
+          <form method="post" action="/admin/messages/<%= m.id %>/update" class="inline-form" style="margin-bottom:6px">
+            <select name="status" onchange="this.form.submit()">
+              <option value="new" <%= m.status === 'new' ? 'selected' : '' %>>New</option>
+              <option value="read" <%= m.status === 'read' ? 'selected' : '' %>>Read</option>
+              <option value="replied" <%= m.status === 'replied' ? 'selected' : '' %>>Replied</option>
+            </select>
+          </form>
+          <% if (m.whatsapp_number) { %>
+            <details class="edit-row">
+              <summary>Reply via WhatsApp</summary>
+              <form class="field-form" method="post" action="/admin/messages/<%= m.id %>/reply">
+                <div class="field"><textarea name="reply" rows="3" required placeholder="Your reply..."></textarea></div>
+                <button class="btn secondary" type="submit">Send Reply</button>
+              </form>
+            </details>
+          <% } else { %>
+            <span class="muted" style="font-size:11.5px">No WhatsApp number — reply by email</span>
+          <% } %>
+        </td>
+      </tr>
+    <% }) %>
+    <% if (!messages.length) { %><tr><td class="muted" colspan="5">No messages yet.</td></tr><% } %>
+  </table>
+</div>
+
+<%- include('partials/foot') %>

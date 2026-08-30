@@ -19,8 +19,12 @@ function headers() {
 }
 
 /** Creates a hosted checkout session. Returns { authorization_url, access_code, reference }.
- * `amountNaira` is whole Naira (e.g. 15000 for ₦15,000) — Paystack's API wants kobo. */
-export async function initializeTransaction({ email, amountNaira, reference, metadata }) {
+ * `amountNaira` is whole Naira (e.g. 15000 for ₦15,000) — Paystack's API wants kobo.
+ * `callbackUrl` is optional — the WhatsApp self-serve flow doesn't need one (the user never
+ * leaves WhatsApp), but the web portal's "Pay Now" button does, so Paystack redirects the
+ * user's browser back to a page that can show them a result instead of stranding them on
+ * Paystack's own generic success page. */
+export async function initializeTransaction({ email, amountNaira, reference, metadata, callbackUrl }) {
   const response = await fetch(`${BASE_URL}/transaction/initialize`, {
     method: "POST",
     headers: headers(),
@@ -29,6 +33,7 @@ export async function initializeTransaction({ email, amountNaira, reference, met
       amount: Math.round(amountNaira * 100),
       reference,
       metadata,
+      ...(callbackUrl ? { callback_url: callbackUrl } : {}),
     }),
   });
   const data = await response.json();

@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Verify your number — MigraTech</title>
+<link rel="icon" type="image/png" href="/brand/favicon.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/portal.css" />
+</head>
+<body>
+
+<%- include('partials/nav') %>
+
+<div class="auth-wrap">
+  <div class="auth-box">
+    <div class="auth-eyebrow">One More Step</div>
+    <h1>Verify your WhatsApp number</h1>
+    <p class="auth-sub">We sent a 6-digit code to your WhatsApp number. Enter it below to activate your account.</p>
+
+    <% if (error) { %><div class="auth-flash error"><%= error %></div><% } %>
+    <% if (sent) { %><div class="auth-flash" style="background:#ecfdf5;color:#059669;border:1px solid #a7f3d0">A new code was sent.</div><% } %>
+
+    <form method="post" action="/verify">
+      <div class="field">
+        <label for="code">Verification code</label>
+        <input id="code" name="code" required autofocus maxlength="6" inputmode="numeric" pattern="[0-9]{6}" placeholder="000000" style="letter-spacing:6px;font-size:20px;text-align:center" />
+      </div>
+      <button type="submit" class="auth-submit">Verify &amp; Continue</button>
+    </form>
+
+    <form method="post" action="/verify/resend" style="margin-top:14px">
+      <button type="submit" class="btn-mini" style="width:100%;justify-content:center;display:flex">Resend code</button>
+    </form>
+
+    <div class="auth-switch">
+      Wrong number?
+      <form method="post" action="/logout" style="display:inline">
+        <button type="submit" style="background:none;border:none;padding:0;color:#00B140;font-weight:700;font-size:inherit;cursor:pointer;font-family:inherit">Start over</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<%- include('partials/footer') %>
+
+</body>
+</html>

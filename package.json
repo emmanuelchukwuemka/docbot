@@ -9,7 +9,10 @@
     "dev": "node --watch src/server.js",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
     "seed": "node scripts/seedDb.js",
-    "create-admin-user": "node scripts/createAdminUser.js"
+    "create-admin-user": "node scripts/createAdminUser.js",
+    "migrate:portal-auth": "node scripts/addUserAuthColumns.js",
+    "migrate:payment-columns": "node scripts/addPaymentColumns.js",
+    "migrate:verification-columns": "node scripts/addVerificationColumns.js"
   },
   "engines": {
     "node": ">=20"
@@ -31,6 +34,7 @@
     "qrcode": "^1.5.4",
     "qrcode-terminal": "^0.12.0",
     "sequelize": "^6.37.5",
+    "ssh2": "^1.17.0",
     "uuid": "^11.0.3"
   },
   "devDependencies": {

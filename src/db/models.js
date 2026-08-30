@@ -39,6 +39,23 @@ export const User = sequelize.define(
     name: { type: DataTypes.STRING(255), allowNull: true },
     email: { type: DataTypes.STRING(255), allowNull: true },
     location: { type: DataTypes.STRING(255), allowNull: true },
+    // Web self-service account fields (portal registration) — all nullable because most rows
+    // are still created the original way, from an inbound WhatsApp message with no password
+    // at all (see whatsapp/ingest.js's getOrCreateUser). A non-null password_hash is what
+    // distinguishes "has a portal account" from "just a WhatsApp contact" — see
+    // portal/service.js. Added 2026-08-29 via scripts/addUserAuthColumns.js, not sync({alter}) —
+    // see syncModels()'s note below on why that's banned against this table.
+    password_hash: { type: DataTypes.STRING(255), allowNull: true },
+    country: { type: DataTypes.STRING(120), allowNull: true },
+    state: { type: DataTypes.STRING(120), allowNull: true },
+    // Portal registration/password-reset OTP (sent over WhatsApp, not email — no email
+    // sending service is configured anywhere in this codebase; WhatsApp is real, already-live
+    // infrastructure, and is arguably the more meaningful identity to verify for this business
+    // anyway). One pair of columns does double duty for both flows since a user is never
+    // doing both at once. Added 2026-08-29 via scripts/addVerificationColumns.js.
+    is_verified: { type: DataTypes.BOOLEAN, defaultValue: false },
+    reset_code_hash: { type: DataTypes.STRING(255), allowNull: true },
+    reset_code_expires_at: { type: DataTypes.DATE, allowNull: true },
     consent_given: { type: DataTypes.BOOLEAN, defaultValue: false },
     consent_at: { type: DataTypes.DATE, allowNull: true },
     created_at: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
@@ -320,6 +337,108 @@ export const Payment = sequelize.define(
     updated_at: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
   },
   { tableName: "payments", timestamps: false, hooks: { beforeUpdate: touchUpdatedAt } }
+);
+
+// --------------------------------------------------------------------------- //
+// Public site content (Blog / News / Guides) — admin-managed, 2026-08-29.
+// Deliberately three separate tables rather than one shared "articles" table with a
+// category flag: kept genuinely independent so each can grow its own fields later (e.g.
+// Guides gaining structured steps, News gaining a source-link byline) without the other two
+// carrying unused columns. All three share the same shape today, hence the identical fields.
+// --------------------------------------------------------------------------- //
+
+const contentFields = {
+  ...uuidPk,
+  title: { type: DataTypes.STRING(255), allowNull: false },
+  slug: { type: DataTypes.STRING(255), unique: true, allowNull: false },
+  excerpt: { type: DataTypes.TEXT, allowNull: true },
+  body: { type: DataTypes.TEXT, allowNull: false },
+  cover_image_url: { type: DataTypes.STRING(500), allowNull: true },
+  author: { type: DataTypes.STRING(120), allowNull: true },
+  is_published: { type: DataTypes.BOOLEAN, defaultValue: false },
+  published_at: { type: DataTypes.DATE, allowNull: true },
+  created_at: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
+  updated_at: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
+};
+
+export const BlogPost = sequelize.define(
+  "BlogPost",
+  { ...contentFields },
+  { tableName: "blog_posts", timestamps: false, hooks: { beforeUpdate: touchUpdatedAt } }
+);
+
+export const NewsPost = sequelize.define(
+  "NewsPost",
+  { ...contentFields },
+  { tableName: "news_posts", timestamps: false, hooks: { beforeUpdate: touchUpdatedAt } }
+);
+
+export const Guide = sequelize.define(
+  "Guide",
+  { ...contentFields },
+  { tableName: "guides", timestamps: false, hooks: { beforeUpdate: touchUpdatedAt } }
+);
+
+// --------------------------------------------------------------------------- //
+// Contact messages — the /contact page's "send us a message" option (alongside
+// WhatsApp), 2026-08-29. `user_id` is set when the sender was logged in at the time, but
+// name/email/whatsapp_number are always captured directly on the row so a message displays
+// the same way whether the sender had an account or not — never requires a join to show who
+// it's from.
+// --------------------------------------------------------------------------- //
+
+export const ContactMessage = sequelize.define(
+  "ContactMessage",
+  {
+    ...uuidPk,
+    user_id: { type: DataTypes.UUID, allowNull: true },
+    name: { type: DataTypes.STRING(255), allowNull: false },
+    email: { type: DataTypes.STRING(255), allowNull: true },
+    whatsapp_number: { type: DataTypes.STRING(32), allowNull: true },
+    message: { type: DataTypes.TEXT, allowNull: false },
+    status: { type: DataTypes.STRING(20), defaultValue: "new" },
+    /** new | read | replied */
+    created_at: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
+  },
+  { tableName: "contact_messages", timestamps: false }
+);
+
+// --------------------------------------------------------------------------- //
+// Team / Careers — real, admin-managed pages, deliberately shipped empty rather than
+// seeded with placeholder people or jobs. /team and /careers show a genuine "nothing here
+// yet" state until staff add real entries via /admin/team and /admin/careers.
+// --------------------------------------------------------------------------- //
+
+export const TeamMember = sequelize.define(
+  "TeamMember",
+  {
+    ...uuidPk,
+    name: { type: DataTypes.STRING(255), allowNull: false },
+    role: { type: DataTypes.STRING(255), allowNull: true },
+    bio: { type: DataTypes.TEXT, allowNull: true },
+    photo_url: { type: DataTypes.STRING(500), allowNull: true },
+    display_order: { type: DataTypes.INTEGER, defaultValue: 0 },
+    is_active: { type: DataTypes.BOOLEAN, defaultValue: true },
+    created_at: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
+  },
+  { tableName: "team_members", timestamps: false }
+);
+
+export const JobListing = sequelize.define(
+  "JobListing",
+  {
+    ...uuidPk,
+    title: { type: DataTypes.STRING(255), allowNull: false },
+    department: { type: DataTypes.STRING(120), allowNull: true },
+    location: { type: DataTypes.STRING(120), allowNull: true },
+    employment_type: { type: DataTypes.STRING(60), allowNull: true },
+    description: { type: DataTypes.TEXT, allowNull: false },
+    apply_email: { type: DataTypes.STRING(255), allowNull: true },
+    apply_url: { type: DataTypes.STRING(500), allowNull: true },
+    is_active: { type: DataTypes.BOOLEAN, defaultValue: true },
+    created_at: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
+  },
+  { tableName: "job_listings", timestamps: false }
 );
 
 // --------------------------------------------------------------------------- //

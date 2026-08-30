@@ -1,10 +1,38 @@
 <%- include('partials/head') %>
 
 <div class="panel">
+  <h2>System health</h2>
+  <table>
+    <tr>
+      <td>WhatsApp connection</td>
+      <td>
+        <% if (health.whatsappStatus === 'open') { %><span class="badge green">Connected</span>
+        <% } else if (health.whatsappStatus === 'connecting' || health.whatsappStatus === 'qr_pending') { %><span class="badge neutral">Connecting</span>
+        <% } else { %><span class="badge hot">Disconnected — <a href="/admin/whatsapp">go relink</a></span><% } %>
+      </td>
+    </tr>
+    <tr>
+      <td>Database</td>
+      <td>
+        <% if (health.dbError) { %><span class="badge hot">Error: <%= health.dbError %></span>
+        <% } else { %><span class="badge green">OK (<%= health.dbLatencyMs %>ms)</span><% } %>
+      </td>
+    </tr>
+    <tr><td>Process uptime</td><td><%= Math.floor(health.uptimeSeconds / 3600) %>h <%= Math.floor((health.uptimeSeconds % 3600) / 60) %>m</td></tr>
+    <tr><td>Memory (RSS)</td><td><%= health.memoryMb %> MB</td></tr>
+    <tr>
+      <td>Staff alert webhook</td>
+      <td><%= settings.staffWebhookConfigured ? 'Configured' : 'Not set — WhatsApp-disconnect alerts have nowhere to go' %></td>
+    </tr>
+  </table>
+</div>
+
+<div class="panel">
   <h2>Runtime configuration</h2>
   <table>
     <tr><td>Environment</td><td><%= settings.environment %></td></tr>
     <tr><td>AI (OpenAI) configured</td><td><%= settings.aiConfigured ? 'Yes' : 'No — falling back to rule-based extraction' %></td></tr>
+    <tr><td>Paystack configured</td><td><%= settings.paystackConfigured ? 'Yes' : 'No — payment links disabled' %></td></tr>
     <tr><td>Scheduler enabled</td><td><%= settings.enableScheduler ? 'Yes' : 'No' %></td></tr>
     <tr><td>Data retention job</td><td><%= settings.enableDataRetentionJob ? `Enabled (${settings.dataRetentionDays} days)` : 'Disabled' %></td></tr>
   </table>

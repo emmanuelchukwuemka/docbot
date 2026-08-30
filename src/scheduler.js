@@ -13,14 +13,40 @@ import cron from "node-cron";
 import { Op } from "sequelize";
 import { settings } from "./config.js";
 import { logger } from "./logger.js";
-import { AuditLog, ConsultationBooking, Conversation, Document, Lead, Pathway, Payment, User, Country } from "./db/models.js";
+import { AuditLog, ConsultationBooking, Conversation, Document, Lead, Message, Pathway, Payment, User, Country } from "./db/models.js";
 import { generateChecklist, renderChecklistWhatsappText } from "./documents/checklist.js";
-import { inboundRateLimiter } from "./whatsapp/ingest.js";
+import { inboundRateLimiter, sweepSeenMessageIds } from "./whatsapp/ingest.js";
 import { aiRateLimiter } from "./ai/llmClient.js";
 
 const DOCUMENT_REMINDER_INTERVAL_DAYS = 3;
 const CONSULTATION_STAFF_REMINDER_AFTER_HOURS = 24;
 const PAYMENT_REMINDER_INTERVAL_DAYS = 3;
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** Extra pause between reminder sends, on top of whatsappClient.sendText's own SendQueue
+ * pacing — see config.js's reasoning. Not called before the *first* send in a batch, only
+ * between successive ones. */
+function reminderGapMs() {
+  return settings.reminderInterSendMinMs + Math.random() * settings.reminderInterSendJitterMs;
+}
+
+/** Reminders are bot-initiated, not a reply, so there's no "current" conversation the way
+ * ingest.js has one mid-exchange — this just finds whichever conversation is already on
+ * file for the log entry to attach to. Returns null (skip logging, don't fail the reminder
+ * over it) if the user somehow has none yet. */
+async function mostRecentConversationId(userId) {
+  const conversation = await Conversation.findOne({ where: { user_id: userId }, order: [["created_at", "DESC"]] });
+  return conversation ? conversation.id : null;
+}
+
+async function logReminderMessage(userId, text) {
+  const conversationId = await mostRecentConversationId(userId);
+  if (!conversationId) return;
+  await Message.create({ conversation_id: conversationId, direction: "outbound", sender: "system_reminder", text });
+}
 
 export async function runMissingDocumentReminders(whatsappClient) {
   const cutoff = new Date(Date.now() - DOCUMENT_REMINDER_INTERVAL_DAYS * 24 * 60 * 60 * 1000);
@@ -31,6 +57,9 @@ export async function runMissingDocumentReminders(whatsappClient) {
       [Op.or]: [{ last_reminder_sent_at: null }, { last_reminder_sent_at: { [Op.lt]: cutoff } }],
     },
     include: [{ association: "user", include: [{ association: "profile" }] }],
+    // Anyone past the cap this run just gets picked up on the next scheduled run (their
+    // last_reminder_sent_at is untouched) — see config.js's reminderBatchMaxPerRun.
+    limit: settings.reminderBatchMaxPerRun,
   });
 
   let sent = 0;
@@ -49,13 +78,17 @@ export async function runMissingDocumentReminders(whatsappClient) {
     const missing = checklist.items.filter((item) => item.status === "missing").map((item) => item.name);
     if (!missing.length) continue;
 
+    if (sent > 0) await sleep(reminderGapMs());
+
     const missingText = missing.map((name) => `- ${name}`).join("\n");
-    await whatsappClient.sendText(
-      lead.user.whatsapp_number,
+    const text =
       "Friendly reminder from MigraTech: your document checklist for " +
-        `${pathway.country.name} ${pathway.name} is still missing:\n${missingText}\n\n` +
-        "Send them here whenever you're ready."
-    );
+      `${pathway.country.name} ${pathway.name} is still missing:\n${missingText}\n\n` +
+      "Send them here whenever you're ready.";
+    const result = await whatsappClient.sendText(lead.user.whatsapp_number, text);
+    if (result?.skipped) continue; // rate-limited/disconnected — don't mark as reminded or log a send that didn't happen
+
+    await logReminderMessage(lead.user_id, text);
     lead.last_reminder_sent_at = new Date();
     await lead.save();
     sent += 1;
@@ -76,17 +109,23 @@ export async function runPaymentReminders(whatsappClient) {
       [Op.or]: [{ last_reminder_sent_at: null }, { last_reminder_sent_at: { [Op.lt]: cutoff } }],
     },
     include: [{ association: "user" }],
+    limit: settings.reminderBatchMaxPerRun,
   });
 
   let sent = 0;
   for (const payment of payments) {
     if (!payment.user) continue;
-    await whatsappClient.sendText(
-      payment.user.whatsapp_number,
+
+    if (sent > 0) await sleep(reminderGapMs());
+
+    const text =
       `Friendly reminder from MigraTech: you have a pending payment of ${payment.currency} ` +
-        `${Number(payment.amount).toLocaleString()} for "${payment.purpose}". ` +
-        "Reply here or contact your MigraTech specialist to arrange payment."
-    );
+      `${Number(payment.amount).toLocaleString()} for "${payment.purpose}". ` +
+      "Reply here or contact your MigraTech specialist to arrange payment.";
+    const result = await whatsappClient.sendText(payment.user.whatsapp_number, text);
+    if (result?.skipped) continue;
+
+    await logReminderMessage(payment.user_id, text);
     payment.last_reminder_sent_at = new Date();
     await payment.save();
     sent += 1;
@@ -180,6 +219,8 @@ function runRateLimiterSweep(whatsappClient) {
   inboundRateLimiter.sweep();
   aiRateLimiter.sweep();
   whatsappClient.outboundLimiter.sweep();
+  whatsappClient.globalOutboundLimiter.sweep();
+  sweepSeenMessageIds();
 }
 
 function guardedJob(name, fn) {

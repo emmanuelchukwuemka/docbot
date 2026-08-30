@@ -1,0 +1,62 @@
+<%- include('partials/head') %>
+
+<%
+  function contentPanel(label, items, basePath, publicBase) {
+%>
+<div class="panel">
+  <h2><%= label %> <span class="muted">(<a href="<%= publicBase %>" target="_blank">view live →</a>)</span></h2>
+  <table>
+    <tr><th>Title</th><th>Slug</th><th>Author</th><th>Status</th><th></th></tr>
+    <% items.forEach(function(item) { %>
+      <tr>
+        <td><%= item.title %></td>
+        <td><code><%= item.slug %></code></td>
+        <td><%= item.author || '—' %></td>
+        <td><% if (item.is_published) { %><span class="badge green">published</span><% } else { %><span class="badge neutral">draft</span><% } %></td>
+        <td>
+          <details class="edit-row">
+            <summary>Edit</summary>
+            <form class="field-form" method="post" action="<%= basePath %>/<%= item.id %>/update">
+              <div class="field"><label>Title</label><input name="title" value="<%= item.title %>" required /></div>
+              <div class="field"><label>Slug</label><input name="slug" value="<%= item.slug %>" /></div>
+              <div class="field"><label>Excerpt</label><textarea name="excerpt" rows="2"><%= item.excerpt || '' %></textarea></div>
+              <div class="field"><label>Body</label><textarea name="body" rows="6" required><%= item.body || '' %></textarea></div>
+              <div class="form-row">
+                <div class="field"><label>Cover image URL</label><input name="cover_image_url" value="<%= item.cover_image_url || '' %>" /></div>
+                <div class="field"><label>Author</label><input name="author" value="<%= item.author || '' %>" /></div>
+              </div>
+              <div class="field"><label><input type="checkbox" name="is_published" style="width:auto" <%= item.is_published ? 'checked' : '' %> /> Published</label></div>
+              <button class="btn secondary" type="submit">Save changes</button>
+            </form>
+          </details>
+          <form method="post" action="<%= basePath %>/<%= item.id %>/delete" onsubmit="return confirm('Delete this?');" style="margin-top:6px;">
+            <button class="btn danger" type="submit">Delete</button>
+          </form>
+        </td>
+      </tr>
+    <% }) %>
+    <% if (!items.length) { %><tr><td class="muted" colspan="5">Nothing here yet.</td></tr><% } %>
+  </table>
+  <details class="edit-row" style="margin-top:14px;">
+    <summary>+ Add new</summary>
+    <form class="field-form" method="post" action="<%= basePath %>">
+      <div class="field"><label>Title</label><input name="title" required /></div>
+      <div class="field"><label>Slug (optional — auto-generated from title if left blank)</label><input name="slug" /></div>
+      <div class="field"><label>Excerpt</label><textarea name="excerpt" rows="2"></textarea></div>
+      <div class="field"><label>Body</label><textarea name="body" rows="6" required></textarea></div>
+      <div class="form-row">
+        <div class="field"><label>Cover image URL</label><input name="cover_image_url" /></div>
+        <div class="field"><label>Author</label><input name="author" placeholder="<%= user.username %>" /></div>
+      </div>
+      <div class="field"><label><input type="checkbox" name="is_published" style="width:auto" /> Publish immediately (leave unchecked to save as a draft)</label></div>
+      <button class="btn" type="submit">Add</button>
+    </form>
+  </details>
+</div>
+<% } %>
+
+<% contentPanel('Blog Posts', blogPosts, '/admin/content/blog', '/blog'); %>
+<% contentPanel('News Posts', newsPosts, '/admin/content/news', '/news'); %>
+<% contentPanel('Guides', guides, '/admin/content/guides', '/guides'); %>
+
+<%- include('partials/foot') %>

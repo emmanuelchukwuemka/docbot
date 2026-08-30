@@ -9,7 +9,8 @@ import { settings } from "../config.js";
 import { getSessionAdminUser, SESSION_KEY } from "./deps.js";
 import { HttpError } from "./httpError.js";
 import * as svc from "./service.js";
-import { AdminUser, Conversation, Document, Payment, Task } from "../db/models.js";
+import { AdminUser, ContactMessage, Conversation, Document, Payment, Task } from "../db/models.js";
+import { sequelize } from "../db/sequelize.js";
 import { verifyPassword } from "../security/passwords.js";
 import { LocalEncryptedStorage } from "../documents/storage.js";
 import { connectionState, whatsappClient } from "../whatsapp/baileysClient.js";
@@ -32,6 +33,7 @@ async function navCounts() {
     tasks: await Task.count({ where: { status: "pending" } }),
     escalated: await Conversation.count({ where: { escalation_status: "requested" } }),
     payments: await Payment.count({ where: { status: "pending" } }),
+    messages: await ContactMessage.count({ where: { status: "new" } }),
   };
 }
 
@@ -42,6 +44,9 @@ const TITLES = {
   documents: "Documents",
   consultations: "Consultations",
   knowledge: "Knowledge base",
+  content: "Content (Blog/News/Guides)",
+  messages: "Messages",
+  company: "Company (Team/Careers)",
   users: "Users",
   applications: "Applications",
   tasks: "Tasks",
@@ -355,6 +360,151 @@ router.post("/knowledge/faqs/:id/delete", requireAdminRolePage("/admin/knowledge
 });
 
 // --------------------------------------------------------------------------- //
+// Content (Blog / News / Guides) — public site pages at /blog, /news, /guides.
+// Any logged-in staff member can create/edit — same access level as the knowledge base,
+// not gated to admin role, since this is editorial content rather than an account/security
+// concern.
+// --------------------------------------------------------------------------- //
+
+router.get("/content", async (req, res) => {
+  await render(req, res, "content", "content", {
+    blogPosts: await svc.listBlogPosts(),
+    newsPosts: await svc.listNewsPosts(),
+    guides: await svc.listGuides(),
+  });
+});
+
+router.post("/content/blog", async (req, res) => {
+  await withError(req, res, "/admin/content", async () => {
+    await svc.createBlogPost(req.body, req.adminUser.username);
+    redirect(res, "/admin/content", "Blog post added.");
+  });
+});
+router.post("/content/blog/:id/update", async (req, res) => {
+  await withError(req, res, "/admin/content", async () => {
+    await svc.updateBlogPost(req.params.id, req.body, req.adminUser.username);
+    redirect(res, "/admin/content", "Blog post updated.");
+  });
+});
+router.post("/content/blog/:id/delete", async (req, res) => {
+  await withError(req, res, "/admin/content", async () => {
+    await svc.deleteBlogPost(req.params.id, req.adminUser.username);
+    redirect(res, "/admin/content", "Blog post deleted.");
+  });
+});
+
+router.post("/content/news", async (req, res) => {
+  await withError(req, res, "/admin/content", async () => {
+    await svc.createNewsPost(req.body, req.adminUser.username);
+    redirect(res, "/admin/content", "News post added.");
+  });
+});
+router.post("/content/news/:id/update", async (req, res) => {
+  await withError(req, res, "/admin/content", async () => {
+    await svc.updateNewsPost(req.params.id, req.body, req.adminUser.username);
+    redirect(res, "/admin/content", "News post updated.");
+  });
+});
+router.post("/content/news/:id/delete", async (req, res) => {
+  await withError(req, res, "/admin/content", async () => {
+    await svc.deleteNewsPost(req.params.id, req.adminUser.username);
+    redirect(res, "/admin/content", "News post deleted.");
+  });
+});
+
+router.post("/content/guides", async (req, res) => {
+  await withError(req, res, "/admin/content", async () => {
+    await svc.createGuide(req.body, req.adminUser.username);
+    redirect(res, "/admin/content", "Guide added.");
+  });
+});
+router.post("/content/guides/:id/update", async (req, res) => {
+  await withError(req, res, "/admin/content", async () => {
+    await svc.updateGuide(req.params.id, req.body, req.adminUser.username);
+    redirect(res, "/admin/content", "Guide updated.");
+  });
+});
+router.post("/content/guides/:id/delete", async (req, res) => {
+  await withError(req, res, "/admin/content", async () => {
+    await svc.deleteGuide(req.params.id, req.adminUser.username);
+    redirect(res, "/admin/content", "Guide deleted.");
+  });
+});
+
+// --------------------------------------------------------------------------- //
+// Messages — from the /contact page's "message our team" option.
+// --------------------------------------------------------------------------- //
+
+router.get("/messages", async (req, res) => {
+  await render(req, res, "messages", "messages", { messages: await svc.listContactMessages(req.query.status || null) });
+});
+
+router.post("/messages/:id/update", async (req, res) => {
+  await withError(req, res, "/admin/messages", async () => {
+    await svc.updateContactMessageStatus(req.params.id, req.body.status, req.adminUser.username);
+    redirect(res, "/admin/messages", "Message updated.");
+  });
+});
+
+router.post("/messages/:id/reply", async (req, res) => {
+  await withError(req, res, "/admin/messages", async () => {
+    await svc.replyToContactMessage(req.params.id, req.body.reply, req.adminUser.username);
+    redirect(res, "/admin/messages", "Reply sent via WhatsApp.");
+  });
+});
+
+// --------------------------------------------------------------------------- //
+// Company — Team & Careers (feeds /team and /careers). Shipped with zero rows — no
+// placeholder people or jobs — so both pages genuinely show nothing until staff add real
+// entries here.
+// --------------------------------------------------------------------------- //
+
+router.get("/company", async (req, res) => {
+  await render(req, res, "company", "company", {
+    teamMembers: await svc.listTeamMembers(),
+    jobListings: await svc.listJobListings(),
+  });
+});
+
+router.post("/company/team", async (req, res) => {
+  await withError(req, res, "/admin/company", async () => {
+    await svc.createTeamMember(req.body, req.adminUser.username);
+    redirect(res, "/admin/company", "Team member added.");
+  });
+});
+router.post("/company/team/:id/update", async (req, res) => {
+  await withError(req, res, "/admin/company", async () => {
+    await svc.updateTeamMember(req.params.id, req.body, req.adminUser.username);
+    redirect(res, "/admin/company", "Team member updated.");
+  });
+});
+router.post("/company/team/:id/delete", async (req, res) => {
+  await withError(req, res, "/admin/company", async () => {
+    await svc.deleteTeamMember(req.params.id, req.adminUser.username);
+    redirect(res, "/admin/company", "Team member deleted.");
+  });
+});
+
+router.post("/company/careers", async (req, res) => {
+  await withError(req, res, "/admin/company", async () => {
+    await svc.createJobListing(req.body, req.adminUser.username);
+    redirect(res, "/admin/company", "Job listing added.");
+  });
+});
+router.post("/company/careers/:id/update", async (req, res) => {
+  await withError(req, res, "/admin/company", async () => {
+    await svc.updateJobListing(req.params.id, req.body, req.adminUser.username);
+    redirect(res, "/admin/company", "Job listing updated.");
+  });
+});
+router.post("/company/careers/:id/delete", async (req, res) => {
+  await withError(req, res, "/admin/company", async () => {
+    await svc.deleteJobListing(req.params.id, req.adminUser.username);
+    redirect(res, "/admin/company", "Job listing deleted.");
+  });
+});
+
+// --------------------------------------------------------------------------- //
 // Staff
 // --------------------------------------------------------------------------- //
 
@@ -517,13 +667,36 @@ router.post("/whatsapp/relink", requireAdminRolePage("/admin/whatsapp"), async (
 
 router.get("/settings", requireAdminRolePage(), async (req, res) => {
   const { settings } = await import("../config.js");
+
+  // Real, measured right now — not a cached/assumed status. If this whole page loaded at
+  // all the DB obviously answered something, but a timed SELECT 1 is what actually shows
+  // whether it's healthy vs. just barely alive.
+  let dbLatencyMs = null;
+  let dbError = null;
+  try {
+    const start = Date.now();
+    await sequelize.query("SELECT 1");
+    dbLatencyMs = Date.now() - start;
+  } catch (err) {
+    dbError = err.message;
+  }
+
   await render(req, res, "settings", "settings", {
     settings: {
       environment: settings.environment,
       aiConfigured: settings.aiConfigured,
+      paystackConfigured: settings.paystackConfigured,
+      staffWebhookConfigured: Boolean(settings.staffNotificationWebhookUrl),
       enableScheduler: settings.enableScheduler,
       enableDataRetentionJob: settings.enableDataRetentionJob,
       dataRetentionDays: settings.dataRetentionDays,
+    },
+    health: {
+      whatsappStatus: connectionState.status,
+      dbLatencyMs,
+      dbError,
+      uptimeSeconds: Math.round(process.uptime()),
+      memoryMb: Math.round(process.memoryUsage().rss / 1024 / 1024),
     },
   });
 });

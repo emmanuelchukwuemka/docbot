@@ -18,6 +18,34 @@ export const inboundRateLimiter = new RateLimiter({
   windowMs: settings.whatsappInboundRateLimitWindowMs,
 });
 
+// Baileys can redeliver the same message on reconnect/session resume — without this, that
+// redelivery would create a second Message row and trigger a second bot reply to something
+// the user only sent once. In-memory + single-process, same MVP limit as inboundRateLimiter
+// above (not safe to rely on across multiple replicas) — module-level so it survives ingest
+// handler recreation across reconnects. 10 minutes comfortably covers a redelivery window
+// without holding every message ID forever.
+const SEEN_MESSAGE_ID_TTL_MS = 10 * 60_000;
+const seenMessageIds = new Map(); // messageId -> firstSeenAt
+
+/** Returns true (and records `messageId`) if it's already been seen within the TTL — the
+ * caller should skip processing entirely. A message with no ID at all (shouldn't normally
+ * happen) is never treated as a duplicate, since there's nothing reliable to key on. */
+function isDuplicateMessage(messageId) {
+  if (!messageId) return false;
+  if (seenMessageIds.has(messageId)) return true;
+  seenMessageIds.set(messageId, Date.now());
+  return false;
+}
+
+/** Drops expired entries — same reasoning as RateLimiter.sweep(), called from the same
+ * scheduled sweep job (see scheduler.js). */
+export function sweepSeenMessageIds() {
+  const cutoff = Date.now() - SEEN_MESSAGE_ID_TTL_MS;
+  for (const [id, seenAt] of seenMessageIds) {
+    if (seenAt < cutoff) seenMessageIds.delete(id);
+  }
+}
+
 // Deliberately does NOT seed `name` from WhatsApp's own pushName — the bot asks for the
 // user's name itself as part of the welcome flow (see conversation/manager.js's
 // _handleWelcome/_handleCollectingName), same as a human assistant introducing themselves
@@ -79,7 +107,51 @@ function extractMedia(m) {
 export function createIngestHandler({ whatsappClient, conversationManager }) {
   const manager = conversationManager || new ConversationManager({ whatsappClient });
 
+  // Message debounce — if someone types a thought across 2-3 quick bubbles ("hi" then,
+  // half a second later, "actually I want to move to Canada"), reacting to each the
+  // instant it lands means replying to "hi" before the real message even arrives, on top
+  // of being the same always-instant pattern flagged elsewhere in this file. Buffers plain
+  // text per user and only calls handleInbound once no new message has arrived for
+  // whatsappDebounceMs, combining whatever came in as one logical turn. Scoped to this
+  // closure (not module-level like the guards above) because it holds live references to
+  // `manager` — safe since createIngestHandler runs once for the process lifetime;
+  // baileysClient.js reuses the same handler across reconnects rather than rebuilding it.
+  //
+  // Deliberately does NOT buffer document/image uploads or button/list taps — those are
+  // complete, distinct actions in their own right, not a fragment of a longer thought, and
+  // get processed immediately. If one arrives while text is pending for that user, whatever
+  // was pending is flushed first so ordering still matches what they actually sent.
+  const pendingText = new Map(); // userId -> { texts: string[], user, conversation, timer }
+
+  function flushPendingText(userId) {
+    const entry = pendingText.get(userId);
+    if (!entry) return Promise.resolve();
+    clearTimeout(entry.timer);
+    pendingText.delete(userId);
+    const combinedText = entry.texts.join("\n");
+    return manager.handleInbound(entry.user, entry.conversation, combinedText, null).catch((err) => {
+      logger.error({ err, userId }, "Failed handling debounced inbound message");
+    });
+  }
+
+  function scheduleDebouncedText(user, conversation, text) {
+    const entry = pendingText.get(user.id) || { texts: [], user, conversation };
+    entry.texts.push(text);
+    entry.user = user;
+    entry.conversation = conversation;
+    clearTimeout(entry.timer);
+    entry.timer = setTimeout(() => flushPendingText(user.id), settings.whatsappDebounceMs);
+    pendingText.set(user.id, entry);
+  }
+
   return async function handleIncomingMessage(waId, waMessage) {
+    // Checked before the rate limiter on purpose — a redelivered message the user only
+    // actually sent once shouldn't burn any of their real inbound budget.
+    if (isDuplicateMessage(waMessage.key?.id)) {
+      logger.info({ waId, messageId: waMessage.key?.id }, "Duplicate WhatsApp message (already processed) — skipping.");
+      return;
+    }
+
     if (!inboundRateLimiter.consume(waId)) {
       logger.warn({ waId }, "Inbound WhatsApp rate limit hit — dropping message without processing.");
       return;
@@ -94,6 +166,9 @@ export function createIngestHandler({ whatsappClient, conversationManager }) {
     const media = extractMedia(content);
     const text = media ? `[uploaded ${media.filename}]` : extractInboundText(content).text;
 
+    // Logged as its own row regardless of debouncing below — conversation history should
+    // reflect exactly what was sent and when, even though the bot may react to several of
+    // these as one combined turn.
     await Message.create({
       conversation_id: conversation.id,
       direction: "inbound",
@@ -103,6 +178,7 @@ export function createIngestHandler({ whatsappClient, conversationManager }) {
     });
 
     if (media) {
+      await flushPendingText(user.id);
       const bytes = await whatsappClient.downloadMedia(waMessage);
       await manager.handleDocumentUpload(user, conversation, {
         content: bytes,
@@ -110,10 +186,17 @@ export function createIngestHandler({ whatsappClient, conversationManager }) {
         filename: media.filename,
         whatsappMediaId: waMessage.key.id,
       });
-    } else {
-      const { interactiveId } = extractInboundText(content);
-      await manager.handleInbound(user, conversation, text, interactiveId);
+      return;
     }
+
+    const { interactiveId } = extractInboundText(content);
+    if (interactiveId) {
+      await flushPendingText(user.id);
+      await manager.handleInbound(user, conversation, text, interactiveId);
+      return;
+    }
+
+    scheduleDebouncedText(user, conversation, text);
   };
 }
 

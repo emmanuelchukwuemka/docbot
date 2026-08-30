@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Contact Us — MigraTech</title>
+<meta name="description" content="Get in touch with MigraTech — chat on WhatsApp, or send a message straight to our team." />
+<link rel="icon" type="image/png" href="/brand/favicon.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/portal.css" />
+<style>
+.contact-header { background: #F9FAFB; border-bottom: 1px solid #E5E7EB; padding: 56px 0 44px; text-align: center; }
+.contact-eyebrow {
+  display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 100px;
+  background: #e8f7ee; border: 1px solid rgba(0,177,64,0.3);
+  font-size: 12.5px; font-weight: 700; color: #007a2e; margin-bottom: 18px;
+}
+.contact-header h1 { font-size: clamp(30px, 4vw, 42px); font-weight: 900; color: #0B1E3F; letter-spacing: -0.03em; margin-bottom: 12px; }
+.contact-header p { font-size: 15px; color: #6B7280; max-width: 560px; margin: 0 auto; line-height: 1.7; }
+.contact-body { padding: 64px 0 90px; max-width: 940px; margin: 0 auto; padding-left: 32px; padding-right: 32px; }
+.contact-options { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start; }
+.contact-card {
+  background: #fff; border: 1px solid #e5e7eb; border-radius: 20px; padding: 36px 32px;
+  text-align: center; box-shadow: 0 4px 24px rgba(11,30,63,0.06); height: 100%;
+}
+.contact-card-icon {
+  width: 56px; height: 56px; border-radius: 14px; margin: 0 auto 18px; display: flex; align-items: center; justify-content: center;
+  background: #e8f7ee; color: #00B140;
+}
+.contact-card-icon svg { width: 26px; height: 26px; }
+.contact-card h2 { font-size: 18px; font-weight: 800; color: #0B1E3F; margin-bottom: 10px; }
+.contact-card > p { font-size: 13.5px; color: #6B7280; line-height: 1.7; margin-bottom: 22px; }
+.contact-wa-btn {
+  display: inline-flex; align-items: center; gap: 10px; font-size: 14.5px; font-weight: 700; color: #fff;
+  background: #00B140; padding: 12px 26px; border-radius: 10px;
+  box-shadow: 0 2px 12px rgba(0,177,64,0.35); transition: background 120ms, box-shadow 120ms;
+}
+.contact-wa-btn:hover { background: #009935; box-shadow: 0 4px 18px rgba(0,177,64,0.45); }
+.contact-form { text-align: left; }
+.contact-form-note { background: #F9FAFB; border-radius: 8px; padding: 10px 12px; font-size: 12.5px; color: #6B7280; margin-bottom: 16px; }
+.contact-form-note b { color: #0B1E3F; }
+.contact-sent { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 20px 0; }
+.contact-sent-icon { width: 48px; height: 48px; border-radius: 50%; background: #ecfdf5; color: #059669; display: flex; align-items: center; justify-content: center; }
+.contact-facts { display: flex; justify-content: center; gap: 20px; margin-top: 24px; padding-top: 20px; border-top: 1px solid #F0F1F3; }
+.contact-fact { font-size: 12px; color: #6B7280; }
+.contact-fact b { display: block; font-size: 13px; color: #0B1E3F; margin-bottom: 2px; }
+@media (max-width: 800px) {
+  .contact-options { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<%- include('partials/nav') %>
+
+<header class="contact-header">
+  <div class="container">
+    <div class="contact-eyebrow">Get in Touch</div>
+    <h1>Contact Us</h1>
+    <p>Two ways to reach us — chat live on WhatsApp, or send a message straight to our team below.</p>
+  </div>
+</header>
+
+<div class="contact-body">
+  <div class="contact-options">
+
+    <!-- WhatsApp -->
+    <div class="contact-card">
+      <div class="contact-card-icon">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.86 9.86 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+      </div>
+      <h2>Chat on WhatsApp</h2>
+      <p>Fastest way to reach a real person — available 24/7, no account needed.</p>
+      <a href="https://wa.me/2348153955718" target="_blank" rel="noopener" class="contact-wa-btn">
+        <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.44 1.32 4.93L2.05 22l5.3-1.39a9.9 9.9 0 004.69 1.19h.01c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.87 9.87 0 0012.04 2z"/></svg>
+        +234 815 395 5718
+      </a>
+      <div class="contact-facts">
+        <div class="contact-fact"><b>24/7</b>Available</div>
+        <div class="contact-fact"><b>Real people</b>Not just AI</div>
+      </div>
+    </div>
+
+    <!-- Direct message -->
+    <div class="contact-card">
+      <div class="contact-card-icon">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+      </div>
+      <h2>Message Our Team</h2>
+      <p>Prefer not to use WhatsApp? Send a message here and our team will get back to you by email.</p>
+
+      <% if (sent) { %>
+        <div class="contact-sent">
+          <div class="contact-sent-icon"><svg width="22" height="22" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg></div>
+          <p style="font-size:14px;color:#374151">Message sent — we'll get back to you soon.</p>
+        </div>
+      <% } else { %>
+        <% if (error) { %><div class="auth-flash error" style="text-align:left"><%= error %></div><% } %>
+        <form method="post" action="/contact/message" class="contact-form">
+          <% if (sessionUser) { %>
+            <div class="contact-form-note">Sending as <b><%= sessionUser.name || 'you' %></b> (<%= sessionUser.email || sessionUser.whatsapp_number %>)</div>
+          <% } else { %>
+            <div class="field">
+              <label>Your name</label>
+              <input name="name" required value="<%= values.name || '' %>" />
+            </div>
+            <div class="field">
+              <label>Email (so we can reply)</label>
+              <input name="email" type="email" value="<%= values.email || '' %>" />
+            </div>
+          <% } %>
+          <div class="field">
+            <label>Message</label>
+            <textarea name="message" rows="4" required placeholder="How can we help?"><%= values.message || '' %></textarea>
+          </div>
+          <button type="submit" class="auth-submit">Send Message</button>
+        </form>
+      <% } %>
+    </div>
+
+  </div>
+
+  <p style="text-align:center;font-size:13px;color:#9CA3AF;margin-top:36px">
+    <% if (!sessionUser) { %>Already a client? <a href="/login" style="color:#00B140;font-weight:700">Log in to your account</a> to check your applications, documents and payments.<% } %>
+  </p>
+</div>
+
+<%- include('partials/footer') %>
+
+</body>
+</html>

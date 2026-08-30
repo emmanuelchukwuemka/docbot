@@ -1,0 +1,12 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /dashboard
+Disallow: /settings
+Disallow: /register
+Disallow: /login
+Disallow: /verify
+Disallow: /forgot-password
+Disallow: /reset-password
+
+Sitemap: https://migra.ng/sitemap.xml

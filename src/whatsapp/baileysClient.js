@@ -44,6 +44,24 @@ function toJid(whatsappNumber) {
   return whatsappNumber.includes("@") ? whatsappNumber : `${whatsappNumber}@s.whatsapp.net`;
 }
 
+/** Fire-and-forget alert to STAFF_NOTIFICATION_WEBHOOK_URL (same env var conversation/
+ * manager.js's escalation notifications use) — a no-op if it's not configured, same as
+ * there. Deliberately doesn't await/retry: an alert about connectivity being down
+ * shouldn't itself be allowed to block/crash on a slow network. */
+function notifyStaffWebhook(payload) {
+  const url = settings.staffNotificationWebhookUrl;
+  if (!url) {
+    logger.info({ payload }, "Staff alert (no webhook configured)");
+    return;
+  }
+  fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(5000),
+  }).catch((err) => logger.warn({ err }, "Staff notification webhook failed"));
+}
+
 // WhatsApp doesn't always identify a sender by their phone number — when the sender has
 // phone-number privacy enabled, inbound messages arrive addressed from a `@lid` (linked ID)
 // JID instead of the usual `@s.whatsapp.net` one. Stripping the domain and always replying
@@ -68,6 +86,13 @@ export class WhatsAppClient {
     this.outboundLimiter = new RateLimiter({
       max: settings.whatsappOutboundRateLimitMax,
       windowMs: settings.whatsappOutboundRateLimitWindowMs,
+    });
+    // Account-wide cap — see config.js for why the per-recipient one above isn't enough on
+    // its own. Uses RateLimiter's default "_global" key (no per-recipient key passed), so
+    // every send everywhere shares one budget regardless of who it's going to.
+    this.globalOutboundLimiter = new RateLimiter({
+      max: settings.whatsappGlobalOutboundRateLimitMax,
+      windowMs: settings.whatsappGlobalOutboundRateLimitWindowMs,
     });
     this.profilePictureSynced = false;
     this.numberMismatch = false;
@@ -157,6 +182,15 @@ export class WhatsAppClient {
         } else {
           connectionState.status = "disconnected";
           logger.error("Logged out of WhatsApp — delete BAILEYS_AUTH_DIR and re-scan the QR code to reconnect.");
+          // Terminal state — nothing will reconnect this on its own (unlike the backoff-retry
+          // branch above), so this is the one WhatsApp-connection event worth actually
+          // alerting on, not just logging. Reuses the same generic webhook conversation
+          // escalation already notifies through (see conversation/manager.js's
+          // _notifyStaff) — same env var, same "no-op if unconfigured" behavior.
+          notifyStaffWebhook({
+            type: "whatsapp_disconnected",
+            message: `${settings.botName} was logged out of WhatsApp and needs a fresh QR scan at /admin/whatsapp to reconnect.`,
+          });
         }
       } else if (connection === "connecting") {
         connectionState.status = "connecting";
@@ -192,12 +226,41 @@ export class WhatsAppClient {
   }
 
   /** Returns false (and logs) if `to` has already received outboundLimiter's cap of
-   * messages within the window — callers must skip the send entirely, not queue it for
-   * later, so a stuck sender can't build up an unbounded backlog. */
+   * messages within the window, OR the account-wide globalOutboundLimiter cap has been hit
+   * — callers must skip the send entirely, not queue it for later, so a stuck sender (or a
+   * large reminder backlog) can't build up an unbounded backlog. Per-recipient checked
+   * first since it's the more specific, more common-case limit. */
   _checkOutboundLimit(to) {
-    if (this.outboundLimiter.consume(to)) return true;
-    logger.warn({ to }, "Outbound WhatsApp rate limit hit for this recipient — skipping send.");
-    return false;
+    if (!this.outboundLimiter.consume(to)) {
+      logger.warn({ to }, "Outbound WhatsApp rate limit hit for this recipient — skipping send.");
+      return false;
+    }
+    if (!this.globalOutboundLimiter.consume()) {
+      logger.warn("Global outbound WhatsApp rate limit hit (account-wide) — skipping send.");
+      return false;
+    }
+    return true;
+  }
+
+  /** Shows WhatsApp's real "typing…" presence indicator, then waits — not just an
+   * artificial sleep. An always-instant, sub-second reply is a strong automation signal in
+   * its own right, separate from the pacing/volume limits above (those govern gaps *between*
+   * sends, not latency replying to a single message). Delay scales loosely with reply
+   * length so a one-line answer and a long paragraph don't take the same "typing time".
+   * Call this from conversation code right before the real send — not from sendText/etc.
+   * themselves, since staff messages and scheduled bulk sends are deliberately exempt (a
+   * human typing a reply doesn't need a simulated human typing a reply, and reminder jobs
+   * are already paced by sendQueue). No-ops immediately if disconnected or disabled. */
+  async simulateTyping(to, text) {
+    if (!this.sock || !settings.whatsappTypingDelayEnabled) return;
+    try {
+      await this.sock.sendPresenceUpdate("composing", toJid(to));
+    } catch (err) {
+      logger.warn({ err, to }, "Failed to send typing indicator (continuing anyway)");
+    }
+    const base = settings.whatsappTypingDelayMinMs + Math.random() * settings.whatsappTypingDelayJitterMs;
+    const lengthBonus = Math.min((text || "").length * settings.whatsappTypingDelayMsPerChar, settings.whatsappTypingDelayMaxBonusMs);
+    await new Promise((resolve) => setTimeout(resolve, Math.round(base + lengthBonus)));
   }
 
   async sendText(to, body) {

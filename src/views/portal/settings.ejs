@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Account Settings — MigraTech</title>
+<link rel="icon" type="image/png" href="/brand/favicon.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/portal.css" />
+</head>
+<body>
+
+<%- include('partials/nav', { loggedInName: user.name || 'there' }) %>
+
+<header class="content-header">
+  <div class="container">
+    <div class="content-eyebrow">Account</div>
+    <h1>Account Settings</h1>
+    <p style="margin-top:10px"><a href="/dashboard" style="color:#00B140;font-weight:700">← Back to Dashboard</a></p>
+  </div>
+</header>
+
+<div class="content-body" style="max-width:640px">
+
+  <section class="dash-panel" style="margin-bottom:22px">
+    <div class="dash-panel-head"><h2>Profile</h2></div>
+    <% if (profileError) { %><div class="auth-flash error" style="margin-bottom:16px"><%= profileError %></div><% } %>
+    <% if (profileSuccess) { %><div class="dash-flash success" style="margin-bottom:16px"><%= profileSuccess %></div><% } %>
+    <form method="post" action="/settings/profile">
+      <div class="field">
+        <label>Full name</label>
+        <input name="name" required value="<%= user.name || '' %>" />
+      </div>
+      <div class="field">
+        <label>Email address</label>
+        <input name="email" type="email" required value="<%= user.email || '' %>" />
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Country</label>
+          <select name="country">
+            <% countries.forEach(function(c) { %>
+              <option value="<%= c %>" <%= user.country === c ? 'selected' : '' %>><%= c %></option>
+            <% }) %>
+          </select>
+        </div>
+        <div class="field">
+          <label>State / Region</label>
+          <input name="state" value="<%= user.state || '' %>" />
+        </div>
+      </div>
+      <button type="submit" class="auth-submit" style="width:auto;padding:11px 26px">Save Profile</button>
+    </form>
+  </section>
+
+  <section class="dash-panel" style="margin-bottom:22px">
+    <div class="dash-panel-head"><h2>Change Password</h2></div>
+    <% if (passwordError) { %><div class="auth-flash error" style="margin-bottom:16px"><%= passwordError %></div><% } %>
+    <% if (passwordSuccess) { %><div class="dash-flash success" style="margin-bottom:16px"><%= passwordSuccess %></div><% } %>
+    <form method="post" action="/settings/password">
+      <div class="field">
+        <label>Current password</label>
+        <input name="current_password" type="password" required />
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>New password</label>
+          <input name="new_password" type="password" required minlength="8" />
+        </div>
+        <div class="field">
+          <label>Retype new password</label>
+          <input name="new_password_confirm" type="password" required minlength="8" />
+        </div>
+      </div>
+      <button type="submit" class="auth-submit" style="width:auto;padding:11px 26px">Change Password</button>
+    </form>
+  </section>
+
+  <section class="dash-panel">
+    <div class="dash-panel-head"><h2>WhatsApp Number</h2></div>
+    <p style="font-size:12.5px;color:#9CA3AF;margin-bottom:14px">Current: <b style="color:#374151"><%= user.whatsapp_number.replace('@s.whatsapp.net', '') %></b>. Changing this links your account to a different WhatsApp number going forward — past conversation history stays on your account, but the bot won't recognize your old number as this account anymore.</p>
+    <% if (phoneError) { %><div class="auth-flash error" style="margin-bottom:16px"><%= phoneError %></div><% } %>
+    <% if (phoneSuccess) { %><div class="dash-flash success" style="margin-bottom:16px"><%= phoneSuccess %></div><% } %>
+    <form method="post" action="/settings/phone">
+      <div class="field-row">
+        <div class="field" style="max-width:150px;flex:none">
+          <label>Country code</label>
+          <select name="whatsapp_dial_code">
+            <% dialCodes.forEach(function(d) { %>
+              <option value="<%= d.dial %>">+<%= d.dial %> <%= d.name %></option>
+            <% }) %>
+          </select>
+        </div>
+        <div class="field">
+          <label>New number</label>
+          <input name="whatsapp_local_number" placeholder="e.g. 8012345678" />
+        </div>
+      </div>
+      <div class="field">
+        <label>Confirm with your current password</label>
+        <input name="current_password" type="password" required />
+      </div>
+      <button type="submit" class="auth-submit" style="width:auto;padding:11px 26px">Update Number</button>
+    </form>
+  </section>
+
+</div>
+
+<%- include('partials/footer') %>
+
+</body>
+</html>

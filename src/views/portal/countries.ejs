@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Countries — MigraTech</title>
+<link rel="icon" type="image/png" href="/brand/favicon.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/portal.css" />
+</head>
+<body>
+
+<%- include('partials/nav') %>
+
+<header class="content-header">
+  <div class="container">
+    <div class="content-eyebrow">Discover</div>
+    <h1>Countries We Cover</h1>
+  </div>
+</header>
+
+<div class="content-body">
+  <% if (countries.length) { %>
+    <div class="content-grid">
+      <% countries.forEach(function(c) { %>
+        <a class="content-card" href="/pathways?country=<%= encodeURIComponent(c.name) %>">
+          <div class="content-card-body">
+            <h3><%= c.name %> <span style="color:#9CA3AF;font-weight:600;font-size:12px">(<%= c.code %>)</span></h3>
+            <% if (c.employment_considerations) { %><p><%= c.employment_considerations.slice(0, 160) %><%= c.employment_considerations.length > 160 ? '…' : '' %></p><% } %>
+            <div class="content-card-meta">View migration pathways →</div>
+          </div>
+        </a>
+      <% }) %>
+    </div>
+  <% } else { %>
+    <div class="content-empty">No countries published yet — message us on WhatsApp and we'll talk through your options directly.</div>
+  <% } %>
+</div>
+
+<%- include('partials/footer') %>
+
+</body>
+</html>

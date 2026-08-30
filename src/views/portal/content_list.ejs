@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title><%= pageLabel %> — MigraTech</title>
+<link rel="icon" type="image/png" href="/brand/favicon.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/portal.css" />
+</head>
+<body>
+
+<%- include('partials/nav') %>
+
+<header class="content-header">
+  <div class="container">
+    <div class="content-eyebrow">MigraTech</div>
+    <h1><%= pageLabel %></h1>
+  </div>
+</header>
+
+<div class="content-body">
+  <% if (typeof notFoundSlug !== 'undefined') { %>
+    <div class="content-empty">We couldn't find that <%= pageLabel.toLowerCase() %> post. It may have been unpublished or moved.</div>
+  <% } %>
+  <% if (items.length) { %>
+    <div class="content-grid">
+      <% items.forEach(function(item) { %>
+        <a class="content-card" href="<%= basePath %>/<%= item.slug %>">
+          <% if (item.cover_image_url) { %><img class="content-card-cover" src="<%= item.cover_image_url %>" alt="" />
+          <% } %>
+          <div class="content-card-body">
+            <h3><%= item.title %></h3>
+            <% if (item.excerpt) { %><p><%= item.excerpt %></p><% } %>
+            <div class="content-card-meta">
+              <%= item.author || 'MigraTech' %><% if (item.published_at) { %> · <%= new Date(item.published_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) %><% } %>
+            </div>
+          </div>
+        </a>
+      <% }) %>
+    </div>
+  <% } else if (typeof notFoundSlug === 'undefined') { %>
+    <div class="content-empty">Nothing published here yet — check back soon.</div>
+  <% } %>
+</div>
+
+<%- include('partials/footer') %>
+
+</body>
+</html>

@@ -1,0 +1,109 @@
+<%- include('partials/head') %>
+
+<div class="panel">
+  <h2>Team <span class="muted">(<a href="/team" target="_blank">view live →</a>)</span></h2>
+  <table>
+    <tr><th>Name</th><th>Role</th><th>Order</th><th>Active</th><th></th></tr>
+    <% teamMembers.forEach(function(m) { %>
+      <tr>
+        <td><%= m.name %></td>
+        <td><%= m.role || '—' %></td>
+        <td><%= m.display_order %></td>
+        <td><% if (m.is_active) { %><span class="badge green">active</span><% } else { %><span class="badge neutral">hidden</span><% } %></td>
+        <td>
+          <details class="edit-row">
+            <summary>Edit</summary>
+            <form class="field-form" method="post" action="/admin/company/team/<%= m.id %>/update">
+              <div class="field"><label>Name</label><input name="name" value="<%= m.name %>" required /></div>
+              <div class="field"><label>Role</label><input name="role" value="<%= m.role || '' %>" /></div>
+              <div class="field"><label>Bio</label><textarea name="bio" rows="3"><%= m.bio || '' %></textarea></div>
+              <div class="form-row">
+                <div class="field"><label>Photo URL</label><input name="photo_url" value="<%= m.photo_url || '' %>" /></div>
+                <div class="field"><label>Display order</label><input name="display_order" type="number" value="<%= m.display_order %>" /></div>
+              </div>
+              <div class="field"><label><input type="checkbox" name="is_active" style="width:auto" <%= m.is_active ? 'checked' : '' %> /> Active (visible on /team)</label></div>
+              <button class="btn secondary" type="submit">Save changes</button>
+            </form>
+          </details>
+          <form method="post" action="/admin/company/team/<%= m.id %>/delete" onsubmit="return confirm('Delete this team member?');" style="margin-top:6px;">
+            <button class="btn danger" type="submit">Delete</button>
+          </form>
+        </td>
+      </tr>
+    <% }) %>
+    <% if (!teamMembers.length) { %><tr><td class="muted" colspan="5">No team members added yet.</td></tr><% } %>
+  </table>
+  <details class="edit-row" style="margin-top:14px;">
+    <summary>+ Add team member</summary>
+    <form class="field-form" method="post" action="/admin/company/team">
+      <div class="field"><label>Name</label><input name="name" required /></div>
+      <div class="field"><label>Role</label><input name="role" /></div>
+      <div class="field"><label>Bio</label><textarea name="bio" rows="3"></textarea></div>
+      <div class="form-row">
+        <div class="field"><label>Photo URL</label><input name="photo_url" /></div>
+        <div class="field"><label>Display order</label><input name="display_order" type="number" value="0" /></div>
+      </div>
+      <div class="field"><label><input type="checkbox" name="is_active" style="width:auto" checked /> Active (visible on /team)</label></div>
+      <button class="btn" type="submit">Add</button>
+    </form>
+  </details>
+</div>
+
+<div class="panel">
+  <h2>Careers <span class="muted">(<a href="/careers" target="_blank">view live →</a>)</span></h2>
+  <table>
+    <tr><th>Title</th><th>Department</th><th>Location</th><th>Active</th><th></th></tr>
+    <% jobListings.forEach(function(j) { %>
+      <tr>
+        <td><%= j.title %></td>
+        <td><%= j.department || '—' %></td>
+        <td><%= j.location || '—' %></td>
+        <td><% if (j.is_active) { %><span class="badge green">open</span><% } else { %><span class="badge neutral">closed</span><% } %></td>
+        <td>
+          <details class="edit-row">
+            <summary>Edit</summary>
+            <form class="field-form" method="post" action="/admin/company/careers/<%= j.id %>/update">
+              <div class="field"><label>Title</label><input name="title" value="<%= j.title %>" required /></div>
+              <div class="form-row">
+                <div class="field"><label>Department</label><input name="department" value="<%= j.department || '' %>" /></div>
+                <div class="field"><label>Location</label><input name="location" value="<%= j.location || '' %>" /></div>
+              </div>
+              <div class="field"><label>Employment type</label><input name="employment_type" value="<%= j.employment_type || '' %>" placeholder="e.g. Full-time, Contract" /></div>
+              <div class="field"><label>Description</label><textarea name="description" rows="4" required><%= j.description %></textarea></div>
+              <div class="form-row">
+                <div class="field"><label>Apply email</label><input name="apply_email" type="email" value="<%= j.apply_email || '' %>" /></div>
+                <div class="field"><label>Apply URL</label><input name="apply_url" value="<%= j.apply_url || '' %>" /></div>
+              </div>
+              <div class="field"><label><input type="checkbox" name="is_active" style="width:auto" <%= j.is_active ? 'checked' : '' %> /> Open (visible on /careers)</label></div>
+              <button class="btn secondary" type="submit">Save changes</button>
+            </form>
+          </details>
+          <form method="post" action="/admin/company/careers/<%= j.id %>/delete" onsubmit="return confirm('Delete this job listing?');" style="margin-top:6px;">
+            <button class="btn danger" type="submit">Delete</button>
+          </form>
+        </td>
+      </tr>
+    <% }) %>
+    <% if (!jobListings.length) { %><tr><td class="muted" colspan="5">No job listings yet.</td></tr><% } %>
+  </table>
+  <details class="edit-row" style="margin-top:14px;">
+    <summary>+ Add job listing</summary>
+    <form class="field-form" method="post" action="/admin/company/careers">
+      <div class="field"><label>Title</label><input name="title" required /></div>
+      <div class="form-row">
+        <div class="field"><label>Department</label><input name="department" /></div>
+        <div class="field"><label>Location</label><input name="location" /></div>
+      </div>
+      <div class="field"><label>Employment type</label><input name="employment_type" placeholder="e.g. Full-time, Contract" /></div>
+      <div class="field"><label>Description</label><textarea name="description" rows="4" required></textarea></div>
+      <div class="form-row">
+        <div class="field"><label>Apply email</label><input name="apply_email" type="email" /></div>
+        <div class="field"><label>Apply URL</label><input name="apply_url" /></div>
+      </div>
+      <div class="field"><label><input type="checkbox" name="is_active" style="width:auto" checked /> Open (visible on /careers)</label></div>
+      <button class="btn" type="submit">Add</button>
+    </form>
+  </details>
+</div>
+
+<%- include('partials/foot') %>

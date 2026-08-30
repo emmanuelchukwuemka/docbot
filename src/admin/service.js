@@ -15,18 +15,24 @@ import {
   AdminUser,
   Application,
   AuditLog,
+  BlogPost,
   ConsultationBooking,
+  ContactMessage,
   Conversation,
   Country,
   Document,
   EligibilityAssessment,
   FAQ,
+  Guide,
   Lead,
   Message,
   MigrationProfile,
+  NewsPost,
+  JobListing,
   Pathway,
   Payment,
   Task,
+  TeamMember,
   User,
 } from "../db/models.js";
 import { hashPassword } from "../security/passwords.js";
@@ -928,4 +934,338 @@ export async function updatePayment(paymentId, status, actor) {
   await payment.save();
   await logAction({ actor, action: "update_payment", targetType: "payment", targetId: paymentId, details: { status } });
   return { id: payment.id, status: payment.status };
+}
+
+// --------------------------------------------------------------------------- //
+// Public site content (Blog / News / Guides) — admin-managed, staff-authored pages
+// rendered at /blog, /news, /guides. Three separate tables (see db/models.js) but
+// identical shape today, so the actual CRUD mechanics are shared internally — the
+// exported functions per type are what keeps Blog/News/Guides genuinely independent from
+// an admin-routing and future-schema-divergence standpoint.
+// --------------------------------------------------------------------------- //
+
+function slugify(text) {
+  return String(text || "")
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-+|-+$)/g, "");
+}
+
+async function uniqueSlug(Model, base, excludeId = null) {
+  const root = slugify(base) || "post";
+  let slug = root;
+  let n = 2;
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    const where = excludeId ? { slug, id: { [Op.ne]: excludeId } } : { slug };
+    if (!(await Model.findOne({ where }))) return slug;
+    slug = `${root}-${n++}`;
+  }
+}
+
+function serializeContentSummary(item) {
+  return {
+    id: item.id,
+    title: item.title,
+    slug: item.slug,
+    excerpt: item.excerpt,
+    author: item.author,
+    is_published: item.is_published,
+    published_at: item.published_at ? item.published_at.toISOString() : null,
+    created_at: item.created_at.toISOString(),
+  };
+}
+
+async function listContentItems(Model) {
+  const items = await Model.findAll({ order: [["created_at", "DESC"]] });
+  return items.map(serializeContentSummary);
+}
+
+async function createContentItem(Model, targetType, payload, actor) {
+  const title = (payload.title || "").trim();
+  const body = (payload.body || "").trim();
+  if (!title) throw new HttpError(400, "Title is required.");
+  if (!body) throw new HttpError(400, "Body is required.");
+
+  const slug = await uniqueSlug(Model, payload.slug || title);
+  const isPublished = payload.is_published === "on" || payload.is_published === true;
+  const item = await Model.create({
+    title,
+    slug,
+    excerpt: payload.excerpt || null,
+    body,
+    cover_image_url: payload.cover_image_url || null,
+    author: payload.author || actor,
+    is_published: isPublished,
+    published_at: isPublished ? new Date() : null,
+  });
+  await logAction({ actor, action: `create_${targetType}`, targetType, targetId: item.id, details: { title } });
+  return { id: item.id, slug: item.slug };
+}
+
+async function updateContentItem(Model, targetType, id, payload, actor) {
+  const item = await Model.findByPk(id);
+  if (!item) throw new HttpError(404, "Not found");
+
+  const title = (payload.title || "").trim();
+  const body = (payload.body || "").trim();
+  if (!title) throw new HttpError(400, "Title is required.");
+  if (!body) throw new HttpError(400, "Body is required.");
+
+  const wasPublished = item.is_published;
+  const isPublished = payload.is_published === "on" || payload.is_published === true;
+
+  item.title = title;
+  if (payload.slug && slugify(payload.slug) !== item.slug) {
+    item.slug = await uniqueSlug(Model, payload.slug, item.id);
+  }
+  item.excerpt = payload.excerpt || null;
+  item.body = body;
+  item.cover_image_url = payload.cover_image_url || null;
+  item.author = payload.author || item.author;
+  item.is_published = isPublished;
+  if (isPublished && !wasPublished) item.published_at = new Date();
+  if (!isPublished) item.published_at = null;
+  await item.save();
+
+  await logAction({ actor, action: `update_${targetType}`, targetType, targetId: id, details: { title } });
+  return { id: item.id, slug: item.slug };
+}
+
+async function deleteContentItem(Model, targetType, id, actor) {
+  const item = await Model.findByPk(id);
+  if (!item) throw new HttpError(404, "Not found");
+  await item.destroy();
+  await logAction({ actor, action: `delete_${targetType}`, targetType, targetId: id });
+  return { deleted: id };
+}
+
+// ---- Blog ----
+export async function listBlogPosts() {
+  return listContentItems(BlogPost);
+}
+export async function createBlogPost(payload, actor) {
+  return createContentItem(BlogPost, "blog_post", payload, actor);
+}
+export async function updateBlogPost(id, payload, actor) {
+  return updateContentItem(BlogPost, "blog_post", id, payload, actor);
+}
+export async function deleteBlogPost(id, actor) {
+  return deleteContentItem(BlogPost, "blog_post", id, actor);
+}
+
+// ---- News ----
+export async function listNewsPosts() {
+  return listContentItems(NewsPost);
+}
+export async function createNewsPost(payload, actor) {
+  return createContentItem(NewsPost, "news_post", payload, actor);
+}
+export async function updateNewsPost(id, payload, actor) {
+  return updateContentItem(NewsPost, "news_post", id, payload, actor);
+}
+export async function deleteNewsPost(id, actor) {
+  return deleteContentItem(NewsPost, "news_post", id, actor);
+}
+
+// ---- Guides ----
+export async function listGuides() {
+  return listContentItems(Guide);
+}
+export async function createGuide(payload, actor) {
+  return createContentItem(Guide, "guide", payload, actor);
+}
+export async function updateGuide(id, payload, actor) {
+  return updateContentItem(Guide, "guide", id, payload, actor);
+}
+export async function deleteGuide(id, actor) {
+  return deleteContentItem(Guide, "guide", id, actor);
+}
+
+// --------------------------------------------------------------------------- //
+// Contact messages (portal/service.js's submitContactMessage) — the /contact page's
+// "message our team" option, alongside WhatsApp.
+// --------------------------------------------------------------------------- //
+
+export async function listContactMessages(status = null) {
+  const where = status ? { status } : {};
+  const messages = await ContactMessage.findAll({ where, order: [["created_at", "DESC"]] });
+  return messages.map((m) => ({
+    id: m.id,
+    user_id: m.user_id,
+    name: m.name,
+    email: m.email,
+    whatsapp_number: m.whatsapp_number,
+    message: m.message,
+    status: m.status,
+    created_at: m.created_at.toISOString(),
+  }));
+}
+
+export async function updateContactMessageStatus(id, status, actor) {
+  if (!["new", "read", "replied"].includes(status)) {
+    throw new HttpError(400, "status must be new, read, or replied");
+  }
+  const message = await ContactMessage.findByPk(id);
+  if (!message) throw new HttpError(404, "Message not found");
+  message.status = status;
+  await message.save();
+  await logAction({ actor, action: "update_contact_message", targetType: "contact_message", targetId: id, details: { status } });
+  return { id: message.id, status: message.status };
+}
+
+/** Closes the loop on a contact-form message over the same WhatsApp connection the bot
+ * uses — only possible when the message has a whatsapp_number on it (only true for messages
+ * from a logged-in portal user; anonymous senders only leave an email, see
+ * portal/service.js's submitContactMessage). Marks the message replied on send. */
+export async function replyToContactMessage(id, replyText, actor) {
+  const text = (replyText || "").trim();
+  if (!text) throw new HttpError(400, "Reply text is required.");
+
+  const message = await ContactMessage.findByPk(id);
+  if (!message) throw new HttpError(404, "Message not found");
+  if (!message.whatsapp_number) {
+    throw new HttpError(400, "This message has no WhatsApp number on file — reply by email instead.");
+  }
+
+  // sendText() can throw (not just return {skipped:true}) if the socket exists but is
+  // mid-disconnect — see portal/otp.js for where this was first found.
+  let result;
+  try {
+    result = await whatsappClient.sendText(
+      message.whatsapp_number,
+      `Hi ${message.name}, this is MigraTech following up on your message:\n\n"${message.message}"\n\n${text}`
+    );
+  } catch {
+    result = { skipped: true };
+  }
+  if (result?.skipped) {
+    throw new HttpError(503, "Couldn't send — WhatsApp isn't connected right now. Check /admin/whatsapp.");
+  }
+
+  message.status = "replied";
+  await message.save();
+  await logAction({ actor, action: "reply_contact_message", targetType: "contact_message", targetId: id });
+  return { id: message.id, status: message.status };
+}
+
+// --------------------------------------------------------------------------- //
+// Team & Careers — real admin-managed pages, deliberately shipped with zero seeded rows
+// (no placeholder people or jobs) — /team and /careers show a genuine empty state until
+// staff add real entries here.
+// --------------------------------------------------------------------------- //
+
+export async function listTeamMembers() {
+  const members = await TeamMember.findAll({ order: [["display_order", "ASC"], ["created_at", "ASC"]] });
+  return members.map((m) => ({
+    id: m.id,
+    name: m.name,
+    role: m.role,
+    bio: m.bio,
+    photo_url: m.photo_url,
+    display_order: m.display_order,
+    is_active: m.is_active,
+  }));
+}
+
+export async function createTeamMember(payload, actor) {
+  const name = (payload.name || "").trim();
+  if (!name) throw new HttpError(400, "Name is required.");
+  const member = await TeamMember.create({
+    name,
+    role: payload.role || null,
+    bio: payload.bio || null,
+    photo_url: payload.photo_url || null,
+    display_order: Number(payload.display_order) || 0,
+    is_active: payload.is_active === "on" || payload.is_active === true,
+  });
+  await logAction({ actor, action: "create_team_member", targetType: "team_member", targetId: member.id, details: { name } });
+  return { id: member.id };
+}
+
+export async function updateTeamMember(id, payload, actor) {
+  const member = await TeamMember.findByPk(id);
+  if (!member) throw new HttpError(404, "Team member not found");
+  const name = (payload.name || "").trim();
+  if (!name) throw new HttpError(400, "Name is required.");
+  member.name = name;
+  member.role = payload.role || null;
+  member.bio = payload.bio || null;
+  member.photo_url = payload.photo_url || null;
+  member.display_order = Number(payload.display_order) || 0;
+  member.is_active = payload.is_active === "on" || payload.is_active === true;
+  await member.save();
+  await logAction({ actor, action: "update_team_member", targetType: "team_member", targetId: id });
+  return { id: member.id };
+}
+
+export async function deleteTeamMember(id, actor) {
+  const member = await TeamMember.findByPk(id);
+  if (!member) throw new HttpError(404, "Team member not found");
+  await member.destroy();
+  await logAction({ actor, action: "delete_team_member", targetType: "team_member", targetId: id });
+  return { deleted: id };
+}
+
+export async function listJobListings() {
+  const jobs = await JobListing.findAll({ order: [["created_at", "DESC"]] });
+  return jobs.map((j) => ({
+    id: j.id,
+    title: j.title,
+    department: j.department,
+    location: j.location,
+    employment_type: j.employment_type,
+    description: j.description,
+    apply_email: j.apply_email,
+    apply_url: j.apply_url,
+    is_active: j.is_active,
+  }));
+}
+
+export async function createJobListing(payload, actor) {
+  const title = (payload.title || "").trim();
+  const description = (payload.description || "").trim();
+  if (!title) throw new HttpError(400, "Title is required.");
+  if (!description) throw new HttpError(400, "Description is required.");
+  const job = await JobListing.create({
+    title,
+    department: payload.department || null,
+    location: payload.location || null,
+    employment_type: payload.employment_type || null,
+    description,
+    apply_email: payload.apply_email || null,
+    apply_url: payload.apply_url || null,
+    is_active: payload.is_active === "on" || payload.is_active === true,
+  });
+  await logAction({ actor, action: "create_job_listing", targetType: "job_listing", targetId: job.id, details: { title } });
+  return { id: job.id };
+}
+
+export async function updateJobListing(id, payload, actor) {
+  const job = await JobListing.findByPk(id);
+  if (!job) throw new HttpError(404, "Job listing not found");
+  const title = (payload.title || "").trim();
+  const description = (payload.description || "").trim();
+  if (!title) throw new HttpError(400, "Title is required.");
+  if (!description) throw new HttpError(400, "Description is required.");
+  job.title = title;
+  job.department = payload.department || null;
+  job.location = payload.location || null;
+  job.employment_type = payload.employment_type || null;
+  job.description = description;
+  job.apply_email = payload.apply_email || null;
+  job.apply_url = payload.apply_url || null;
+  job.is_active = payload.is_active === "on" || payload.is_active === true;
+  await job.save();
+  await logAction({ actor, action: "update_job_listing", targetType: "job_listing", targetId: id });
+  return { id: job.id };
+}
+
+export async function deleteJobListing(id, actor) {
+  const job = await JobListing.findByPk(id);
+  if (!job) throw new HttpError(404, "Job listing not found");
+  await job.destroy();
+  await logAction({ actor, action: "delete_job_listing", targetType: "job_listing", targetId: id });
+  return { deleted: id };
 }

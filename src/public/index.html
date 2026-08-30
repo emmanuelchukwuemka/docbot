@@ -502,6 +502,39 @@ img { display: block; max-width: 100%; }
 .cta-band .btn-wa:hover { background: #0d2448; }
 
 /* ═══════════════════════════════════════
+   MIGRA PLANS
+═══════════════════════════════════════ */
+.plans-section { padding: 80px 0; background: #fff; }
+.plans-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; align-items: stretch; }
+.plan-card {
+  border: 1px solid #e5e7eb; border-radius: 18px; padding: 32px 28px;
+  display: flex; flex-direction: column; position: relative; background: #fff;
+  transition: box-shadow 150ms, transform 150ms;
+}
+.plan-card:hover { box-shadow: 0 10px 30px rgba(11,30,63,0.08); transform: translateY(-3px); }
+.plan-card-featured { border: 2px solid #00B140; box-shadow: 0 10px 30px rgba(0,177,64,0.12); }
+.plan-badge {
+  position: absolute; top: -13px; left: 50%; transform: translateX(-50%);
+  background: #00B140; color: #fff; font-size: 11.5px; font-weight: 800;
+  padding: 5px 16px; border-radius: 100px; letter-spacing: 0.02em;
+}
+.plan-name { font-size: 13px; font-weight: 800; color: #007a2e; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px; }
+.plan-price { font-size: 30px; font-weight: 900; color: #0B1E3F; letter-spacing: -0.02em; margin-bottom: 14px; min-height: 38px; }
+.plan-price-sub { font-size: 14px; font-weight: 600; color: #9CA3AF; }
+.plan-desc { font-size: 13.5px; color: #6B7280; line-height: 1.6; margin-bottom: 20px; }
+.plan-features { list-style: none; display: flex; flex-direction: column; gap: 11px; margin-bottom: 28px; flex: 1; }
+.plan-features li { font-size: 13.5px; color: #374151; padding-left: 24px; position: relative; line-height: 1.5; }
+.plan-features li::before {
+  content: ""; position: absolute; left: 0; top: 5px; width: 14px; height: 14px; border-radius: 50%;
+  background: #e8f7ee; box-shadow: inset 0 0 0 4px #00B140;
+}
+.plan-btn { text-align: center; padding: 12px 20px; border-radius: 9px; font-size: 14px; font-weight: 700; transition: background 120ms, box-shadow 120ms; }
+.plan-btn-solid { background: #00B140; color: #fff; box-shadow: 0 2px 12px rgba(0,177,64,0.35); }
+.plan-btn-solid:hover { background: #009935; box-shadow: 0 4px 18px rgba(0,177,64,0.45); }
+.plan-btn-ghost { background: #F3F4F6; color: #0B1E3F; }
+.plan-btn-ghost:hover { background: #e5e7eb; }
+
+/* ═══════════════════════════════════════
    WHATSAPP SECTION
 ═══════════════════════════════════════ */
 .wa-section {
@@ -680,6 +713,7 @@ img { display: block; max-width: 100%; }
   .how-grid { grid-template-columns: repeat(2, 1fr); }
   .how-connector { display: none; }
   .dest-grid { grid-template-columns: 1fr; }
+  .plans-grid { grid-template-columns: 1fr; max-width: 400px; margin: 0 auto; }
   .wa-grid { grid-template-columns: 1fr; }
   .cta-band-inner { justify-content: center; text-align: center; }
   .footer-grid { grid-template-columns: 1fr 1fr; }
@@ -706,12 +740,13 @@ img { display: block; max-width: 100%; }
 
       <div class="nav-links">
         <a href="/" class="active">Home</a>
-        <a href="/about">About Us</a>
+        <a href="/#about">About Us</a>
         <span class="nav-drop">Services
           <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
         </span>
-        <a href="/programs">Programs</a>
-        <a href="/partners">For Partners</a>
+        <a href="/#programs">Programs</a>
+        <a href="/#plans">Plans</a>
+        <a href="/contact">For Partners</a>
         <span class="nav-drop">Resources
           <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
         </span>
@@ -719,11 +754,11 @@ img { display: block; max-width: 100%; }
       </div>
 
       <div class="nav-actions">
-        <button class="btn-login" id="nav-login">Login</button>
-        <button class="btn-gs" id="nav-gs">
+        <a href="/login" class="btn-login" id="nav-login">Login</a>
+        <a href="/register" class="btn-gs" id="nav-gs">
           Get Started
           <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 12h14M12 5l7 7-7 7"/></svg>
-        </button>
+        </a>
       </div>
     </div>
   </div>
@@ -792,21 +827,21 @@ img { display: block; max-width: 100%; }
           alt="Professional man with phone — MigraTech client"
         />
 
-        <!-- Card A: 15,000+ -->
-        <div class="float-card card-a" aria-label="15,000+ people assisted worldwide">
+        <!-- Card A: 10,000 -->
+        <div class="float-card card-a" aria-label="10,000 people assisted worldwide">
           <div class="fc-icon">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6 5.87v-2a4 4 0 00-2-3.46M15 7a4 4 0 11-8 0 4 4 0 018 0z"/>
             </svg>
           </div>
           <div>
-            <div class="fc-num">15,000+</div>
+            <div class="fc-num">10,000</div>
             <div class="fc-lbl">People Assisted Worldwide</div>
           </div>
         </div>
 
-        <!-- Card B: 50+ -->
-        <div class="float-card card-b" aria-label="50+ countries connected">
+        <!-- Card B: 10+ -->
+        <div class="float-card card-b" aria-label="10+ countries connected">
           <div class="fc-icon">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <circle cx="12" cy="12" r="10" stroke-width="2"/>
@@ -814,7 +849,7 @@ img { display: block; max-width: 100%; }
             </svg>
           </div>
           <div>
-            <div class="fc-num">50+</div>
+            <div class="fc-num">10+</div>
             <div class="fc-lbl">Countries Connected</div>
           </div>
         </div>
@@ -897,7 +932,7 @@ img { display: block; max-width: 100%; }
           </svg>
         </div>
         <div>
-          <div class="stat-num" id="s-people">15,000+</div>
+          <div class="stat-num" id="s-people">10,000</div>
           <div class="stat-lbl">People Assisted</div>
         </div>
       </div>
@@ -910,7 +945,7 @@ img { display: block; max-width: 100%; }
           </svg>
         </div>
         <div>
-          <div class="stat-num" id="s-countries">50+</div>
+          <div class="stat-num" id="s-countries">10+</div>
           <div class="stat-lbl">Countries Connected</div>
         </div>
       </div>
@@ -922,7 +957,7 @@ img { display: block; max-width: 100%; }
           </svg>
         </div>
         <div>
-          <div class="stat-num" id="s-partners">2,500+</div>
+          <div class="stat-num" id="s-partners">20+</div>
           <div class="stat-lbl">Partner Organizations</div>
         </div>
       </div>
@@ -944,7 +979,7 @@ img { display: block; max-width: 100%; }
 </section>
 
 <!-- ══════════════ WHY TRUST MIGRATECH ══════════════ -->
-<section class="trusted" aria-label="Why people trust MigraTech">
+<section id="about" class="trusted" aria-label="Why people trust MigraTech" style="scroll-margin-top:84px">
   <div class="container">
     <h3>Built for Honest, Secure Migration Guidance</h3>
     <div class="logos">
@@ -1049,7 +1084,7 @@ img { display: block; max-width: 100%; }
 </section>
 
 <!-- ══════════════ POPULAR DESTINATIONS ══════════════ -->
-<section class="dest-section" aria-label="Popular destinations">
+<section id="programs" class="dest-section" aria-label="Popular destinations" style="scroll-margin-top:84px">
   <div class="container">
     <div class="section-head">
       <div class="section-eyebrow">Popular Destinations</div>
@@ -1258,6 +1293,79 @@ img { display: block; max-width: 100%; }
   })();
 </script>
 
+<!-- ══════════════ MIGRA PLANS ══════════════ -->
+<section id="plans" class="plans-section" aria-label="MigraTech plans" style="scroll-margin-top:84px">
+  <div class="container">
+    <div class="section-head">
+      <div class="section-eyebrow">Pricing</div>
+      <h2>Migra Plans</h2>
+      <p>Start free. Pay only when you're ready for a specialist's hands-on help.</p>
+    </div>
+    <div class="plans-grid">
+
+      <div class="plan-card">
+        <div class="plan-name">Discover</div>
+        <div class="plan-price">Free</div>
+        <p class="plan-desc">Explore your options with our WhatsApp assistant — no cost, no commitment.</p>
+        <ul class="plan-features">
+          <li>WhatsApp eligibility conversation</li>
+          <li>Migration pathway matching</li>
+          <li>Answers to your questions, grounded in real pathway data</li>
+        </ul>
+        <a href="https://wa.me/2348153955718" target="_blank" rel="noopener" class="plan-btn plan-btn-ghost">Start Free on WhatsApp</a>
+      </div>
+
+      <div class="plan-card plan-card-featured">
+        <div class="plan-badge">Most Popular</div>
+        <div class="plan-name">Migra Plan</div>
+        <div class="plan-price" data-price="navigate">…</div>
+        <p class="plan-desc">Everything in Discover, plus a real specialist reviewing your case.</p>
+        <ul class="plan-features">
+          <li>Everything in Discover</li>
+          <li>One-on-one consultation with a migration specialist</li>
+          <li>Expert review of your profile and options</li>
+        </ul>
+        <a href="https://wa.me/2348153955718" target="_blank" rel="noopener" class="plan-btn plan-btn-solid">Get Migra Plan</a>
+      </div>
+
+      <div class="plan-card">
+        <div class="plan-name">Migra Go</div>
+        <div class="plan-price" data-price="relocate">…</div>
+        <p class="plan-desc">Full application support — priced per pathway, quoted by a specialist for your case.</p>
+        <ul class="plan-features">
+          <li>Everything in Migra Plan</li>
+          <li>Document checklist &amp; tracked application progress</li>
+          <li>Specialist-managed submission through to decision</li>
+        </ul>
+        <a href="https://wa.me/2348153955718" target="_blank" rel="noopener" class="plan-btn plan-btn-ghost">Talk to a Specialist</a>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<script>
+  // Real, live pricing — fetched from the server's actual configured values (config.js),
+  // never hardcoded here, so this can't silently drift from what checkout actually charges.
+  (function () {
+    fetch('/api/pricing').then(function (r) { return r.json(); }).then(function (p) {
+      var navigateEl = document.querySelector('[data-price="navigate"]');
+      var relocateEl = document.querySelector('[data-price="relocate"]');
+      if (navigateEl) {
+        navigateEl.innerHTML = '&#8358;' + p.navigate_price_ngn.toLocaleString() +
+          '<span class="plan-price-sub"> (~$' + p.navigate_price_usd_display + ')</span>';
+      }
+      if (relocateEl) {
+        relocateEl.innerHTML = 'From &#8358;' + p.relocate_reference_price_ngn.toLocaleString() +
+          '<span class="plan-price-sub"> (~$' + p.relocate_reference_price_usd_display + ')</span>';
+      }
+    }).catch(function () {
+      // Pricing endpoint unreachable — leave the "…" placeholder rather than show a wrong
+      // number; the WhatsApp/consultation buttons still work either way.
+    });
+  })();
+</script>
+
 <!-- ══════════════ WHATSAPP SECTION ══════════════ -->
 <section class="wa-section" aria-label="Chat with MigraTech on WhatsApp">
   <div class="container">
@@ -1369,7 +1477,7 @@ img { display: block; max-width: 100%; }
 </section>
 
 <!-- ══════════════ FAQ ══════════════ -->
-<section class="faq-section" aria-label="Frequently asked questions">
+<section id="faqs" class="faq-section" aria-label="Frequently asked questions" style="scroll-margin-top:84px">
   <div class="container container-narrow">
     <div class="section-head">
       <div class="section-eyebrow">FAQ</div>
@@ -1476,7 +1584,7 @@ img { display: block; max-width: 100%; }
       <div class="f-col">
         <h5>Company</h5>
         <ul>
-          <li><a href="/about">About Us</a></li>
+          <li><a href="/#about">About Us</a></li>
           <li><a href="/team">Our Team</a></li>
           <li><a href="/careers">Careers</a></li>
           <li><a href="/news">News &amp; Updates</a></li>
@@ -1488,11 +1596,11 @@ img { display: block; max-width: 100%; }
       <div class="f-col">
         <h5>Services</h5>
         <ul>
-          <li><a href="/study">Study Abroad</a></li>
-          <li><a href="/work">Work Abroad</a></li>
-          <li><a href="/immigrate">Immigrate</a></li>
-          <li><a href="/visit">Visit Visa</a></li>
-          <li><a href="/business">Business Migration</a></li>
+          <li><a href="/#programs">Study Abroad</a></li>
+          <li><a href="/#programs">Work Abroad</a></li>
+          <li><a href="/#programs">Immigrate</a></li>
+          <li><a href="/#programs">Visit Visa</a></li>
+          <li><a href="/#programs">Business Migration</a></li>
         </ul>
       </div>
 
@@ -1502,14 +1610,14 @@ img { display: block; max-width: 100%; }
         <ul>
           <li><a href="/blog">Blog</a></li>
           <li><a href="/guides">Guides</a></li>
-          <li><a href="/faqs">FAQs</a></li>
-          <li><a href="/countries">Country Information</a></li>
-          <li><a href="/visas">Visa Resources</a></li>
+          <li><a href="/#faqs">FAQs</a></li>
+          <li><a href="/#programs">Country Information</a></li>
+          <li><a href="/#programs">Visa Resources</a></li>
         </ul>
         <h5 style="margin-top:20px;">Support</h5>
         <ul>
-          <li><a href="/help">Help Center</a></li>
-          <li><a href="/support">Contact Support</a></li>
+          <li><a href="/contact">Help Center</a></li>
+          <li><a href="/contact">Contact Support</a></li>
           <li><a href="/terms">Terms of Service</a></li>
           <li><a href="/privacy">Privacy Policy</a></li>
         </ul>
@@ -1528,7 +1636,7 @@ img { display: block; max-width: 100%; }
     </div>
 
     <div class="footer-bar">
-      <span>© 2025 MigraTech. All rights reserved.</span>
+      <span>© 2026 MigraTech. All rights reserved.</span>
       <div class="footer-bar-links">
         <a href="/privacy">Privacy Policy</a>
         <a href="/terms">Terms of Service</a>

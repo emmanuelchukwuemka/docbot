@@ -1,0 +1,27 @@
+<nav class="nav" aria-label="Main navigation">
+  <div class="container">
+    <div class="nav-inner">
+      <a href="/" class="brand" aria-label="MigraTech">
+        <img src="/brand/logo-full.png" alt="MigraTech" class="brand-logo" />
+      </a>
+      <div class="nav-links">
+        <a href="/">Home</a>
+        <a href="/#about">About Us</a>
+        <a href="/#programs">Programs</a>
+        <a href="/#plans">Plans</a>
+        <a href="/contact">Contact</a>
+      </div>
+      <div class="nav-actions">
+        <% if (typeof loggedInName !== "undefined" && loggedInName) { %>
+          <span class="nav-who">Hi, <b><%= loggedInName %></b></span>
+          <form method="post" action="/logout" style="display:inline">
+            <button type="submit" class="btn-login">Log out</button>
+          </form>
+        <% } else { %>
+          <a href="/login"><button type="button" class="btn-login">Login</button></a>
+          <a href="/register"><button type="button" class="btn-gs">Get Started</button></a>
+        <% } %>
+      </div>
+    </div>
+  </div>
+</nav>

@@ -1217,6 +1217,14 @@ export class ConversationManager {
       ? text + "\n\n" + options.map((o, i) => `${i + 1}. ${o}`).join("\n")
       : text;
 
+    // Real "typing…" indicator + a length-scaled delay before every bot reply — an
+    // always-instant response is itself a strong automation signal (see
+    // baileysClient.js's simulateTyping for the full reasoning). Every _send() call is a
+    // genuine bot-to-user reply, so this is the one correct choke point — staff messages
+    // (admin/service.js's sendStaffMessage) and scheduled bulk sends (scheduler.js) call
+    // whatsappClient.sendText directly and are deliberately not routed through here.
+    await this.whatsappClient.simulateTyping(user.whatsapp_number, bodyText);
+
     let result;
     if (options && options.length > 3) {
       result = await this.whatsappClient.sendListOptions(user.whatsapp_number, bodyText, listButtonText || "Choose", options);

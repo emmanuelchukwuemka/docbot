@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Careers — MigraTech</title>
+<link rel="icon" type="image/png" href="/brand/favicon.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/portal.css" />
+<style>
+.job-list { display: flex; flex-direction: column; gap: 16px; max-width: 760px; margin: 0 auto; }
+.job-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 14px; padding: 24px 26px; }
+.job-card h3 { font-size: 17px; font-weight: 800; color: #0B1E3F; margin-bottom: 6px; }
+.job-meta { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+.job-desc { font-size: 13.5px; color: #6B7280; line-height: 1.7; margin-bottom: 16px; white-space: pre-wrap; }
+.job-apply { display: inline-flex; align-items: center; gap: 8px; font-size: 13.5px; font-weight: 700; color: #fff; background: #00B140; padding: 9px 20px; border-radius: 8px; }
+.job-apply:hover { background: #009935; }
+</style>
+</head>
+<body>
+
+<%- include('partials/nav') %>
+
+<header class="content-header">
+  <div class="container">
+    <div class="content-eyebrow">Company</div>
+    <h1>Careers</h1>
+    <p>Help us make migration honest and accessible.</p>
+  </div>
+</header>
+
+<div class="content-body">
+  <% if (jobs.length) { %>
+    <div class="job-list">
+      <% jobs.forEach(function(j) { %>
+        <div class="job-card">
+          <h3><%= j.title %></h3>
+          <div class="job-meta">
+            <% if (j.department) { %><span class="badge grey"><%= j.department %></span><% } %>
+            <% if (j.location) { %><span class="badge grey"><%= j.location %></span><% } %>
+            <% if (j.employment_type) { %><span class="badge grey"><%= j.employment_type %></span><% } %>
+          </div>
+          <p class="job-desc"><%= j.description %></p>
+          <% if (j.apply_url) { %>
+            <a href="<%= j.apply_url %>" target="_blank" rel="noopener" class="job-apply">Apply →</a>
+          <% } else if (j.apply_email) { %>
+            <a href="mailto:<%= j.apply_email %>?subject=<%= encodeURIComponent('Application: ' + j.title) %>" class="job-apply">Apply via email →</a>
+          <% } %>
+        </div>
+      <% }) %>
+    </div>
+  <% } else { %>
+    <div class="content-empty">No open roles right now — check back soon, or <a href="/contact" style="color:#00B140;font-weight:700">get in touch</a> anyway.</div>
+  <% } %>
+</div>
+
+<%- include('partials/footer') %>
+
+</body>
+</html>

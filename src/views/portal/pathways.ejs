@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Migration Pathways<%= filterCountry ? ' — ' + filterCountry : '' %> — MigraTech</title>
+<link rel="icon" type="image/png" href="/brand/favicon.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/portal.css" />
+</head>
+<body>
+
+<%- include('partials/nav') %>
+
+<header class="content-header">
+  <div class="container">
+    <div class="content-eyebrow">Discover</div>
+    <h1>Migration Pathways<% if (filterCountry) { %> — <%= filterCountry %><% } %></h1>
+    <% if (filterCountry) { %><p style="margin-top:10px"><a href="/pathways" style="color:#00B140;font-weight:700">Show all countries</a></p><% } %>
+  </div>
+</header>
+
+<div class="content-body">
+  <% if (pathways.length) { %>
+    <div class="content-grid">
+      <% pathways.forEach(function(p) { %>
+        <div class="content-card" style="cursor:default">
+          <div class="content-card-body">
+            <h3><%= p.country.name %> — <%= p.name %></h3>
+            <div style="margin-bottom:10px">
+              <span class="badge grey"><%= p.category %></span>
+              <% if (p.is_verified_content) { %><span class="badge green">verified</span><% } %>
+            </div>
+            <% if (p.summary) { %><p><%= p.summary %></p><% } %>
+            <div class="content-card-meta">
+              <% if (p.typical_processing_time) { %>Processing: <%= p.typical_processing_time %><br/><% } %>
+              <% if (p.government_fees) { %>Gov't fees: <%= p.government_fees %><br/><% } %>
+              <% if (p.service_fees) { %>Service fees: <%= p.service_fees %><% } %>
+            </div>
+          </div>
+        </div>
+      <% }) %>
+    </div>
+  <% } else { %>
+    <div class="content-empty">No pathways published<% if (filterCountry) { %> for <%= filterCountry %><% } %> yet — message us on WhatsApp and we'll talk through your options directly.</div>
+  <% } %>
+</div>
+
+<%- include('partials/footer') %>
+
+</body>
+</html>

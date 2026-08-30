@@ -6,8 +6,13 @@ services:
       MYSQL_PASSWORD: migratech
       MYSQL_DATABASE: migratech
       MYSQL_ROOT_PASSWORD: migratech_root
-    ports:
-      - "3306:3306"
+    # Deliberately no `ports:` mapping — the `app` service reaches this over Docker's internal
+    # network by service name (db:3306), and publishing it to the host exposed MySQL to the
+    # public internet with these default credentials (found + fixed 2026-08-29). Note this
+    # doesn't route through ufw at all — Docker manipulates iptables directly for published
+    # ports, ahead of ufw's own rules, so `ufw deny 3306` alone does nothing; not publishing
+    # the port in the first place is the actual fix.
+    restart: unless-stopped
     volumes:
       - migratech_mysqldata:/var/lib/mysql
     healthcheck:
@@ -23,6 +28,7 @@ services:
     environment:
       DATABASE_URL: mysql://migratech:migratech@db:3306/migratech
       ENVIRONMENT: development
+    restart: unless-stopped
     ports:
       - "8000:8000"
     volumes:
