@@ -16,6 +16,7 @@ import { generateChecklist } from "../documents/checklist.js";
 import { assess, EligibilityResultType } from "../eligibility/engine.js";
 import { hasPaidTier } from "../payments/tierAccess.js";
 import { settings } from "../config.js";
+import { countUnreadCaseMessages, listCaseMessages, markCaseMessagesRead, postCaseMessage } from "../cases/messaging.js";
 
 // Per-identifier (not per-IP) login guard — same spirit as whatsapp/ingest.js's inbound
 // rate limiter, keyed on the thing being targeted rather than plumbing req.ip through every
@@ -207,7 +208,7 @@ export async function getDashboardData(userId) {
   const applications = await Application.findAll({
     where: { user_id: userId },
     order: [["updated_at", "DESC"]],
-    include: [{ association: "pathway", include: [{ model: Country, as: "country" }] }],
+    include: [{ association: "pathway", include: [{ model: Country, as: "country" }] }, { association: "vendor" }],
   });
 
   const documents = await Document.findAll({ where: { user_id: userId }, order: [["uploaded_at", "DESC"]] });
@@ -247,17 +248,21 @@ export async function getDashboardData(userId) {
         }
       : null,
     progressPercent: primaryApplication ? stageProgressPercent(primaryApplication.stage) : 0,
-    applications: applications.map((a) => ({
-      id: a.id,
-      country: a.pathway ? a.pathway.country.name : null,
-      pathwayName: a.pathway ? a.pathway.name : null,
-      stage: a.stage,
-      stageLabel: APPLICATION_STAGE_LABELS[a.stage] || a.stage,
-      progressPercent: stageProgressPercent(a.stage),
-      status: a.status,
-      assigned_specialist: a.assigned_specialist,
-      updated_at: a.updated_at.toISOString(),
-    })),
+    applications: await Promise.all(
+      applications.map(async (a) => ({
+        id: a.id,
+        country: a.pathway ? a.pathway.country.name : null,
+        pathwayName: a.pathway ? a.pathway.name : null,
+        stage: a.stage,
+        stageLabel: APPLICATION_STAGE_LABELS[a.stage] || a.stage,
+        progressPercent: stageProgressPercent(a.stage),
+        status: a.status,
+        assigned_specialist: a.assigned_specialist,
+        agent: a.vendor ? { id: a.vendor.id, name: a.vendor.name, business_name: a.vendor.business_name } : null,
+        unreadAgentMessages: a.vendor ? await countUnreadCaseMessages(a.id, "user") : 0,
+        updated_at: a.updated_at.toISOString(),
+      }))
+    ),
     documents: documents.map((d) => ({
       id: d.id,
       document_type: d.document_type,
@@ -294,6 +299,42 @@ export async function getDashboardData(userId) {
     recommendations,
     activity: buildActivityFeed({ documents, applications, consultations, payments }),
   };
+}
+
+// --------------------------------------------------------------------------- //
+// Case detail + messaging — a user's own view of a specific case (Application), including
+// the direct message thread with their assigned agent if one exists. See
+// vendors/service.js's getVendorCase for the mirror-image version on the agent's side.
+// --------------------------------------------------------------------------- //
+
+export async function getUserCase(userId, applicationId) {
+  const application = await Application.findOne({
+    where: { id: applicationId, user_id: userId },
+    include: [{ association: "pathway", include: [{ model: Country, as: "country" }] }, { association: "vendor" }],
+  });
+  if (!application) throw new HttpError(404, "Case not found.");
+
+  await markCaseMessagesRead(applicationId, "user");
+  const messages = application.vendor ? await listCaseMessages(applicationId) : [];
+
+  return {
+    id: application.id,
+    stage: application.stage,
+    stageLabel: APPLICATION_STAGE_LABELS[application.stage] || application.stage,
+    status: application.status,
+    pathway: application.pathway ? `${application.pathway.country.name} — ${application.pathway.name}` : "—",
+    agent: application.vendor
+      ? { id: application.vendor.id, name: application.vendor.name, business_name: application.vendor.business_name }
+      : null,
+    messages,
+  };
+}
+
+export async function sendCaseMessageAsUser(userId, applicationId, body) {
+  const application = await Application.findOne({ where: { id: applicationId, user_id: userId } });
+  if (!application) throw new HttpError(404, "Case not found.");
+  if (!application.vendor_id) throw new HttpError(400, "No agent is assigned to this case yet.");
+  return postCaseMessage(applicationId, "user", userId, body);
 }
 
 /** Same shape as the WhatsApp bot's own booking (conversation/manager.js) minus

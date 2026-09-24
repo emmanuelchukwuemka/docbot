@@ -34,6 +34,7 @@ services:
     volumes:
       - migratech_baileys_auth:/app/storage/baileys-auth
       - migratech_documents:/app/storage/documents
+      - migratech_vendor_photos:/app/storage/vendor-photos
     depends_on:
       db:
         condition: service_healthy
@@ -44,3 +45,4 @@ volumes:
   migratech_mysqldata:
   migratech_baileys_auth:
   migratech_documents:
+  migratech_vendor_photos:

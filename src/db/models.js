@@ -220,6 +220,11 @@ export const Application = sequelize.define(
     ...uuidPk,
     user_id: { type: DataTypes.UUID, allowNull: false },
     pathway_id: { type: DataTypes.UUID, allowNull: true },
+    // Which partner agent (Vendor) is handling this case, if any — set by staff from the
+    // admin dashboard (svc.assignVendorToApplication), never chosen by the user or the
+    // vendor themselves. Null means no agent involved; this is a normal, common state, not
+    // an error one — most applications are handled entirely in-house.
+    vendor_id: { type: DataTypes.UUID, allowNull: true },
     stage: { type: DataTypes.STRING(50), defaultValue: "profile_assessment" },
     status: { type: DataTypes.STRING(30), defaultValue: "in_progress" },
     assigned_specialist: { type: DataTypes.STRING(255), allowNull: true },
@@ -442,6 +447,149 @@ export const JobListing = sequelize.define(
 );
 
 // --------------------------------------------------------------------------- //
+// Vendors — external migration agents/agencies who apply for a partner account
+// (2026-09-01, user-directed: "vendor... people also get to sign as an agent so we can
+// connect two"). Deliberately named Vendor, not Agent — AdminUser.role already uses
+// "agent" to mean internal staff (see below), and Lead.assigned_agent/Task.assigned_agent
+// are staff-name strings; reusing "Agent" here would collide with that vocabulary
+// throughout the admin dashboard. User-facing copy can still say "Agent"/"Partner Agent".
+//
+// Applications start `pending` and the vendor cannot log in — vendors/deps.js's
+// getSessionVendor refuses a session for anything but `approved`, same verification-gate
+// shape as Document.verification_status and Pathway/FAQ.is_verified_content — until a
+// staff member reviews them. This isn't optional polish: the PRD is explicit (§5 Non-Goals,
+// §16 FR-16) that the product exists partly to protect users from fraudulent/unverified
+// migration agents, so an unvetted vendor must never reach a real account.
+//
+// Once approved, a vendor gets a real dashboard (vendors/routes.js): cases (Applications
+// staff have assigned to them via Application.vendor_id), direct messaging with the client
+// on that case (CaseMessage — no staff mediation on those specific threads, 2026-09-01
+// user-directed; staff can still read every thread for oversight), and a commission ledger
+// (Commission) for cases staff mark won. Matching which vendor gets which case is still a
+// staff decision made in the admin dashboard — there is no self-serve/automated matching.
+// --------------------------------------------------------------------------- //
+
+export const Vendor = sequelize.define(
+  "Vendor",
+  {
+    ...uuidPk,
+    name: { type: DataTypes.STRING(255), allowNull: false },
+    business_name: { type: DataTypes.STRING(255), allowNull: true },
+    whatsapp_number: { type: DataTypes.STRING(32), allowNull: false },
+    email: { type: DataTypes.STRING(255), allowNull: false },
+    // Set at application time (same as a User's password), but useless for logging in until
+    // status flips to "approved" — see vendors/deps.js.
+    password_hash: { type: DataTypes.STRING(255), allowNull: false },
+    // Free-text country list (e.g. "Canada, UK") rather than a hard link to the Country
+    // table — vendors describe coverage in their own words at application time; staff can
+    // tighten this up later if/when real matching logic is built.
+    countries_covered: { type: DataTypes.STRING(500), allowNull: true },
+    // Loosely follows the work/study/family pathway categories used elsewhere
+    // (flows.js GOAL_CODES, Pathway.category) but stored as free-form tags, not
+    // constrained to them — vendors may offer things (e.g. relocation/settlement support)
+    // that aren't one of today's seeded pathway categories.
+    service_categories: jsonColumn("service_categories", []),
+    services_offered: { type: DataTypes.TEXT, allowNull: true },
+    message: { type: DataTypes.TEXT, allowNull: true },
+    status: { type: DataTypes.STRING(20), defaultValue: "pending" },
+    /** pending | approved | rejected | suspended */
+    reviewed_by: { type: DataTypes.STRING(120), allowNull: true },
+    reviewed_at: { type: DataTypes.DATE, allowNull: true },
+    internal_notes: { type: DataTypes.TEXT, allowNull: true },
+    // null = use settings.defaultCommissionRatePercent; set here only when staff have
+    // negotiated a different rate with this specific vendor.
+    commission_rate_percent: { type: DataTypes.FLOAT, allowNull: true },
+    // Plain, publicly-servable path (e.g. /vendor-photos/<file>.jpg) — NOT run through
+    // LocalEncryptedStorage like VendorDocument below. A profile photo is meant to be shown
+    // (dashboard sidebar, admin review list); an ID/license upload is meant to be protected.
+    // Different sensitivity, deliberately different storage treatment.
+    photo_url: { type: DataTypes.STRING(500), allowNull: true },
+    created_at: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
+  },
+  { tableName: "vendors", timestamps: false }
+);
+
+// --------------------------------------------------------------------------- //
+// Vendor verification documents — ID/license/certification uploads supporting an agent
+// application or a later profile update (2026-09-01). Same encrypted-at-rest treatment as
+// the migrant-facing Document model (LocalEncryptedStorage, AES-256-GCM) — this is exactly
+// the kind of sensitive identity document that model was built for, just for the other side
+// of the marketplace. Deliberately a separate table from Document rather than a shared one:
+// Document.user_id assumes a User, and reusing it for vendors would mean a nullable
+// user_id/vendor_id pair on every row forever, for the sake of a table both sides barely
+// share any real behavior with (no verification_status workflow needed here yet — staff
+// review these directly on the Agents application, not through the client document-review
+// queue).
+// --------------------------------------------------------------------------- //
+
+export const VendorDocument = sequelize.define(
+  "VendorDocument",
+  {
+    ...uuidPk,
+    vendor_id: { type: DataTypes.UUID, allowNull: false },
+    document_type: { type: DataTypes.STRING(120), allowNull: false },
+    file_location: { type: DataTypes.STRING(500), allowNull: false },
+    original_filename: { type: DataTypes.STRING(255), allowNull: true },
+    mime_type: { type: DataTypes.STRING(120), allowNull: true },
+    uploaded_at: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
+  },
+  { tableName: "vendor_documents", timestamps: false }
+);
+
+// --------------------------------------------------------------------------- //
+// Case messaging — direct agent<->client chat on a specific case (Application), added
+// alongside the vendor dashboard (2026-09-01, user-directed: agents message clients
+// directly, no staff mediation on these threads). Deliberately its own table, not a reuse
+// of Message (that model is WhatsApp-conversation-specific — sender/direction/delivery
+// status all assume the Baileys pipeline, which doesn't apply to a web-portal text thread).
+// Staff can still read any thread (admin/service.js) for safety oversight even though they
+// don't have to relay it.
+// --------------------------------------------------------------------------- //
+
+export const CaseMessage = sequelize.define(
+  "CaseMessage",
+  {
+    ...uuidPk,
+    application_id: { type: DataTypes.UUID, allowNull: false },
+    sender_type: { type: DataTypes.STRING(10), allowNull: false },
+    /** user | vendor */
+    sender_id: { type: DataTypes.UUID, allowNull: false },
+    body: { type: DataTypes.TEXT, allowNull: false },
+    read_at: { type: DataTypes.DATE, allowNull: true },
+    created_at: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
+  },
+  { tableName: "case_messages", timestamps: false }
+);
+
+// --------------------------------------------------------------------------- //
+// Commission — ledger entry for a vendor's cut of a case staff have marked won. A ledger
+// entry, not a payment rail: `status` tracks whether it's been paid, but the actual transfer
+// happens off-platform (bank transfer, however MigraTech pays people today) — same
+// deliberate scope line as RELOCATE pricing (staff-mediated, not automated). `rate_percent`
+// and `amount` are snapshotted at creation time so a later change to a vendor's commission
+// rate never silently rewrites the value of an already-recorded commission.
+// --------------------------------------------------------------------------- //
+
+export const Commission = sequelize.define(
+  "Commission",
+  {
+    ...uuidPk,
+    application_id: { type: DataTypes.UUID, allowNull: false },
+    vendor_id: { type: DataTypes.UUID, allowNull: false },
+    case_value: { type: DataTypes.DECIMAL(12, 2), allowNull: false },
+    rate_percent: { type: DataTypes.FLOAT, allowNull: false },
+    amount: { type: DataTypes.DECIMAL(12, 2), allowNull: false },
+    status: { type: DataTypes.STRING(20), defaultValue: "owed" },
+    /** owed | paid */
+    marked_by: { type: DataTypes.STRING(120), allowNull: true },
+    paid_at: { type: DataTypes.DATE, allowNull: true },
+    notes: { type: DataTypes.TEXT, allowNull: true },
+    created_at: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
+  },
+  { tableName: "commissions", timestamps: false }
+);
+
+// --------------------------------------------------------------------------- //
 // Associations
 // --------------------------------------------------------------------------- //
 
@@ -491,6 +639,20 @@ User.hasMany(Payment, { foreignKey: "user_id", as: "payments", onDelete: "CASCAD
 Payment.belongsTo(User, { foreignKey: "user_id", as: "user" });
 Lead.hasMany(Payment, { foreignKey: "lead_id", as: "payments" });
 Payment.belongsTo(Lead, { foreignKey: "lead_id", as: "lead" });
+
+Vendor.hasMany(Application, { foreignKey: "vendor_id", as: "cases" });
+Application.belongsTo(Vendor, { foreignKey: "vendor_id", as: "vendor" });
+
+Vendor.hasMany(VendorDocument, { foreignKey: "vendor_id", as: "documents", onDelete: "CASCADE", hooks: true });
+VendorDocument.belongsTo(Vendor, { foreignKey: "vendor_id", as: "vendor" });
+
+Application.hasMany(CaseMessage, { foreignKey: "application_id", as: "case_messages", onDelete: "CASCADE", hooks: true });
+CaseMessage.belongsTo(Application, { foreignKey: "application_id", as: "application" });
+
+Application.hasMany(Commission, { foreignKey: "application_id", as: "commissions" });
+Commission.belongsTo(Application, { foreignKey: "application_id", as: "application" });
+Vendor.hasMany(Commission, { foreignKey: "vendor_id", as: "commissions" });
+Commission.belongsTo(Vendor, { foreignKey: "vendor_id", as: "vendor" });
 
 export async function syncModels() {
   // Deliberately NOT { alter: true } — confirmed on 2026-08-22 that it silently emptied

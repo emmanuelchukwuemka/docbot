@@ -18,7 +18,9 @@ import {
   changeWhatsappNumber,
   findRegisteredUserByIdentifier,
   getDashboardData,
+  getUserCase,
   registerUser,
+  sendCaseMessageAsUser,
   setNewPassword,
   submitContactMessage,
   updateProfile,
@@ -380,6 +382,40 @@ router.get(
       flashMessage: req.query.msg || null,
       flashError: req.query.error || null,
     });
+  })
+);
+
+router.get(
+  "/dashboard/cases/:id",
+  wrap(requireLogin),
+  wrap(async (req, res, next) => {
+    try {
+      const caseData = await getUserCase(req.portalUser.id, req.params.id);
+      res.render("portal/caseDetail", {
+        loggedInName: req.portalUser.name || "there",
+        caseData,
+        error: req.query.error || null,
+      });
+    } catch (err) {
+      if (err instanceof HttpError && err.status === 404) return res.redirect(303, "/dashboard");
+      next(err);
+    }
+  })
+);
+
+router.post(
+  "/dashboard/cases/:id/messages",
+  wrap(requireLogin),
+  wrap(async (req, res, next) => {
+    try {
+      await sendCaseMessageAsUser(req.portalUser.id, req.params.id, req.body.body);
+      res.redirect(303, "/dashboard/cases/" + req.params.id);
+    } catch (err) {
+      if (err instanceof HttpError) {
+        return res.redirect(303, "/dashboard/cases/" + req.params.id + "?error=" + encodeURIComponent(err.detail));
+      }
+      next(err);
+    }
   })
 );
 

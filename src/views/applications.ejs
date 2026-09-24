@@ -1,8 +1,12 @@
 <%- include('partials/head') %>
 
 <div class="panel">
+  <p class="muted" style="margin-bottom:16px">
+    Assign an approved partner agent to a case, mark a case won to record the commission owed, and — for oversight —
+    read the direct agent↔client message thread (you're not part of these conversations, but you can always see them).
+  </p>
   <table>
-    <tr><th>Name</th><th>WhatsApp</th><th>Pathway</th><th>Stage</th><th>Status</th><th>Specialist</th><th>Updated</th></tr>
+    <tr><th>Name</th><th>WhatsApp</th><th>Pathway</th><th>Stage</th><th>Status</th><th>Agent</th><th>Commission</th><th>Updated</th><th></th></tr>
     <% applications.forEach(a => { %>
       <tr>
         <td><%= a.name || '—' %></td>
@@ -10,11 +14,57 @@
         <td><%= a.pathway %></td>
         <td><%= a.stage %></td>
         <td><%= a.status %></td>
-        <td><%= a.assigned_specialist || '—' %></td>
+        <td>
+          <form method="post" action="/admin/applications/<%= a.id %>/vendor" class="inline-form">
+            <select name="vendor_id" onchange="this.form.submit()">
+              <option value="">— none —</option>
+              <% approvedVendors.forEach(function(v) { %>
+                <option value="<%= v.id %>" <%= a.vendor && a.vendor.id === v.id ? 'selected' : '' %>><%= v.name %></option>
+              <% }) %>
+            </select>
+          </form>
+        </td>
+        <td>
+          <% a.commissions.forEach(function(c) { %>
+            <div style="margin-bottom:4px">
+              <span class="badge <%= c.status === 'paid' ? 'green' : 'warm' %>">₦<%= c.amount.toLocaleString() %> <%= c.status %></span>
+              <% if (c.status === 'owed') { %>
+                <form method="post" action="/admin/commissions/<%= c.id %>/mark-paid" class="inline-form">
+                  <button class="btn secondary" type="submit" style="font-size:11px;padding:2px 8px">Mark Paid</button>
+                </form>
+              <% } %>
+            </div>
+          <% }) %>
+          <% if (a.vendor) { %>
+            <details class="edit-row">
+              <summary>Mark won</summary>
+              <form class="field-form" method="post" action="/admin/applications/<%= a.id %>/mark-won">
+                <div class="field"><input name="case_value" type="number" min="1" step="1" placeholder="Case value (₦)" required /></div>
+                <button class="btn secondary" type="submit">Record Commission</button>
+              </form>
+            </details>
+          <% } %>
+        </td>
         <td class="muted"><%= new Date(a.updated_at).toLocaleString() %></td>
+        <td>
+          <% if (a.vendor) { %>
+            <details class="edit-row">
+              <summary>Messages</summary>
+              <div style="max-width:280px;max-height:220px;overflow-y:auto;font-size:12px">
+                <% (messagesByApplication[a.id] || []).forEach(function(m) { %>
+                  <div style="margin-bottom:6px">
+                    <b><%= m.sender_type === 'vendor' ? 'Agent' : 'Client' %>:</b> <%= m.body %>
+                    <div class="muted" style="font-size:10.5px"><%= new Date(m.created_at).toLocaleString() %></div>
+                  </div>
+                <% }) %>
+                <% if (!(messagesByApplication[a.id] || []).length) { %><span class="muted">No messages yet.</span><% } %>
+              </div>
+            </details>
+          <% } %>
+        </td>
       </tr>
     <% }) %>
-    <% if (!applications.length) { %><tr><td class="muted" colspan="7">No applications yet.</td></tr><% } %>
+    <% if (!applications.length) { %><tr><td class="muted" colspan="9">No applications yet.</td></tr><% } %>
   </table>
 </div>
 

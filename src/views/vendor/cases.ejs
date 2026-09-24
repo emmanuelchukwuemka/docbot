@@ -1,0 +1,24 @@
+<%- include('partials/head') %>
+
+<div class="panel">
+  <h2>Cases</h2>
+  <table>
+    <tr><th>Client</th><th>Pathway</th><th>Stage</th><th>Status</th><th>Updated</th><th></th></tr>
+    <% cases.forEach(function(c) { %>
+      <tr>
+        <td>
+          <b><%= c.client_name %></b>
+          <% if (c.unread_messages) { %><span class="badge hot" style="margin-left:6px"><%= c.unread_messages %> new</span><% } %>
+        </td>
+        <td><%= c.pathway %></td>
+        <td class="muted"><%= c.stage.replace(/_/g, ' ') %></td>
+        <td><span class="badge <%= c.status === 'in_progress' ? 'warm' : 'neutral' %>"><%= c.status %></span></td>
+        <td class="muted"><%= new Date(c.updated_at).toLocaleDateString() %></td>
+        <td><a class="btn secondary" href="/agents/cases/<%= c.id %>">Open</a></td>
+      </tr>
+    <% }) %>
+    <% if (!cases.length) { %><tr><td class="muted" colspan="6">No cases assigned yet — MigraTech staff will assign cases here as they come in.</td></tr><% } %>
+  </table>
+</div>
+
+<%- include('partials/foot') %>

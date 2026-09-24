@@ -14,6 +14,7 @@ import { ensureDefaultAdmin } from "./admin/bootstrap.js";
 import { router as adminApiRouter } from "./admin/apiRoutes.js";
 import { router as adminUiRouter } from "./admin/uiRoutes.js";
 import { router as portalRouter } from "./portal/routes.js";
+import { router as vendorsRouter } from "./vendors/routes.js";
 import { router as contentPublicRouter } from "./content/publicRoutes.js";
 import { router as knowledgePublicRouter } from "./content/knowledgeRoutes.js";
 import { whatsappClient, connectionState } from "./whatsapp/baileysClient.js";
@@ -21,6 +22,8 @@ import { createIngestHandler, handleDeliveryError } from "./whatsapp/ingest.js";
 import { ConversationManager } from "./conversation/manager.js";
 import { createPaymentsWebhookRouter } from "./payments/webhookRoutes.js";
 import { createPortalPaymentsRouter } from "./payments/portalRoutes.js";
+import { createWhatsappCloudWebhookRouter } from "./whatsapp/cloudWebhookRoutes.js";
+import { createWsapiWebhookRouter } from "./whatsapp/wsapiWebhookRoutes.js";
 import { startScheduler } from "./scheduler.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -44,6 +47,12 @@ async function main() {
   // Mounted BEFORE express.json() — Paystack signs the raw body, so this route parses its
   // own body with express.raw() and must never have express.json() consume it first.
   app.use("/webhooks", createPaymentsWebhookRouter({ conversationManager }));
+  // Same reasoning, same reason it's mounted here and not down with the other WhatsApp
+  // wiring below — see whatsapp/cloudWebhookRoutes.js for what this is/isn't wired into.
+  app.use("/whatsapp-cloud", createWhatsappCloudWebhookRouter());
+  // See whatsapp/wsapiWebhookRoutes.js's file header for important context on what this
+  // provider actually is before assuming it's equivalent to the Meta route above.
+  app.use("/wsapi", createWsapiWebhookRouter());
 
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
@@ -52,6 +61,12 @@ async function main() {
   app.use(express.static(path.join(__dirname, "public"), { extensions: ["html"] }));
   // ...and the same assets again under /admin/static for the dashboard's own pages.
   app.use("/admin/static", express.static(path.join(__dirname, "public")));
+  // Vendor (agent) profile photos — deliberately NOT under the src/public static mount
+  // above: that directory is baked into the Docker image and replaced on every deploy, so a
+  // runtime-uploaded photo would be wiped on the next one. This serves from the same
+  // persistent-volume location vendors/service.js writes to (settings.vendorPhotoStorageDir),
+  // same pattern as document storage (see docker-compose.yml's volumes).
+  app.use("/vendor-photos", express.static(path.resolve(settings.vendorPhotoStorageDir)));
 
   const dbUrl = new URL(settings.databaseUrl);
   const MySQLStore = MySQLStoreFactory(session);
@@ -81,6 +96,7 @@ async function main() {
   app.use("/admin/api", adminApiRouter);
   app.use("/admin", adminUiRouter);
   app.use("/", portalRouter);
+  app.use("/", vendorsRouter);
   app.use("/", createPortalPaymentsRouter({ conversationManager }));
   app.use("/", contentPublicRouter);
   app.use("/", knowledgePublicRouter);

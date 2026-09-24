@@ -1,0 +1,65 @@
+<%- include('partials/head') %>
+
+<div class="welcome-row">
+  <div>
+    <h1>Welcome back, <%= vendor.name %> 👋</h1>
+    <div class="sub">Here's an overview of your partner activity.</div>
+  </div>
+</div>
+
+<div class="stat-grid">
+  <div class="stat-card">
+    <div class="stat-card-top">
+      <div class="stat-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg></div>
+      <div><div class="label">Total Cases</div><div class="value"><%= summary.totalCases %></div></div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-card-top">
+      <div class="stat-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.4 8.4 0 0 1-1 4 8.5 8.5 0 0 1-7.5 4.5 8.4 8.4 0 0 1-4-1L3 21l2-5.5a8.4 8.4 0 0 1-1-4A8.5 8.5 0 0 1 8.5 3a8.4 8.4 0 0 1 4-1H13a8.5 8.5 0 0 1 8 8.5z"/></svg></div>
+      <div><div class="label">Active Cases</div><div class="value"><%= summary.activeCases %></div></div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-card-top">
+      <div class="stat-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18M8 2v4M16 2v4"/></svg></div>
+      <div><div class="label">Consultations</div><div class="value"><%= summary.consultationCount %></div></div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-card-top">
+      <div class="stat-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></div>
+      <div><div class="label">Completed Cases</div><div class="value"><%= summary.completedCases %></div></div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-card-top">
+      <div class="stat-card-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="14" rx="2"/><path d="M2 10h20"/><path d="M6 15h4"/></svg></div>
+      <div><div class="label">Commission Owed</div><div class="value">₦<%= summary.totalOwed.toLocaleString() %></div></div>
+    </div>
+  </div>
+</div>
+
+<div class="panel">
+  <h2>Recent Cases</h2>
+  <table>
+    <tr><th>Client</th><th>Pathway</th><th>Stage</th><th>Status</th><th>Updated</th><th></th></tr>
+    <% cases.forEach(function(c) { %>
+      <tr>
+        <td>
+          <b><%= c.client_name %></b>
+          <% if (c.unread_messages) { %><span class="badge hot" style="margin-left:6px"><%= c.unread_messages %> new</span><% } %>
+        </td>
+        <td><%= c.pathway %></td>
+        <td class="muted"><%= c.stage.replace(/_/g, ' ') %></td>
+        <td><span class="badge <%= c.status === 'in_progress' ? 'warm' : 'neutral' %>"><%= c.status %></span></td>
+        <td class="muted"><%= new Date(c.updated_at).toLocaleDateString() %></td>
+        <td><a class="btn secondary" href="/agents/cases/<%= c.id %>">Open</a></td>
+      </tr>
+    <% }) %>
+    <% if (!cases.length) { %><tr><td class="muted" colspan="6">No cases assigned yet — MigraTech staff will assign cases here as they come in.</td></tr><% } %>
+  </table>
+  <% if (summary.totalCases > cases.length) { %><p style="margin-top:12px"><a href="/agents/cases">View all cases →</a></p><% } %>
+</div>
+
+<%- include('partials/foot') %>

@@ -1,0 +1,132 @@
+<%- include('partials/head') %>
+
+<style>
+.vp-upload {
+  display: flex; align-items: center; gap: 12px; position: relative;
+  border: 1.5px dashed var(--border); border-radius: 10px; padding: 10px 14px;
+  cursor: pointer; transition: border-color 150ms, background 150ms; background: var(--bg);
+}
+.vp-upload:hover { border-color: var(--brand); }
+.vp-upload input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; }
+.vp-upload-ico { width: 30px; height: 30px; border-radius: 8px; background: #e8f7ee; color: var(--brand); flex: none; display: flex; align-items: center; justify-content: center; }
+.vp-upload-ico svg { width: 15px; height: 15px; }
+.vp-upload-text b { font-size: 12.5px; color: var(--text); display: block; }
+.vp-upload-text span { font-size: 11px; color: var(--muted); }
+.vp-upload.has-file { border-style: solid; border-color: var(--brand); }
+</style>
+
+<div class="panel" style="max-width:640px">
+  <h2>My Profile</h2>
+  <p class="muted" style="margin-bottom:16px">This is what MigraTech staff see when deciding which cases to assign you. Contact/WhatsApp changes go through MigraTech support.</p>
+
+  <% if (saved) { %><div class="flash success">Profile updated.</div><% } %>
+  <% if (error) { %><div class="flash error"><%= error %></div><% } %>
+
+  <form method="post" action="/agents/profile" enctype="multipart/form-data" class="field-form">
+    <div class="field">
+      <label>Profile photo</label>
+      <div style="display:flex;align-items:center;gap:16px">
+        <% if (vendor.photo_url) { %>
+          <img src="<%= vendor.photo_url %>" alt="<%= vendor.name %>" style="width:56px;height:56px;border-radius:50%;object-fit:cover;border:1px solid var(--border);flex:none" />
+        <% } else { %>
+          <div class="avatar-circle" style="width:56px;height:56px;font-size:18px;flex:none"><%= vendor.name.slice(0, 2).toUpperCase() %></div>
+        <% } %>
+        <label class="vp-upload" id="photo-drop" for="photo" style="flex:1">
+          <div class="vp-upload-ico"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14M4 8h.01M4 4h16a1 1 0 011 1v14a1 1 0 01-1 1H4a1 1 0 01-1-1V5a1 1 0 011-1z"/></svg></div>
+          <div class="vp-upload-text">
+            <b id="photo-label">Click to change photo</b>
+            <span>JPEG, PNG or WEBP, up to 5MB</span>
+          </div>
+          <input id="photo" name="photo" type="file" accept="image/jpeg,image/png,image/webp" onchange="vpShowFile('photo', 'photo-drop', 'photo-label', 'Click to change photo')" />
+        </label>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label for="name">Full name</label>
+        <input id="name" name="name" required value="<%= vendor.name %>" />
+      </div>
+      <div class="field">
+        <label for="business_name">Business / agency name</label>
+        <input id="business_name" name="business_name" value="<%= vendor.business_name || '' %>" />
+      </div>
+    </div>
+    <div class="field">
+      <label>Email</label>
+      <input value="<%= vendor.email %>" disabled />
+      <span class="muted" style="font-size:12px">Contact MigraTech support to change your email.</span>
+    </div>
+    <div class="field">
+      <label>WhatsApp number</label>
+      <input value="<%= vendor.whatsapp_number.replace('@s.whatsapp.net', '') %>" disabled />
+    </div>
+    <div class="field">
+      <label for="countries_covered">Countries you help clients migrate to</label>
+      <input id="countries_covered" name="countries_covered" value="<%= vendor.countries_covered || '' %>" placeholder="e.g. Canada, UK, Germany" />
+    </div>
+    <div class="field">
+      <label>Services & Specializations</label>
+      <div class="aa-checks" style="display:flex;flex-wrap:wrap;gap:10px">
+        <% ['Work', 'Study', 'Family', 'Business', 'Relocation & Settlement'].forEach(function(cat) { %>
+          <label style="display:inline-flex;align-items:center;gap:7px;font-size:13px;border:1px solid var(--border);border-radius:100px;padding:7px 14px;cursor:pointer">
+            <input type="checkbox" name="service_categories" value="<%= cat %>" <%= (vendor.service_categories || []).includes(cat) ? 'checked' : '' %> />
+            <%= cat %>
+          </label>
+        <% }) %>
+      </div>
+    </div>
+    <div class="field">
+      <label for="services_offered">Services / experience</label>
+      <textarea id="services_offered" name="services_offered" rows="4"><%= vendor.services_offered || '' %></textarea>
+    </div>
+    <button type="submit" class="btn">Save Changes</button>
+  </form>
+</div>
+
+<div class="panel" style="max-width:640px">
+  <h2>Verification Documents</h2>
+  <p class="muted" style="margin-bottom:16px">ID, license, certification, business registration, etc. — reviewed by MigraTech staff, not shown publicly.</p>
+
+  <table>
+    <tr><th>File</th><th>Uploaded</th></tr>
+    <% documents.forEach(function(d) { %>
+      <tr>
+        <td><%= d.original_filename || d.document_type %></td>
+        <td class="muted"><%= new Date(d.uploaded_at).toLocaleDateString() %></td>
+      </tr>
+    <% }) %>
+    <% if (!documents.length) { %><tr><td class="muted" colspan="2">No documents uploaded yet.</td></tr><% } %>
+  </table>
+
+  <form method="post" action="/agents/profile/documents" enctype="multipart/form-data" style="margin-top:14px">
+    <label class="vp-upload" id="documents-drop" for="documents">
+      <div class="vp-upload-ico"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 18a4.6 4.4 0 010-9 5 4.5 0 019-3 4.6 4.4 0 016 4.5 4.6 4.4 0 01-1 8.5H7z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 12v6m0-6l-2.5 2.5M12 12l2.5 2.5"/></svg></div>
+      <div class="vp-upload-text">
+        <b id="documents-label">Click to upload more documents</b>
+        <span>Up to 5 files, 10MB each</span>
+      </div>
+      <input id="documents" name="documents" type="file" multiple accept="image/*,application/pdf" onchange="vpShowFile('documents', 'documents-drop', 'documents-label', 'Click to upload more documents', true)" />
+    </label>
+    <button type="submit" class="btn secondary" style="margin-top:10px">Upload</button>
+  </form>
+</div>
+
+<script>
+  function vpShowFile(inputId, dropId, labelId, emptyText, multiple) {
+    var input = document.getElementById(inputId);
+    var drop = document.getElementById(dropId);
+    var label = document.getElementById(labelId);
+    var files = input.files ? Array.prototype.slice.call(input.files) : [];
+    if (files.length) {
+      label.textContent = multiple
+        ? (files.length === 1 ? files[0].name : files.length + ' files selected')
+        : files[0].name;
+      drop.classList.add('has-file');
+    } else {
+      label.textContent = emptyText;
+      drop.classList.remove('has-file');
+    }
+  }
+</script>
+
+<%- include('partials/foot') %>

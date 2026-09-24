@@ -16,6 +16,7 @@ import {
   Application,
   AuditLog,
   BlogPost,
+  Commission,
   ConsultationBooking,
   ContactMessage,
   Conversation,
@@ -34,8 +35,10 @@ import {
   Task,
   TeamMember,
   User,
+  Vendor,
 } from "../db/models.js";
 import { hashPassword } from "../security/passwords.js";
+import { listCaseMessages } from "../cases/messaging.js";
 import { APPLICATION_STAGE_ORDER } from "../conversation/manager.js";
 import { generateChecklist } from "../documents/checklist.js";
 import { whatsappClient } from "../whatsapp/baileysClient.js";
@@ -717,6 +720,8 @@ export async function listApplications() {
     include: [
       { association: "user" },
       { association: "pathway", include: [{ model: Country, as: "country" }] },
+      { association: "vendor" },
+      { association: "commissions" },
     ],
   });
   return applications.map((a) => ({
@@ -727,8 +732,95 @@ export async function listApplications() {
     stage: a.stage,
     status: a.status,
     assigned_specialist: a.assigned_specialist,
+    vendor: a.vendor ? { id: a.vendor.id, name: a.vendor.name } : null,
+    commissions: a.commissions.map((c) => ({ id: c.id, amount: Number(c.amount), status: c.status })),
     updated_at: a.updated_at.toISOString(),
   }));
+}
+
+// --------------------------------------------------------------------------- //
+// Case assignment (partner agents) + commission — staff decide which approved Vendor
+// handles a case, and mark a case won to log what's owed. See db/models.js's Vendor/
+// Commission comments for why this stays staff-driven, not automated.
+// --------------------------------------------------------------------------- //
+
+export async function listApprovedVendorsForAssignment() {
+  const vendors = await Vendor.findAll({ where: { status: "approved" }, order: [["name", "ASC"]] });
+  return vendors.map((v) => ({ id: v.id, name: v.name, business_name: v.business_name }));
+}
+
+export async function assignVendorToApplication(applicationId, vendorId, actor) {
+  const application = await Application.findByPk(applicationId);
+  if (!application) throw new HttpError(404, "Application not found");
+
+  if (!vendorId) {
+    application.vendor_id = null;
+    await application.save();
+    await logAction({ actor, action: "unassign_vendor", targetType: "application", targetId: applicationId });
+    return { id: application.id, vendor_id: null };
+  }
+
+  const vendor = await Vendor.findByPk(vendorId);
+  if (!vendor || vendor.status !== "approved") {
+    throw new HttpError(400, "Vendor must exist and be approved.");
+  }
+  application.vendor_id = vendor.id;
+  await application.save();
+  await logAction({
+    actor,
+    action: "assign_vendor",
+    targetType: "application",
+    targetId: applicationId,
+    details: { vendor_id: vendor.id, vendor_name: vendor.name },
+  });
+  return { id: application.id, vendor_id: vendor.id };
+}
+
+export async function markCaseWon(applicationId, caseValue, actor) {
+  const application = await Application.findByPk(applicationId, { include: [{ association: "vendor" }] });
+  if (!application) throw new HttpError(404, "Application not found");
+  if (!application.vendor) throw new HttpError(400, "This case has no agent assigned — nothing to commission.");
+
+  const value = Number(caseValue);
+  if (!value || value <= 0) throw new HttpError(400, "Enter a valid case value.");
+
+  const ratePercent = application.vendor.commission_rate_percent ?? settings.defaultCommissionRatePercent;
+  const amount = Math.round(value * (ratePercent / 100) * 100) / 100;
+
+  const commission = await Commission.create({
+    application_id: applicationId,
+    vendor_id: application.vendor.id,
+    case_value: value,
+    rate_percent: ratePercent,
+    amount,
+    status: "owed",
+    marked_by: actor,
+  });
+
+  await logAction({
+    actor,
+    action: "mark_case_won",
+    targetType: "application",
+    targetId: applicationId,
+    details: { vendor_id: application.vendor.id, case_value: value, commission_amount: amount },
+  });
+
+  return { id: commission.id, amount };
+}
+
+export async function markCommissionPaid(commissionId, actor) {
+  const commission = await Commission.findByPk(commissionId);
+  if (!commission) throw new HttpError(404, "Commission not found");
+  commission.status = "paid";
+  commission.paid_at = new Date();
+  await commission.save();
+  await logAction({ actor, action: "mark_commission_paid", targetType: "commission", targetId: commissionId });
+  return { id: commission.id };
+}
+
+/** Read-only for staff — oversight on a direct agent<->client thread they aren't part of. */
+export async function getCaseMessagesForStaff(applicationId) {
+  return listCaseMessages(applicationId);
 }
 
 // --------------------------------------------------------------------------- //
@@ -1267,5 +1359,72 @@ export async function deleteJobListing(id, actor) {
   if (!job) throw new HttpError(404, "Job listing not found");
   await job.destroy();
   await logAction({ actor, action: "delete_job_listing", targetType: "job_listing", targetId: id });
+  return { deleted: id };
+}
+
+// --------------------------------------------------------------------------- //
+// Vendors — external agent applications from the public "Become an Agent" form
+// (portal/service.js's submitVendorApplication). Every application starts `pending`; only
+// `approve` makes one eligible to ever be introduced to a user — see db/models.js's Vendor
+// definition for why that gate is load-bearing, not just workflow decoration.
+//
+// No automated/self-serve matching in v1: staff who want to introduce an approved vendor to
+// a specific lead do it the same way they'd hand a lead to any outside contact — reach out
+// on WhatsApp/email directly (the vendor list page links straight to wa.me for this) — there
+// is deliberately no new "Introduction" database record yet. Revisit once real usage shows
+// what actually needs tracking, rather than guessing the right shape now.
+// --------------------------------------------------------------------------- //
+
+export async function listVendors(status = null) {
+  const where = status ? { status } : {};
+  const vendors = await Vendor.findAll({ where, order: [["created_at", "DESC"]], include: [{ association: "documents" }] });
+  return vendors.map((v) => ({
+    id: v.id,
+    name: v.name,
+    business_name: v.business_name,
+    whatsapp_number: v.whatsapp_number,
+    email: v.email,
+    photo_url: v.photo_url,
+    countries_covered: v.countries_covered,
+    service_categories: v.service_categories,
+    services_offered: v.services_offered,
+    message: v.message,
+    status: v.status,
+    reviewed_by: v.reviewed_by,
+    reviewed_at: v.reviewed_at ? v.reviewed_at.toISOString() : null,
+    internal_notes: v.internal_notes,
+    documents: v.documents.map((d) => ({ id: d.id, document_type: d.document_type, original_filename: d.original_filename })),
+    created_at: v.created_at.toISOString(),
+  }));
+}
+
+export async function updateVendorStatus(id, status, actor) {
+  if (!["pending", "approved", "rejected", "suspended"].includes(status)) {
+    throw new HttpError(400, "status must be pending, approved, rejected, or suspended");
+  }
+  const vendor = await Vendor.findByPk(id);
+  if (!vendor) throw new HttpError(404, "Vendor not found");
+  vendor.status = status;
+  vendor.reviewed_by = actor;
+  vendor.reviewed_at = new Date();
+  await vendor.save();
+  await logAction({ actor, action: "update_vendor_status", targetType: "vendor", targetId: id, details: { status } });
+  return { id: vendor.id, status: vendor.status };
+}
+
+export async function updateVendorNotes(id, notes, actor) {
+  const vendor = await Vendor.findByPk(id);
+  if (!vendor) throw new HttpError(404, "Vendor not found");
+  vendor.internal_notes = (notes || "").trim() || null;
+  await vendor.save();
+  await logAction({ actor, action: "update_vendor_notes", targetType: "vendor", targetId: id });
+  return { id: vendor.id };
+}
+
+export async function deleteVendor(id, actor) {
+  const vendor = await Vendor.findByPk(id);
+  if (!vendor) throw new HttpError(404, "Vendor not found");
+  await vendor.destroy();
+  await logAction({ actor, action: "delete_vendor", targetType: "vendor", targetId: id });
   return { deleted: id };
 }

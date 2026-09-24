@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Become an Agent — MigraTech</title>
+<meta name="description" content="Apply to become a MigraTech partner agent — we connect vetted migration agents and agencies with prospective migrants looking for legitimate help." />
+<link rel="icon" type="image/png" href="/brand/favicon.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/portal.css" />
+<style>
+.aa-body { background: #F9FAFB; padding: 48px 0 90px; min-height: calc(100vh - 300px); }
+.aa-layout { display: grid; grid-template-columns: 0.85fr 1.15fr; gap: 24px; max-width: 1080px; margin: 0 auto; align-items: start; padding: 0 20px; }
+
+.aa-why { background: #fff; border: 1px solid #E5E7EB; border-radius: 20px; padding: 32px 30px; }
+.aa-why h2 { font-size: 19px; font-weight: 800; color: #0B1E3F; margin-bottom: 4px; }
+.aa-why h2 + .aa-underline { width: 40px; height: 3px; background: #00B140; border-radius: 2px; margin-bottom: 22px; }
+.aa-why-item { display: flex; gap: 14px; margin-bottom: 22px; }
+.aa-why-item:last-of-type { margin-bottom: 0; }
+.aa-why-ico {
+  width: 38px; height: 38px; border-radius: 50%; background: #e8f7ee; color: #00B140; flex: none;
+  display: flex; align-items: center; justify-content: center;
+}
+.aa-why-ico svg { width: 17px; height: 17px; }
+.aa-why-item b { color: #0B1E3F; display: block; margin-bottom: 3px; font-size: 14px; }
+.aa-why-item p { font-size: 13px; color: #6B7280; line-height: 1.65; margin: 0; }
+.aa-vet-note {
+  margin-top: 24px; display: flex; gap: 12px;
+  background: #E8F7EE; border: 1px solid rgba(0,177,64,0.25); border-radius: 14px; padding: 16px 18px;
+}
+.aa-vet-note-ico { width: 30px; height: 30px; border-radius: 50%; background: #fff; color: #00B140; flex: none; display: flex; align-items: center; justify-content: center; }
+.aa-vet-note-ico svg { width: 15px; height: 15px; }
+.aa-vet-note b { color: #0B1E3F; display: block; margin-bottom: 3px; font-size: 13px; }
+.aa-vet-note p { font-size: 12.5px; color: #256a3d; line-height: 1.65; margin: 0; }
+
+.aa-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 20px; padding: 34px 32px; box-shadow: 0 2px 8px rgba(11,30,63,0.04), 0 16px 40px rgba(11,30,63,0.07); }
+.aa-card-head { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 26px; }
+.aa-card-ico { width: 46px; height: 46px; border-radius: 13px; background: #e8f7ee; color: #00B140; flex: none; display: flex; align-items: center; justify-content: center; }
+.aa-card-ico svg { width: 21px; height: 21px; }
+.aa-card-head h2 { font-size: 19px; font-weight: 800; color: #0B1E3F; margin-bottom: 3px; }
+.aa-card-head p { font-size: 13px; color: #6B7280; }
+
+.aa-pass-wrap { position: relative; }
+.aa-pass-wrap input { padding-right: 40px; }
+.aa-pass-toggle {
+  position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+  background: none; border: none; color: #9CA3AF; cursor: pointer; padding: 2px; display: flex;
+}
+.aa-pass-toggle svg { width: 18px; height: 18px; }
+.aa-pass-toggle:hover { color: #6B7280; }
+
+.aa-cats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.aa-cat {
+  display: flex; flex-direction: column; align-items: center; gap: 7px; text-align: center;
+  border: 1px solid #E5E7EB; border-radius: 12px; padding: 14px 8px; cursor: pointer;
+  font-size: 12px; font-weight: 600; color: #374151; transition: border-color 150ms, background 150ms;
+}
+.aa-cat svg { width: 19px; height: 19px; color: #6B7280; transition: color 150ms; }
+.aa-cat input { position: absolute; opacity: 0; width: 0; height: 0; }
+.aa-cat:has(input:checked) { border-color: #00B140; background: #F0FBF4; color: #007a2e; }
+.aa-cat:has(input:checked) svg { color: #00B140; }
+.aa-cat.wide { grid-column: span 2; flex-direction: row; justify-content: center; }
+@media (max-width: 520px) {
+  .aa-cats { grid-template-columns: repeat(2, 1fr); }
+  .aa-cat.wide { grid-column: span 2; }
+}
+
+.aa-upload {
+  display: flex; align-items: center; gap: 14px; position: relative;
+  border: 1.5px dashed #D1D5DB; border-radius: 12px; padding: 14px 16px;
+  cursor: pointer; transition: border-color 150ms, background 150ms; background: #FAFAFA;
+}
+.aa-upload:hover { border-color: #00B140; background: #F5FFF8; }
+.aa-upload input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; }
+.aa-upload-ico {
+  width: 40px; height: 40px; border-radius: 10px; background: #e8f7ee; color: #00B140; flex: none;
+  display: flex; align-items: center; justify-content: center;
+}
+.aa-upload-ico svg { width: 18px; height: 18px; }
+.aa-upload-text { min-width: 0; }
+.aa-upload-text b { color: #0B1E3F; font-size: 13.5px; font-weight: 700; display: block; }
+.aa-upload-text span { font-size: 11.5px; color: #9CA3AF; }
+.aa-upload.has-file { border-style: solid; border-color: #00B140; background: #F0FBF4; }
+.aa-upload.has-file .aa-upload-text b { color: #007a2e; }
+.aa-upload-files { list-style: none; padding: 0; margin: 8px 0 0; display: flex; flex-direction: column; gap: 4px; }
+.aa-upload-files li { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #007a2e; font-weight: 600; }
+.aa-upload-files li svg { width: 13px; height: 13px; flex: none; }
+
+.aa-sent { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 30px 0; text-align: center; }
+.aa-sent-icon { width: 52px; height: 52px; border-radius: 50%; background: #ecfdf5; color: #059669; display: flex; align-items: center; justify-content: center; }
+
+@media (max-width: 860px) {
+  .aa-layout { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<%- include('../portal/partials/nav') %>
+
+<div class="aa-body">
+  <div class="aa-layout">
+
+    <div class="aa-why">
+      <h2>How this works</h2>
+      <div class="aa-underline" aria-hidden="true"></div>
+      <div class="aa-why-item">
+        <div class="aa-why-ico"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4" stroke-width="2"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 21v-1a6 6 0 016-6h4a6 6 0 016 6v1"/></svg></div>
+        <div>
+          <b>1. You apply</b>
+          <p>Tell us who you are, what you do, and which countries/pathways you cover. Set a password now — you'll use it to log in once approved.</p>
+        </div>
+      </div>
+      <div class="aa-why-item">
+        <div class="aa-why-ico"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 2 4 5v6c0 5 3.4 8.6 8 10 4.6-1.4 8-5 8-10V5l-8-3z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4"/></svg></div>
+        <div>
+          <b>2. We review</b>
+          <p>Our team checks every application before anyone gets access — we don't approve unverified agents.</p>
+        </div>
+      </div>
+      <div class="aa-why-item">
+        <div class="aa-why-ico"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 20h18M6 20V10m6 10V4m6 16v-7"/></svg></div>
+        <div>
+          <b>3. You get a dashboard</b>
+          <p>Once approved, log in to see cases matched to you, message clients directly, and track earnings.</p>
+        </div>
+      </div>
+      <div class="aa-vet-note">
+        <div class="aa-vet-note-ico"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 2 4 5v6c0 5 3.4 8.6 8 10 4.6-1.4 8-5 8-10V5l-8-3z"/></svg></div>
+        <div>
+          <b>Why the review step?</b>
+          <p>Migration fraud is a real problem — fake agents and unverified employers are exactly what MigraTech exists to help people avoid. We only approve agents we've actually vetted.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="aa-card">
+      <% if (sent) { %>
+        <div class="aa-sent">
+          <div class="aa-sent-icon"><svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg></div>
+          <div style="font-size:15px;font-weight:800;color:#0B1E3F">Application received</div>
+          <p style="font-size:13.5px;color:#6B7280;max-width:340px">Our team will review your application. Once approved, log in at <a href="/agents/login" style="color:#00B140;font-weight:700">/agents/login</a> with the email and password you just set.</p>
+        </div>
+      <% } else { %>
+        <div class="aa-card-head">
+          <div class="aa-card-ico"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 2 4 5v6c0 5 3.4 8.6 8 10 4.6-1.4 8-5 8-10V5l-8-3z"/><circle cx="12" cy="9" r="2" stroke-width="2"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 15a3 3 0 016 0"/></svg></div>
+          <div>
+            <h2>Agent Application</h2>
+            <p>Tell us about yourself — fields marked required help us review your application.</p>
+          </div>
+        </div>
+
+        <% if (error) { %><div class="auth-flash error"><%= error %></div><% } %>
+        <form method="post" action="/agents/apply" enctype="multipart/form-data">
+          <div class="field">
+            <label for="photo">Profile photo</label>
+            <label class="aa-upload" id="photo-drop" for="photo">
+              <div class="aa-upload-ico"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14M4 8h.01M4 4h16a1 1 0 011 1v14a1 1 0 01-1 1H4a1 1 0 01-1-1V5a1 1 0 011-1z"/></svg></div>
+              <div class="aa-upload-text">
+                <b id="photo-label">Click to upload a photo</b>
+                <span>JPEG, PNG or WEBP — up to 5MB. Optional, but shown on your dashboard and to MigraTech staff.</span>
+              </div>
+              <input id="photo" name="photo" type="file" accept="image/jpeg,image/png,image/webp" onchange="aaShowFile('photo', 'photo-drop', 'photo-label', 'Click to upload a photo')" />
+            </label>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label for="name">Your full name <span style="color:#DC2626">*</span></label>
+              <input id="name" name="name" required placeholder="Full name" value="<%= values.name || '' %>" />
+            </div>
+            <div class="field">
+              <label for="business_name">Business / agency name</label>
+              <input id="business_name" name="business_name" placeholder="Optional" value="<%= values.business_name || '' %>" />
+            </div>
+          </div>
+          <div class="field">
+            <label for="email">Email <span style="color:#DC2626">*</span></label>
+            <input id="email" name="email" type="email" required placeholder="you@example.com" value="<%= values.email || '' %>" />
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label for="password">Password <span style="color:#DC2626">*</span></label>
+              <div class="aa-pass-wrap">
+                <input id="password" name="password" type="password" required minlength="8" placeholder="Enter password" />
+                <button type="button" class="aa-pass-toggle" data-toggle="password" aria-label="Show password">
+                  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3" stroke-width="2"/></svg>
+                </button>
+              </div>
+            </div>
+            <div class="field">
+              <label for="password_confirm">Confirm password <span style="color:#DC2626">*</span></label>
+              <div class="aa-pass-wrap">
+                <input id="password_confirm" name="password_confirm" type="password" required minlength="8" placeholder="Confirm password" />
+                <button type="button" class="aa-pass-toggle" data-toggle="password_confirm" aria-label="Show password">
+                  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3" stroke-width="2"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+          <div class="field">
+            <label for="whatsapp_local_number">WhatsApp number <span style="color:#DC2626">*</span></label>
+            <div class="field-row" style="gap:8px">
+              <select id="whatsapp_dial_code" name="whatsapp_dial_code" required style="max-width:150px;flex:none">
+                <% dialCodes.forEach(function(d) { %>
+                  <option value="<%= d.dial %>" <%= (values.whatsapp_dial_code || '234') === d.dial ? 'selected' : '' %>>+<%= d.dial %> <%= d.name %></option>
+                <% }) %>
+              </select>
+              <input id="whatsapp_local_number" name="whatsapp_local_number" required placeholder="e.g. 8012345678" value="<%= values.whatsapp_local_number || '' %>" style="flex:1" />
+            </div>
+          </div>
+          <div class="field">
+            <label for="countries_covered">Countries you help clients migrate to</label>
+            <input id="countries_covered" name="countries_covered" placeholder="e.g. Canada, UK, Germany" value="<%= values.countries_covered || '' %>" />
+          </div>
+          <div class="field">
+            <label>What do you help with?</label>
+            <div class="aa-cats">
+              <label class="aa-cat">
+                <input type="checkbox" name="service_categories" value="Work" />
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7h-3V6a3 3 0 00-3-3h-4a3 3 0 00-3 3v1H4a1 1 0 00-1 1v3a4 4 0 004 4h10a4 4 0 004-4V8a1 1 0 00-1-1zM9 6a1 1 0 011-1h4a1 1 0 011 1v1H9V6z"/></svg>
+                Work
+              </label>
+              <label class="aa-cat">
+                <input type="checkbox" name="service_categories" value="Study" />
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l6.16-3.42A12.02 12.02 0 0121 12.5c0 2.5-4 6.5-9 6.5s-9-4-9-6.5c0-.86.28-1.9.84-2.92L12 14z"/></svg>
+                Study
+              </label>
+              <label class="aa-cat">
+                <input type="checkbox" name="service_categories" value="Family" />
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="10" cy="7" r="4" stroke-width="2"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                Family
+              </label>
+              <label class="aa-cat">
+                <input type="checkbox" name="service_categories" value="Business" />
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 21h18M5 21V7l7-4 7 4v14M9 9h1m4 0h1m-6 4h1m4 0h1m-6 4h1m4 0h1"/></svg>
+                Business
+              </label>
+              <label class="aa-cat wide">
+                <input type="checkbox" name="service_categories" value="Relocation & Settlement" />
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+                Relocation &amp; Settlement
+              </label>
+            </div>
+          </div>
+          <div class="field">
+            <label for="services_offered">Tell us about your services / experience <span style="color:#DC2626">*</span></label>
+            <textarea id="services_offered" name="services_offered" rows="4" required placeholder="What do you do, and how long have you been doing it?"><%= values.services_offered || '' %></textarea>
+          </div>
+          <div class="field">
+            <label for="documents">Supporting documents</label>
+            <label class="aa-upload" id="documents-drop" for="documents">
+              <div class="aa-upload-ico"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 18a4.6 4.4 0 010-9 5 4.5 0 019-3 4.6 4.4 0 016 4.5 4.6 4.4 0 01-1 8.5H7z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 12v6m0-6l-2.5 2.5M12 12l2.5 2.5"/></svg></div>
+              <div class="aa-upload-text">
+                <b id="documents-label">Click to upload documents</b>
+                <span>ID, license, certification, business registration, etc. — up to 5 files, 10MB each. Stored encrypted; only MigraTech staff can view these.</span>
+              </div>
+              <input id="documents" name="documents" type="file" multiple accept="image/*,application/pdf" onchange="aaShowFiles('documents', 'documents-drop', 'documents-label', 'Click to upload documents')" />
+            </label>
+            <ul class="aa-upload-files" id="documents-filelist"></ul>
+          </div>
+          <div class="field">
+            <label for="message">Anything else we should know?</label>
+            <textarea id="message" name="message" rows="3" placeholder="Licenses, credentials, references, etc."><%= values.message || '' %></textarea>
+          </div>
+          <button type="submit" class="auth-submit" style="display:flex;align-items:center;justify-content:center;gap:8px">
+            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M22 2 11 13"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M22 2 15 22 11 13 2 9 22 2Z"/></svg>
+            Submit Application
+          </button>
+          <div class="auth-switch" style="margin-top:14px">Already a partner? <a href="/agents/login">Log in</a> · Looking for a client account? <a href="/register">Sign up here</a></div>
+        </form>
+      <% } %>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  document.querySelectorAll('.aa-pass-toggle').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var input = document.getElementById(btn.getAttribute('data-toggle'));
+      if (!input) return;
+      input.type = input.type === 'password' ? 'text' : 'password';
+    });
+  });
+
+  function aaShowFile(inputId, dropId, labelId, emptyText) {
+    var input = document.getElementById(inputId);
+    var drop = document.getElementById(dropId);
+    var label = document.getElementById(labelId);
+    var file = input.files && input.files[0];
+    if (file) {
+      label.textContent = file.name;
+      drop.classList.add('has-file');
+    } else {
+      label.textContent = emptyText;
+      drop.classList.remove('has-file');
+    }
+  }
+
+  function aaShowFiles(inputId, dropId, labelId, emptyText) {
+    var input = document.getElementById(inputId);
+    var drop = document.getElementById(dropId);
+    var label = document.getElementById(labelId);
+    var list = document.getElementById(inputId + '-filelist');
+    var files = input.files ? Array.prototype.slice.call(input.files) : [];
+    list.innerHTML = '';
+    if (files.length) {
+      label.textContent = files.length === 1 ? '1 file selected' : files.length + ' files selected';
+      drop.classList.add('has-file');
+      files.forEach(function (f) {
+        var li = document.createElement('li');
+        li.innerHTML = '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>';
+        li.appendChild(document.createTextNode(f.name));
+        list.appendChild(li);
+      });
+    } else {
+      label.textContent = emptyText;
+      drop.classList.remove('has-file');
+    }
+  }
+</script>
+
+<%- include('../portal/partials/footer') %>
+
+</body>
+</html>

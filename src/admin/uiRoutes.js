@@ -9,7 +9,7 @@ import { settings } from "../config.js";
 import { getSessionAdminUser, SESSION_KEY } from "./deps.js";
 import { HttpError } from "./httpError.js";
 import * as svc from "./service.js";
-import { AdminUser, ContactMessage, Conversation, Document, Payment, Task } from "../db/models.js";
+import { AdminUser, ContactMessage, Conversation, Document, Payment, Task, Vendor, VendorDocument } from "../db/models.js";
 import { sequelize } from "../db/sequelize.js";
 import { verifyPassword } from "../security/passwords.js";
 import { LocalEncryptedStorage } from "../documents/storage.js";
@@ -34,6 +34,7 @@ async function navCounts() {
     escalated: await Conversation.count({ where: { escalation_status: "requested" } }),
     payments: await Payment.count({ where: { status: "pending" } }),
     messages: await ContactMessage.count({ where: { status: "new" } }),
+    vendors: await Vendor.count({ where: { status: "pending" } }),
   };
 }
 
@@ -47,6 +48,7 @@ const TITLES = {
   content: "Content (Blog/News/Guides)",
   messages: "Messages",
   company: "Company (Team/Careers)",
+  vendors: "Agents",
   users: "Users",
   applications: "Applications",
   tasks: "Tasks",
@@ -222,6 +224,25 @@ router.post("/documents/:id/review", async (req, res) => {
 // verifying/rejecting — any logged-in staff member can view (matches who can review).
 router.get("/documents/:id/file", async (req, res) => {
   const document = await Document.findByPk(req.params.id);
+  if (!document || !document.file_location) return res.status(404).send("File not found.");
+
+  let bytes;
+  try {
+    bytes = new LocalEncryptedStorage().read(document.file_location);
+  } catch {
+    return res.status(500).send("Could not decrypt this file.");
+  }
+
+  res.setHeader("Content-Type", document.mime_type || "application/octet-stream");
+  const safeName = (document.original_filename || "document").replace(/[^\w.\- ]/g, "_");
+  res.setHeader("Content-Disposition", `inline; filename="${safeName}"`);
+  res.send(bytes);
+});
+
+// Same decrypt-and-stream shape as /documents/:id/file above, for the agent-side
+// verification documents (ID/license/certification) uploaded on an Agent application.
+router.get("/vendor-documents/:id/file", async (req, res) => {
+  const document = await VendorDocument.findByPk(req.params.id);
   if (!document || !document.file_location) return res.status(404).send("File not found.");
 
   let bytes;
@@ -505,6 +526,36 @@ router.post("/company/careers/:id/delete", async (req, res) => {
 });
 
 // --------------------------------------------------------------------------- //
+// Vendors — agent applications from the public /agents/apply form.
+// --------------------------------------------------------------------------- //
+
+router.get("/vendors", async (req, res) => {
+  const filterStatus = req.query.status || null;
+  await render(req, res, "vendors", "vendors", { vendors: await svc.listVendors(filterStatus), filterStatus });
+});
+
+router.post("/vendors/:id/status", async (req, res) => {
+  await withError(req, res, "/admin/vendors", async () => {
+    await svc.updateVendorStatus(req.params.id, req.body.status, req.adminUser.username);
+    redirect(res, "/admin/vendors", "Vendor status updated.");
+  });
+});
+
+router.post("/vendors/:id/notes", async (req, res) => {
+  await withError(req, res, "/admin/vendors", async () => {
+    await svc.updateVendorNotes(req.params.id, req.body.internal_notes, req.adminUser.username);
+    redirect(res, "/admin/vendors", "Notes saved.");
+  });
+});
+
+router.post("/vendors/:id/delete", async (req, res) => {
+  await withError(req, res, "/admin/vendors", async () => {
+    await svc.deleteVendor(req.params.id, req.adminUser.username);
+    redirect(res, "/admin/vendors", "Vendor deleted.");
+  });
+});
+
+// --------------------------------------------------------------------------- //
 // Staff
 // --------------------------------------------------------------------------- //
 
@@ -550,7 +601,37 @@ router.post("/users/:id/delete", requireAdminRolePage("/admin/users"), async (re
 // --------------------------------------------------------------------------- //
 
 router.get("/applications", async (req, res) => {
-  await render(req, res, "applications", "applications", { applications: await svc.listApplications() });
+  const applications = await svc.listApplications();
+  const messagesByApplication = {};
+  for (const a of applications) {
+    if (a.vendor) messagesByApplication[a.id] = await svc.getCaseMessagesForStaff(a.id);
+  }
+  await render(req, res, "applications", "applications", {
+    applications,
+    approvedVendors: await svc.listApprovedVendorsForAssignment(),
+    messagesByApplication,
+  });
+});
+
+router.post("/applications/:id/vendor", async (req, res) => {
+  await withError(req, res, "/admin/applications", async () => {
+    await svc.assignVendorToApplication(req.params.id, req.body.vendor_id || null, req.adminUser.username);
+    redirect(res, "/admin/applications", "Agent assignment updated.");
+  });
+});
+
+router.post("/applications/:id/mark-won", async (req, res) => {
+  await withError(req, res, "/admin/applications", async () => {
+    await svc.markCaseWon(req.params.id, req.body.case_value, req.adminUser.username);
+    redirect(res, "/admin/applications", "Case marked won — commission recorded.");
+  });
+});
+
+router.post("/commissions/:id/mark-paid", async (req, res) => {
+  await withError(req, res, "/admin/applications", async () => {
+    await svc.markCommissionPaid(req.params.id, req.adminUser.username);
+    redirect(res, "/admin/applications", "Commission marked paid.");
+  });
 });
 
 // --------------------------------------------------------------------------- //
@@ -643,6 +724,7 @@ router.get("/whatsapp", requireAdminRolePage(), async (req, res) => {
   await render(req, res, "whatsapp", "whatsapp", {
     connectionStatus: connectionState.status,
     qrDataUrl: await qrDataUrlOrNull(),
+    pairingCode: connectionState.pairingCode,
     botPhoneNumber: (await import("../config.js")).settings.botPhoneNumber || null,
   });
 });
@@ -650,7 +732,7 @@ router.get("/whatsapp", requireAdminRolePage(), async (req, res) => {
 // Polled client-side every few seconds so the status/QR update without a full page reload
 // (Baileys rotates the QR roughly every 20-60s while waiting for a scan).
 router.get("/whatsapp/status.json", async (req, res) => {
-  res.json({ status: connectionState.status, qrDataUrl: await qrDataUrlOrNull() });
+  res.json({ status: connectionState.status, qrDataUrl: await qrDataUrlOrNull(), pairingCode: connectionState.pairingCode });
 });
 
 router.post("/whatsapp/relink", requireAdminRolePage("/admin/whatsapp"), async (req, res) => {
@@ -658,6 +740,25 @@ router.post("/whatsapp/relink", requireAdminRolePage("/admin/whatsapp"), async (
     await logAction({ actor: req.adminUser.username, action: "whatsapp_relink", targetType: "whatsapp" });
     await whatsappClient.relink();
     redirect(res, "/admin/whatsapp", "Relink started — scan the new QR code below.");
+  });
+});
+
+// Alternative to the QR above — links by phone number instead, same destructive "fresh
+// session" shape as relink (see WhatsAppClient.requestPairingCode's own doc comment).
+router.post("/whatsapp/pairing-code", requireAdminRolePage("/admin/whatsapp"), async (req, res) => {
+  await withError(req, res, "/admin/whatsapp", async () => {
+    const digits = (req.body.phone_number || "").replace(/\D/g, "");
+    if (digits.length < 7) {
+      return redirect(res, "/admin/whatsapp", "Enter a valid phone number (with country code).", true);
+    }
+    await logAction({
+      actor: req.adminUser.username,
+      action: "whatsapp_pairing_code_requested",
+      targetType: "whatsapp",
+      details: { phone_number: digits },
+    });
+    await whatsappClient.requestPairingCode(digits);
+    redirect(res, "/admin/whatsapp", "Pairing code requested — enter it in WhatsApp below.");
   });
 });
 

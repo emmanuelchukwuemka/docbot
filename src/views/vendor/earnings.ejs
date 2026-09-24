@@ -1,0 +1,42 @@
+<%- include('partials/head') %>
+
+<div class="stat-grid" style="grid-template-columns:repeat(3,1fr)">
+  <div class="stat-card">
+    <div class="stat-card-top">
+      <div><div class="label">Commission Rate</div><div class="value"><%= earnings.commissionRatePercent %>%</div></div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-card-top">
+      <div><div class="label">Total Owed</div><div class="value">₦<%= earnings.entries.filter(e => e.status === 'owed').reduce((s, e) => s + e.amount, 0).toLocaleString() %></div></div>
+    </div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-card-top">
+      <div><div class="label">Total Paid</div><div class="value">₦<%= earnings.entries.filter(e => e.status === 'paid').reduce((s, e) => s + e.amount, 0).toLocaleString() %></div></div>
+    </div>
+  </div>
+</div>
+
+<div class="panel">
+  <h2>Earnings</h2>
+  <p class="muted" style="margin-bottom:16px">
+    Commission is calculated when MigraTech staff mark a case as won. Payouts happen off-platform (bank transfer) — this is a running ledger, not a payment method.
+  </p>
+  <table>
+    <tr><th>Client</th><th>Case Value</th><th>Rate</th><th>Commission</th><th>Status</th><th>Date</th></tr>
+    <% earnings.entries.forEach(function(e) { %>
+      <tr>
+        <td><b><%= e.client_name %></b></td>
+        <td>₦<%= e.case_value.toLocaleString() %></td>
+        <td class="muted"><%= e.rate_percent %>%</td>
+        <td><b>₦<%= e.amount.toLocaleString() %></b></td>
+        <td><% if (e.status === 'paid') { %><span class="badge green">paid</span><% } else { %><span class="badge warm">owed</span><% } %></td>
+        <td class="muted"><%= new Date(e.created_at).toLocaleDateString() %></td>
+      </tr>
+    <% }) %>
+    <% if (!earnings.entries.length) { %><tr><td class="muted" colspan="6">No commissions recorded yet.</td></tr><% } %>
+  </table>
+</div>
+
+<%- include('partials/foot') %>

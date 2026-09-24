@@ -35,6 +35,12 @@ export const settings = {
 
   fieldEncryptionKey: process.env.FIELD_ENCRYPTION_KEY || "",
   documentStorageDir: process.env.DOCUMENT_STORAGE_DIR || "./storage/documents",
+  // Publicly-servable (unlike documentStorageDir above, which is encrypted and never served
+  // directly) — but still needs its own persistent volume, same as documentStorageDir:
+  // src/public/ is baked into the Docker image at build time and gets replaced on every
+  // deploy, so anything written there at runtime (an uploaded photo) would be silently wiped
+  // on the next deploy. See server.js for the dedicated static route that serves this path.
+  vendorPhotoStorageDir: process.env.VENDOR_PHOTO_STORAGE_DIR || "./storage/vendor-photos",
 
   dataRetentionDays: num(process.env.DATA_RETENTION_DAYS, 365),
   enableDataRetentionJob: bool(process.env.ENABLE_DATA_RETENTION_JOB, false),
@@ -98,6 +104,25 @@ export const settings = {
   // copy in conversation/manager.js — that's business content, not just a name.
   botName: process.env.BOT_NAME || "MigraTech",
 
+  // --- WhatsApp Cloud API webhook (Meta's official platform, 2026-09-21) — deliberately
+  // parallel to, not a replacement for, the Baileys connection above. This only receives and
+  // logs webhook events for now; it is NOT wired into ConversationManager. Exists so the Meta
+  // App Dashboard's "Verify and save" step (Production setup > Webhooks) has something real
+  // to talk to while evaluating a move to the official API. See whatsapp/cloudWebhookRoutes.js.
+  whatsappCloudVerifyToken: process.env.WHATSAPP_CLOUD_VERIFY_TOKEN || "",
+  // App Secret from Meta App Dashboard > App settings > Basic. Used to verify the
+  // X-Hub-Signature-256 header on incoming POSTs actually came from Meta, not a spoofed
+  // request hitting this now-public URL. Optional only because it isn't known yet at initial
+  // setup — the route logs a loud warning and skips verification if unset; set this before
+  // treating any received payload as trustworthy.
+  whatsappCloudAppSecret: process.env.WHATSAPP_CLOUD_APP_SECRET || "",
+
+  // --- wsapi.chat webhook (2026-09-21) — see whatsapp/wsapiWebhookRoutes.js's file header
+  // for the important context: this is NOT an official WhatsApp API, same risk category as
+  // Baileys, evaluated at the user's explicit direction after that tradeoff was flagged.
+  // Verify+log only, not wired into ConversationManager.
+  wsapiSigningSecret: process.env.WSAPI_SIGNING_SECRET || "",
+
   port: num(process.env.PORT, 8000),
 
   // --- Payments (Paystack) — the DISCOVER/NAVIGATE/RELOCATE package model ---
@@ -116,6 +141,12 @@ export const settings = {
   // expectations while they wait for their real quote.
   relocateReferencePriceNgn: num(process.env.RELOCATE_REFERENCE_PRICE_NGN, 150_000),
   relocateReferencePriceUsdDisplay: num(process.env.RELOCATE_REFERENCE_PRICE_USD_DISPLAY, 125),
+
+  // --- Partner agents (Vendor) — commission-on-won-case model, 2026-09-01 ---
+  // Applies to every vendor unless Vendor.commission_rate_percent overrides it (staff have
+  // negotiated a different rate with that specific agent). Actual payout is manual/off
+  // -platform — this only drives what admin/service.js's markCaseWon() calculates and logs.
+  defaultCommissionRatePercent: num(process.env.DEFAULT_COMMISSION_RATE_PERCENT, 15),
 
   get paystackConfigured() {
     return Boolean(this.paystackSecretKey);

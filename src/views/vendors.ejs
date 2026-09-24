@@ -1,0 +1,88 @@
+<%- include('partials/head') %>
+
+<div class="tabs">
+  <a href="/admin/vendors" class="<%= !filterStatus ? 'active' : '' %>">All</a>
+  <a href="/admin/vendors?status=pending" class="<%= filterStatus === 'pending' ? 'active' : '' %>">Pending</a>
+  <a href="/admin/vendors?status=approved" class="<%= filterStatus === 'approved' ? 'active' : '' %>">Approved</a>
+  <a href="/admin/vendors?status=rejected" class="<%= filterStatus === 'rejected' ? 'active' : '' %>">Rejected</a>
+  <a href="/admin/vendors?status=suspended" class="<%= filterStatus === 'suspended' ? 'active' : '' %>">Suspended</a>
+</div>
+
+<div class="panel">
+  <h2>Agent Applications</h2>
+  <p class="muted" style="margin-bottom:16px">
+    Applications from the public <a href="/agents/apply" target="_blank">/agents/apply</a> form. Only <b>approved</b>
+    agents should ever be introduced to a user — review before approving, same as document/knowledge-base verification.
+  </p>
+
+  <table>
+    <tr><th>Applicant</th><th>Contact</th><th>Coverage</th><th>Services</th><th>Documents</th><th>Status</th><th></th></tr>
+    <% vendors.forEach(function(v) { %>
+      <tr>
+        <td>
+          <div style="display:flex;align-items:center;gap:8px">
+            <% if (v.photo_url) { %>
+              <img src="<%= v.photo_url %>" alt="" style="width:32px;height:32px;border-radius:50%;object-fit:cover;flex:none" />
+            <% } %>
+            <div>
+              <b><%= v.name %></b>
+              <% if (v.business_name) { %><br/><span class="muted"><%= v.business_name %></span><% } %>
+            </div>
+          </div>
+        </td>
+        <td>
+          <span class="muted"><%= v.email %></span><br/>
+          <a href="https://wa.me/<%= v.whatsapp_number.replace('@s.whatsapp.net', '') %>" target="_blank" style="font-size:12px">
+            WhatsApp <%= v.whatsapp_number.replace('@s.whatsapp.net', '') %> →
+          </a>
+        </td>
+        <td style="max-width:160px">
+          <span class="muted"><%= v.countries_covered || '—' %></span>
+          <% if (v.service_categories && v.service_categories.length) { %>
+            <br/><% v.service_categories.forEach(function(c) { %><span class="badge neutral" style="margin:2px 3px 0 0"><%= c %></span><% }) %>
+          <% } %>
+        </td>
+        <td style="max-width:280px;white-space:pre-wrap;font-size:12.5px">
+          <%= v.services_offered || '—' %>
+          <% if (v.message) { %><br/><span class="muted" style="font-style:italic">"<%= v.message %>"</span><% } %>
+        </td>
+        <td style="max-width:150px;font-size:12px">
+          <% v.documents.forEach(function(d) { %>
+            <div style="margin-bottom:4px"><a href="/admin/vendor-documents/<%= d.id %>/file" target="_blank"><%= d.original_filename || d.document_type %></a></div>
+          <% }) %>
+          <% if (!v.documents.length) { %><span class="muted">—</span><% } %>
+        </td>
+        <td>
+          <% if (v.status === 'pending') { %><span class="badge warm">pending</span>
+          <% } else if (v.status === 'approved') { %><span class="badge green">approved</span>
+          <% } else if (v.status === 'rejected') { %><span class="badge red">rejected</span>
+          <% } else { %><span class="badge cold">suspended</span><% } %>
+          <% if (v.reviewed_by) { %><br/><span class="muted" style="font-size:11px">by <%= v.reviewed_by %></span><% } %>
+        </td>
+        <td>
+          <form method="post" action="/admin/vendors/<%= v.id %>/status" class="inline-form" style="margin-bottom:6px">
+            <select name="status" onchange="this.form.submit()">
+              <option value="pending" <%= v.status === 'pending' ? 'selected' : '' %>>Pending</option>
+              <option value="approved" <%= v.status === 'approved' ? 'selected' : '' %>>Approved</option>
+              <option value="rejected" <%= v.status === 'rejected' ? 'selected' : '' %>>Rejected</option>
+              <option value="suspended" <%= v.status === 'suspended' ? 'selected' : '' %>>Suspended</option>
+            </select>
+          </form>
+          <details class="edit-row">
+            <summary>Notes / delete</summary>
+            <form class="field-form" method="post" action="/admin/vendors/<%= v.id %>/notes" style="margin-bottom:8px">
+              <div class="field"><textarea name="internal_notes" rows="2" placeholder="Internal notes (not visible to the applicant)"><%= v.internal_notes || '' %></textarea></div>
+              <button class="btn secondary" type="submit">Save Notes</button>
+            </form>
+            <form method="post" action="/admin/vendors/<%= v.id %>/delete" onsubmit="return confirm('Delete this application?')">
+              <button class="btn danger" type="submit">Delete</button>
+            </form>
+          </details>
+        </td>
+      </tr>
+    <% }) %>
+    <% if (!vendors.length) { %><tr><td class="muted" colspan="7">No agent applications yet.</td></tr><% } %>
+  </table>
+</div>
+
+<%- include('partials/foot') %>

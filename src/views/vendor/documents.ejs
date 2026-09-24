@@ -1,0 +1,25 @@
+<%- include('partials/head') %>
+
+<div class="panel">
+  <h2>Documents</h2>
+  <p class="muted" style="margin-bottom:16px">Documents uploaded by clients on your cases. Verification is handled by MigraTech staff.</p>
+  <table>
+    <tr><th>Client</th><th>Type</th><th>Status</th><th>Verification</th><th>Uploaded</th></tr>
+    <% documents.forEach(function(d) { %>
+      <tr>
+        <td><b><%= d.client_name %></b></td>
+        <td><%= d.document_type %></td>
+        <td><%= d.status %></td>
+        <td>
+          <% if (d.verification_status === 'verified') { %><span class="badge green">verified</span>
+          <% } else if (d.verification_status === 'rejected') { %><span class="badge red">rejected</span>
+          <% } else { %><span class="badge neutral">unreviewed</span><% } %>
+        </td>
+        <td class="muted"><%= d.uploaded_at ? new Date(d.uploaded_at).toLocaleDateString() : '—' %></td>
+      </tr>
+    <% }) %>
+    <% if (!documents.length) { %><tr><td class="muted" colspan="5">No documents yet.</td></tr><% } %>
+  </table>
+</div>
+
+<%- include('partials/foot') %>

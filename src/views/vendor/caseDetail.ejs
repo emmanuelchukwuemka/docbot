@@ -1,0 +1,58 @@
+<%- include('partials/head') %>
+
+<style>
+.case-info { display: flex; gap: 24px; margin-bottom: 20px; flex-wrap: wrap; }
+.case-info-item .label { font-size: 11.5px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+.case-info-item .val { font-size: 14px; font-weight: 600; margin-top: 2px; }
+.thread { display: flex; flex-direction: column; gap: 10px; max-height: 420px; overflow-y: auto; padding: 4px 4px 14px; margin-bottom: 14px; }
+.bubble { max-width: 65%; padding: 10px 14px; border-radius: 12px; font-size: 13.5px; line-height: 1.5; }
+.bubble .meta { font-size: 10.5px; opacity: 0.65; margin-top: 4px; }
+.bubble.vendor { align-self: flex-end; background: var(--brand); color: #fff; border-bottom-right-radius: 3px; }
+.bubble.user { align-self: flex-start; background: var(--bg); border: 1px solid var(--border); border-bottom-left-radius: 3px; }
+.thread-empty { text-align: center; color: var(--muted); font-size: 13px; padding: 30px 0; }
+.msg-form { display: flex; gap: 10px; }
+.msg-form textarea { flex: 1; resize: none; }
+</style>
+
+<p style="margin-bottom:14px"><a href="/agents/cases">← All cases</a></p>
+
+<div class="panel">
+  <h2><%= caseData.client.name %></h2>
+  <div class="case-info">
+    <div class="case-info-item"><div class="label">Pathway</div><div class="val"><%= caseData.pathway %></div></div>
+    <div class="case-info-item"><div class="label">Stage</div><div class="val"><%= caseData.stage.replace(/_/g, ' ') %></div></div>
+    <div class="case-info-item"><div class="label">Status</div><div class="val"><span class="badge <%= caseData.status === 'in_progress' ? 'warm' : 'neutral' %>"><%= caseData.status %></span></div></div>
+    <div class="case-info-item"><div class="label">WhatsApp</div><div class="val"><%= caseData.client.whatsapp_number.replace('@s.whatsapp.net', '') %></div></div>
+  </div>
+</div>
+
+<div class="panel">
+  <h2>Messages</h2>
+  <% if (error) { %><div class="flash error"><%= error %></div><% } %>
+
+  <div class="thread" id="thread">
+    <% if (!caseData.messages.length) { %>
+      <div class="thread-empty">No messages yet — send the first one below.</div>
+    <% } %>
+    <% caseData.messages.forEach(function(m) { %>
+      <div class="bubble <%= m.sender_type %>">
+        <%= m.body %>
+        <div class="meta"><%= m.sender_type === 'vendor' ? 'You' : caseData.client.name %> · <%= new Date(m.created_at).toLocaleString() %></div>
+      </div>
+    <% }) %>
+  </div>
+
+  <form method="post" action="/agents/cases/<%= caseData.id %>/messages" class="msg-form">
+    <textarea name="body" rows="2" required placeholder="Message <%= caseData.client.name %>..."></textarea>
+    <button type="submit" class="btn">Send</button>
+  </form>
+</div>
+
+<script>
+  (function () {
+    var t = document.getElementById('thread');
+    if (t) t.scrollTop = t.scrollHeight;
+  })();
+</script>
+
+<%- include('partials/foot') %>
