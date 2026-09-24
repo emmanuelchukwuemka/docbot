@@ -1,12 +1,12 @@
 // Web portal payment routes — the dashboard's "Pay Now" button for the self-serve Migra
-// Plan tier, plus the browser-redirect callback after Paystack checkout. Separate from
+// Navigate tier, plus the browser-redirect callback after Paystack checkout. Separate from
 // webhookRoutes.js (Paystack's own server-to-server webhook, which still runs independently
 // and is idempotent against this) — this file handles the *user's browser* round-trip, and
 // is actually the more reliable confirmation path for a website-initiated payment
 // specifically, since it doesn't depend on Paystack's servers being able to reach ours over
 // HTTP the way the webhook does (see the still-open SSL/migra.ng gap).
 //
-// Migra Go isn't sold here — it has no fixed price (a specialist quotes it per pathway), so
+// Migra Relocate isn't sold here — it has no fixed price (a specialist quotes it per pathway), so
 // self-serve checkout doesn't apply; that stays a staff-issued link from the admin
 // dashboard, same as today.
 
@@ -40,7 +40,7 @@ export function createPortalPaymentsRouter({ conversationManager }) {
       const user = req.portalUser;
 
       if (await hasPaidTier(user.id, "navigate")) {
-        return res.redirect(303, toDashboard("You already have Migra Plan unlocked."));
+        return res.redirect(303, toDashboard("You already have Migra Navigate unlocked."));
       }
       if (!settings.paystackConfigured) {
         return res.redirect(303, toDashboard(null, "Payments aren't available right now — please try again shortly."));
@@ -54,7 +54,7 @@ export function createPortalPaymentsRouter({ conversationManager }) {
         user_id: user.id,
         amount: settings.navigatePriceNgn,
         currency: "NGN",
-        purpose: "Migra Plan — human specialist consultation",
+        purpose: "Migra Navigate — human specialist consultation",
         status: "pending",
         tier: "navigate",
         provider: "paystack",

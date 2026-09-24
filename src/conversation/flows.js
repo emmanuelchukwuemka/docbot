@@ -131,4 +131,5 @@ export const MAIN_MENU_OPTIONS = [
   "Speak to an Expert",
   "Track My Application",
   "FAQs",
+  "Resources",
 ];

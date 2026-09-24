@@ -79,6 +79,28 @@ const DELETE_DATA_KEYWORDS = new Set(["delete my data", "delete data", "delete m
 const CONFIRM_DELETE_PHRASE = "CONFIRM DELETE";
 const ASSESSMENT_MENU_OPTIONS = ["Check required documents", "Speak to a specialist", "Back to main menu"];
 
+// Mirrors the website's /resources page (src/views/portal/resources.ejs) — kept in sync
+// manually since one lives as WhatsApp text and the other as HTML; if that page's content
+// changes, update this too.
+const SITE_BASE_URL = "https://migra.ng";
+const RESOURCES_MESSAGE =
+  "*Resources*\n\n" +
+  "Know more. Move smarter. Migration decisions deserve better information — here's " +
+  "where to find it.\n\n" +
+  "*Migration Guides* — practical guides on work, study, and family migration, " +
+  "relocation, visa pathways, documentation, job searches, and settlement.\n" +
+  `${SITE_BASE_URL}/guides\n\n` +
+  "*Country Guides* — migration opportunities and considerations across different destinations.\n" +
+  `${SITE_BASE_URL}/countries\n\n` +
+  "*Migration Calculator* — estimate migration-related costs and financial preparation. " +
+  "(Coming soon — we're still building this out.)\n\n" +
+  "*Migra Blog* — insights, updates, opportunities and expert perspectives on migration and global opportunities.\n" +
+  `${SITE_BASE_URL}/blog\n\n` +
+  "*Frequently Asked Questions* — answers to the questions Africans ask most about moving abroad.\n" +
+  `${SITE_BASE_URL}/#faqs\n\n` +
+  "⚠️ Important: migration policies and requirements change. Always verify critical " +
+  "requirements against the relevant official government authority or a qualified professional.";
+
 const SUGGESTED_COUNTRIES_BY_PRIORITY = {
   "Employment opportunities": ["Canada", "Germany"],
   Education: ["Germany"],
@@ -349,6 +371,9 @@ export class ConversationManager {
       conversation.state = "faq_waiting_question";
       await conversation.save();
       await this._send(user, conversation, "What would you like to know?");
+    } else if (option === "Resources") {
+      await this._send(user, conversation, RESOURCES_MESSAGE);
+      await this._sendMainMenu(user, conversation, "Anything else I can help with?");
     } else {
       await conversation.save();
     }
