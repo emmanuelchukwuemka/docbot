@@ -38,6 +38,12 @@ export const connectionState = {
   // dashboard renders this as a scannable image (see admin/uiRoutes.js). Null whenever there's
   // no pairing in progress; Baileys replaces it every ~20-60s until scanned or connected.
   qr: null,
+  // Alternative to scanning the QR — an 8-character code typed into WhatsApp > Linked
+  // Devices > Link with phone number instead. Only populated when a pairing was started via
+  // requestPairingCode() (see below); Baileys still emits the QR in parallel regardless, so
+  // either method completes the same pairing. Null whenever no phone-number pairing is in
+  // flight.
+  pairingCode: null,
 };
 
 function toJid(whatsappNumber) {
@@ -113,8 +119,12 @@ export class WhatsAppClient {
    * outbound sends but then rejected actually delivering it — sendMessage() itself already
    * resolved successfully by that point (that's the ack, arriving asynchronously later), so
    * without this callback a rejected send looks identical to a delivered one everywhere else
-   * in the app. */
-  async start(onMessage, onDeliveryError) {
+   * in the app.
+   *
+   * `pairingPhoneNumber`, if given, requests a phone-number pairing code as an alternative
+   * to scanning the QR (see requestPairingCode() below) — only meaningful on a fresh,
+   * not-yet-registered session; ignored once a session is already linked. */
+  async start(onMessage, onDeliveryError, pairingPhoneNumber = null) {
     // Kept so relink() can restart the connection later without the caller having to pass
     // these callbacks in again.
     this._onMessage = onMessage;
@@ -132,6 +142,23 @@ export class WhatsAppClient {
     });
     this.sock = sock;
 
+    if (pairingPhoneNumber && !state.creds.registered) {
+      // Fire-and-forget from start()'s point of view — the code arrives asynchronously via
+      // this promise, not through the connection.update/qr event the QR flow uses. Wrapped
+      // so a failure here (e.g. WhatsApp rejects the number) logs instead of crashing the
+      // whole connection — the QR path Baileys generates in parallel still works as a
+      // fallback either way.
+      sock
+        .requestPairingCode(pairingPhoneNumber)
+        .then((code) => {
+          connectionState.pairingCode = code;
+          logger.info({ code }, `Pairing code for ${settings.botName} — enter this in WhatsApp > Linked Devices > Link with phone number`);
+        })
+        .catch((err) => {
+          logger.warn({ err, pairingPhoneNumber }, "Failed to request WhatsApp pairing code — falling back to QR only");
+        });
+    }
+
     sock.ev.on("creds.update", saveCreds);
 
     sock.ev.on("connection.update", (update) => {
@@ -144,6 +171,7 @@ export class WhatsAppClient {
       }
       if (connection === "open") {
         connectionState.qr = null;
+        connectionState.pairingCode = null;
         if (settings.botPhoneNumber) {
           const connectedNumber = (sock.user?.id || "").split(/[:@]/)[0].replace(/\D/g, "");
           if (connectedNumber !== settings.botPhoneNumber) {
@@ -373,6 +401,35 @@ export class WhatsAppClient {
     connectionState.status = "connecting";
     this.relinking = false;
     await this.start(this._onMessage, this._onDeliveryError);
+  }
+
+  /** Admin-triggered pairing by phone number (see admin/uiRoutes.js) — an alternative to
+   * scanning the QR, for whoever's linking the account to type an 8-character code into
+   * WhatsApp > Linked Devices > Link with phone number instead. Same destructive shape as
+   * relink() above (fresh session, old one gone for good) since a pairing code, like a QR,
+   * only means anything against an unregistered session — this isn't a way to "add" a second
+   * number to an already-linked one.
+   *
+   * `phoneNumber` must be digits only (country code + number, no leading +, no spaces/
+   * dashes) — callers are responsible for normalizing before calling this. */
+  async requestPairingCode(phoneNumber) {
+    this.relinking = true;
+    if (this.sock) {
+      try {
+        this.sock.end(new Error("Manual pairing-code request"));
+      } catch (err) {
+        logger.warn({ err }, "Error ending previous WhatsApp socket during pairing-code request");
+      }
+    }
+    await rm(settings.baileysAuthDir, { recursive: true, force: true });
+    this.numberMismatch = false;
+    this.profilePictureSynced = false;
+    this.reconnectAttempts = 0;
+    connectionState.qr = null;
+    connectionState.pairingCode = null;
+    connectionState.status = "connecting";
+    this.relinking = false;
+    await this.start(this._onMessage, this._onDeliveryError, phoneNumber);
   }
 
   /** FR-08 document upload. Returns null (and logs) if the download fails — callers must

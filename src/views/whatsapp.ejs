@@ -34,9 +34,34 @@
     <% } %>
   </div>
 
+  <div id="pairing-code-area" style="text-align:center;margin-top:18px;<%= pairingCode ? '' : 'display:none;' %>">
+    <div class="muted" style="font-size:12px;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">Or enter this code instead of scanning</div>
+    <div id="pairing-code-value" style="font-size:28px;font-weight:800;letter-spacing:0.12em;font-family:monospace;color:var(--brand-dark);background:#ecfdf5;border:1px solid #a7f3d0;border-radius:10px;padding:14px 20px;display:inline-block;"><%= pairingCode || '' %></div>
+    <p class="muted" style="margin-top:10px;">Enter this in WhatsApp → Settings → Linked Devices → Link a Device → "Link with phone number instead".</p>
+  </div>
+
   <form method="post" action="/admin/whatsapp/relink" style="margin-top:18px;"
         onsubmit="return confirm('This disconnects the current WhatsApp session for good and starts a fresh pairing. Continue?');">
     <button type="submit" class="btn danger">Relink (disconnect &amp; generate new QR)</button>
+  </form>
+</div>
+
+<div class="panel">
+  <div class="panel-head">
+    <h2>Link with phone number instead</h2>
+  </div>
+  <p class="muted" style="margin-bottom:16px;">
+    Alternative to scanning a QR — enter the phone number you want to link (with country code), and WhatsApp will
+    show you an 8-character code to type in instead. Same as relinking: this drops any current session for good.
+  </p>
+  <form method="post" action="/admin/whatsapp/pairing-code"
+        onsubmit="return confirm('This disconnects the current WhatsApp session for good and starts a fresh pairing with this number. Continue?');"
+        style="display:flex;gap:10px;align-items:flex-end;max-width:420px;">
+    <div class="field" style="flex:1;margin-bottom:0;">
+      <label for="phone_number">Phone number</label>
+      <input type="text" id="phone_number" name="phone_number" placeholder="e.g. 2348012345678" required />
+    </div>
+    <button type="submit" class="btn" style="white-space:nowrap;padding:7px 16px;">Get pairing code</button>
   </form>
 </div>
 
@@ -73,6 +98,15 @@
     } else if (data.status === 'open' && qrImg) {
       // Connected since the last poll — drop the stale QR image.
       location.reload();
+    }
+
+    const pairingArea = document.getElementById('pairing-code-area');
+    const pairingValue = document.getElementById('pairing-code-value');
+    if (data.pairingCode) {
+      if (pairingArea) pairingArea.style.display = '';
+      if (pairingValue) pairingValue.textContent = data.pairingCode;
+    } else if (pairingArea) {
+      pairingArea.style.display = 'none';
     }
   }
   setInterval(pollWhatsappStatus, 4000);
