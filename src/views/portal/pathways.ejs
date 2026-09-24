@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Migration Pathways<%= filterCountry ? ' — ' + filterCountry : '' %> — MigraTech</title>
+<title>Migration Pathways<%= filterCountry ? ' — ' + filterCountry : '' %><%= filterCategory ? ' — ' + filterCategory : '' %> — MigraTech</title>
 <link rel="icon" type="image/png" href="/brand/favicon.png" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -17,8 +17,8 @@
 <header class="content-header">
   <div class="container">
     <div class="content-eyebrow">Discover</div>
-    <h1>Migration Pathways<% if (filterCountry) { %> — <%= filterCountry %><% } %></h1>
-    <% if (filterCountry) { %><p style="margin-top:10px"><a href="/pathways" style="color:#00B140;font-weight:700">Show all countries</a></p><% } %>
+    <h1>Migration Pathways<% if (filterCountry) { %> — <%= filterCountry %><% } %><% if (filterCategory) { %> — <%= filterCategory.charAt(0).toUpperCase() + filterCategory.slice(1) %><% } %></h1>
+    <% if (filterCountry || filterCategory) { %><p style="margin-top:10px"><a href="/pathways" style="color:#00B140;font-weight:700">Show all pathways</a></p><% } %>
   </div>
 </header>
 
@@ -44,7 +44,7 @@
       <% }) %>
     </div>
   <% } else { %>
-    <div class="content-empty">No pathways published<% if (filterCountry) { %> for <%= filterCountry %><% } %> yet — message us on WhatsApp and we'll talk through your options directly.</div>
+    <div class="content-empty">No pathways published<% if (filterCountry) { %> for <%= filterCountry %><% } %><% if (filterCategory) { %> in this category<% } %> yet — message us on WhatsApp and we'll talk through your options directly.</div>
   <% } %>
 </div>
 

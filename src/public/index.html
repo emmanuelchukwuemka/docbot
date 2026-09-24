@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>MigraTech — Migration Made Smarter. Futures Made Better.</title>
-<meta name="description" content="MigraTech is a digital platform that connects people to global opportunities through technology, expertise and trust." />
+<title>Migra.ng — Migration, without the confusion.</title>
+<meta name="description" content="Migra.ng is Africa's intelligent migration platform — helping people discover opportunities, understand migration pathways and navigate their journey to a new country with confidence." />
 <link rel="icon" type="image/png" href="/brand/favicon.png" />
 <link rel="apple-touch-icon" href="/brand/logo-icon.png" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -88,6 +88,12 @@ img { display: block; max-width: 100%; }
 .btn-gs:hover { background: #009935; box-shadow: 0 4px 16px rgba(0,177,64,0.45); }
 .btn-gs svg { width: 15px; height: 15px; }
 
+/* Mobile menu — hidden entirely on desktop; the 900px breakpoint turns it on. Previously
+   .nav-links just vanished at 900px with nothing replacing it — no way to reach the other
+   nav items on a phone at all. */
+.nav-burger { display: none; }
+.nav-mobile { display: none; }
+
 /* ═══════════════════════════════════════
    HERO
 ═══════════════════════════════════════ */
@@ -154,15 +160,22 @@ img { display: block; max-width: 100%; }
 }
 .hero h1 .green {
   color: #00B140;
-  display: block;
+}
+
+.hero-tagline {
+  margin-top: 14px;
+  font-size: 17px;
+  font-weight: 700;
+  color: #0B1E3F;
+  max-width: 40ch;
 }
 
 .hero-desc {
-  margin-top: 20px;
+  margin-top: 12px;
   font-size: 15px;
   line-height: 1.7;
   color: #4B5563;
-  max-width: 40ch;
+  max-width: 42ch;
 }
 
 .hero-btns {
@@ -180,7 +193,7 @@ img { display: block; max-width: 100%; }
 .hero-btn-primary svg { width: 17px; height: 17px; }
 
 .hero-btn-ghost {
-  display: inline-flex; align-items: center; gap: 10px;
+  display: inline-flex; align-items: center; gap: 10px; white-space: nowrap;
   padding: 12px 24px; border-radius: 8px;
   background: transparent; color: #0B1E3F;
   font-size: 14.5px; font-weight: 600;
@@ -330,6 +343,139 @@ img { display: block; max-width: 100%; }
   line-height: 1; font-variant-numeric: tabular-nums;
 }
 .stat-lbl { font-size: 12.5px; color: #6B7280; margin-top: 4px; font-weight: 500; }
+
+/* ═══════════════════════════════════════
+   ABOUT US
+═══════════════════════════════════════ */
+.about-section { padding: 88px 0; background: #fff; }
+.about-grid {
+  display: grid; grid-template-columns: 1fr 1.05fr;
+  gap: 60px; align-items: center;
+}
+.about-copy h2 {
+  font-size: clamp(28px, 3.2vw, 40px);
+  font-weight: 900; color: #0B1E3F; line-height: 1.18;
+  letter-spacing: -0.03em; margin-bottom: 0;
+}
+.about-copy h2 .accent { color: #00B140; }
+.about-divider { width: 52px; height: 4px; background: #00B140; border-radius: 2px; margin: 24px 0 26px; }
+.about-copy p {
+  font-size: 15.5px; color: #4B5563; line-height: 1.75;
+  margin-bottom: 16px;
+}
+.about-lede { font-size: 16px; font-weight: 800; color: #0B1E3F; }
+
+/* Illustration panel */
+.about-illustration {
+  position: relative; border-radius: 28px; overflow: hidden;
+  background: linear-gradient(160deg, #F0FBF4 0%, #E1F5E9 100%);
+  min-height: 480px;
+  display: flex; align-items: flex-end; justify-content: center;
+}
+.about-dots {
+  position: absolute; top: 26px; right: 26px; width: 84px; height: 64px; z-index: 1;
+  background-image: radial-gradient(circle, rgba(0,177,64,0.35) 1.5px, transparent 1.5px);
+  background-size: 14px 14px;
+}
+.about-africa {
+  position: absolute; top: 50%; left: 50%; transform: translate(-46%, -54%);
+  width: 76%; height: auto; z-index: 1;
+}
+.about-flight { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 2; }
+.about-person {
+  position: relative; z-index: 3;
+  width: 62%; max-width: 260px; height: auto; object-fit: contain;
+  filter: drop-shadow(0 22px 30px rgba(11,30,63,0.18));
+}
+.about-illustration-blob {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 64px; z-index: 2;
+  background: linear-gradient(180deg, transparent 0%, rgba(0,177,64,0.16) 100%);
+}
+
+/* Mission band */
+.about-mission-band {
+  position: relative; margin-top: 48px; overflow: hidden;
+  background: linear-gradient(160deg, #F3FBF6 0%, #EAF8EF 100%);
+  border: 1px solid #DCF2E3; border-radius: 24px;
+  padding: 44px 40px; text-align: center;
+}
+.about-mission-dots {
+  position: absolute; top: 0; bottom: 0; width: 130px; z-index: 0;
+  background-image: radial-gradient(circle, rgba(0,177,64,0.22) 1.5px, transparent 1.5px);
+  background-size: 16px 16px;
+}
+.about-mission-dots.left { left: 0; }
+.about-mission-dots.right { right: 0; }
+.about-mission-icon {
+  position: relative; z-index: 1;
+  width: 56px; height: 56px; border-radius: 50%; background: #00B140;
+  display: flex; align-items: center; justify-content: center; margin: 0 auto 16px;
+  box-shadow: 0 10px 22px rgba(0,177,64,0.32);
+}
+.about-mission-icon svg { width: 26px; height: 26px; color: #fff; }
+.about-mission-label {
+  position: relative; z-index: 1;
+  font-size: 13px; font-weight: 800; color: #007a2e; text-transform: uppercase;
+  letter-spacing: 0.08em; margin-bottom: 12px;
+}
+.about-mission-band p {
+  position: relative; z-index: 1;
+  font-size: clamp(17px, 1.8vw, 20px); font-weight: 800; color: #0B1E3F; line-height: 1.5;
+  max-width: 640px; margin: 0 auto;
+}
+
+/* Values row */
+.about-values-row {
+  margin-top: 40px;
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px;
+}
+.about-value-card {
+  background: #fff; border: 1px solid #E5E7EB; border-radius: 16px; padding: 22px 20px;
+  transition: box-shadow 200ms, transform 200ms, border-color 200ms;
+}
+.about-value-card:hover {
+  box-shadow: 0 12px 28px rgba(0,0,0,0.08); transform: translateY(-3px); border-color: #cdeed9;
+}
+.about-value-card .about-value-ico {
+  width: 38px; height: 38px; border-radius: 10px; background: #F0FBF4;
+  display: flex; align-items: center; justify-content: center; margin-bottom: 14px;
+  transition: transform 200ms, background 200ms;
+}
+.about-value-card:hover .about-value-ico { background: #00B140; transform: scale(1.08); }
+.about-value-card:hover .about-value-ico svg { color: #fff; }
+.about-value-card .about-value-ico svg { width: 18px; height: 18px; color: #00B140; transition: color 200ms; }
+.about-value-card h4 { font-size: 14px; font-weight: 800; color: #0B1E3F; margin-bottom: 6px; }
+.about-value-card p { font-size: 12.5px; color: #6B7280; line-height: 1.55; }
+
+/* Scroll-reveal (see the About IntersectionObserver below) */
+#about .reveal {
+  opacity: 0; transform: translateY(28px);
+  transition: opacity 700ms cubic-bezier(.2,.7,.3,1), transform 700ms cubic-bezier(.2,.7,.3,1);
+}
+#about .reveal.in-view { opacity: 1; transform: translateY(0); }
+#about .reveal-right { transform: translateX(36px); }
+#about .reveal-right.in-view { transform: translateX(0); }
+#about .about-values-row.reveal .about-value-card { opacity: 0; transform: translateY(18px); transition: opacity 550ms ease, transform 550ms ease; }
+#about .about-values-row.reveal.in-view .about-value-card { opacity: 1; transform: translateY(0); }
+#about .about-values-row.reveal.in-view .about-value-card:nth-child(1) { transition-delay: 0ms; }
+#about .about-values-row.reveal.in-view .about-value-card:nth-child(2) { transition-delay: 80ms; }
+#about .about-values-row.reveal.in-view .about-value-card:nth-child(3) { transition-delay: 160ms; }
+#about .about-values-row.reveal.in-view .about-value-card:nth-child(4) { transition-delay: 240ms; }
+#about .about-values-row.reveal.in-view .about-value-card:nth-child(5) { transition-delay: 320ms; }
+@media (prefers-reduced-motion: reduce) {
+  #about .reveal, #about .reveal.in-view, #about .about-values-row .about-value-card { opacity: 1; transform: none; transition: none; }
+}
+
+/* Gentle idle motion on the illustration, once it's on screen */
+.about-flight-line { stroke-dasharray: 1 7; stroke-dashoffset: 200; transition: stroke-dashoffset 1400ms ease 300ms; }
+.about-illustration.in-view .about-flight-line { stroke-dashoffset: 0; }
+.about-flight-plane { transform-origin: center; animation: aboutPlaneFloat 3.2s ease-in-out infinite; }
+@keyframes aboutPlaneFloat {
+  0%, 100% { transform: translate(0,0); }
+  50% { transform: translate(3px,-4px); }
+}
+.about-person { transition: transform 300ms ease; }
+.about-illustration:hover .about-person { transform: translateY(-4px); }
 
 /* ═══════════════════════════════════════
    TRUSTED BY
@@ -706,12 +852,44 @@ img { display: block; max-width: 100%; }
 }
 @media (max-width: 900px) {
   .nav-links { display: none; }
+  .nav-actions { display: none; }
+  .nav-burger {
+    display: flex; align-items: center; justify-content: center;
+    width: 38px; height: 38px; border: none; background: transparent; cursor: pointer;
+    color: #0B1E3F; flex: none; padding: 0;
+  }
+  .nav-burger svg { width: 24px; height: 24px; }
+  .nav-burger .icon-close { display: none; }
+  .nav-burger.open .icon-open { display: none; }
+  .nav-burger.open .icon-close { display: block; }
+
+  .nav-mobile {
+    display: flex; flex-direction: column;
+    max-height: 0; overflow: hidden;
+    background: #fff; border-top: 1px solid transparent;
+    transition: max-height 280ms ease, border-color 280ms ease;
+  }
+  .nav-mobile.open {
+    max-height: 70vh; overflow-y: auto; border-top-color: #e5e7eb;
+    box-shadow: 0 16px 28px rgba(0,0,0,0.1);
+  }
+  .nav-mobile a {
+    padding: 15px 24px; font-size: 15px; font-weight: 600; color: #374151;
+    border-bottom: 1px solid #F3F4F6;
+  }
+  .nav-mobile a:active { background: #F9FAFB; }
+  .nav-mobile-actions {
+    display: flex; flex-direction: column; gap: 10px; padding: 18px 24px 24px;
+  }
+
   .hero-inner { grid-template-columns: 1fr; }
-  .hero-right { height: 380px; margin-top: 20px; }
+  .hero-right { height: 380px; margin-top: 20px; overflow: hidden; }
   .feat-grid { grid-template-columns: repeat(2, 1fr); gap: 1px; }
   .stats-grid { grid-template-columns: repeat(2, 1fr); }
   .how-grid { grid-template-columns: repeat(2, 1fr); }
   .how-connector { display: none; }
+  .about-grid { grid-template-columns: 1fr; gap: 36px; }
+  .about-illustration { min-height: 360px; }
   .dest-grid { grid-template-columns: 1fr; }
   .plans-grid { grid-template-columns: 1fr; max-width: 400px; margin: 0 auto; }
   .wa-grid { grid-template-columns: 1fr; }
@@ -724,6 +902,21 @@ img { display: block; max-width: 100%; }
 @media (max-width: 560px) {
   .footer-grid { grid-template-columns: 1fr; }
   .footer-bar { flex-direction: column; gap: 10px; text-align: center; }
+}
+@media (max-width: 480px) {
+  /* body already has overflow-x:hidden — without it, wide fixed-size decorative elements
+     were silently *clipping* content off-screen (hero pill text, stat callouts) rather than
+     scrolling, which is worse since it was simply unreachable. Found testing the contact
+     page redesign. */
+  .container { padding-left: 20px; padding-right: 20px; }
+  .hero-pill { font-size: 12px; padding: 6px 12px; }
+  .hero-btns { flex-direction: column; align-items: stretch; }
+  .hero-btn-primary, .hero-btn-ghost { padding: 12px 16px; font-size: 14px; justify-content: center; white-space: nowrap; }
+  .float-card { padding: 9px 12px; max-width: calc(100vw - 40px); }
+  .float-card.card-a { right: 4px; }
+  .float-card.card-b { right: 4px; }
+  .fc-num { font-size: 15px; }
+  .fc-lbl { font-size: 9.5px; }
 }
 </style>
 </head>
@@ -741,15 +934,10 @@ img { display: block; max-width: 100%; }
       <div class="nav-links">
         <a href="/" class="active">Home</a>
         <a href="/#about">About Us</a>
-        <span class="nav-drop">Services
-          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-        </span>
-        <a href="/#programs">Programs</a>
+        <a href="/services">Services</a>
         <a href="/#plans">Plans</a>
-        <a href="/contact">For Partners</a>
-        <span class="nav-drop">Resources
-          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-        </span>
+        <a href="/agents/apply">For Partners</a>
+        <a href="/resources">Resources</a>
         <a href="/contact">Contact</a>
       </div>
 
@@ -760,6 +948,25 @@ img { display: block; max-width: 100%; }
           <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 12h14M12 5l7 7-7 7"/></svg>
         </a>
       </div>
+
+      <button class="nav-burger" id="nav-burger" aria-label="Open menu" aria-expanded="false" aria-controls="nav-mobile">
+        <svg class="icon-open" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+        <svg class="icon-close" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="nav-mobile" id="nav-mobile">
+    <a href="/">Home</a>
+    <a href="/#about">About Us</a>
+    <a href="/services">Services</a>
+    <a href="/#plans">Plans</a>
+    <a href="/agents/apply">For Partners</a>
+    <a href="/resources">Resources</a>
+    <a href="/contact">Contact</a>
+    <div class="nav-mobile-actions">
+      <a href="/login"><button type="button" class="btn-login" style="width:100%">Login</button></a>
+      <a href="/register"><button type="button" class="btn-gs" style="width:100%;justify-content:center">Get Started</button></a>
     </div>
   </div>
 </nav>
@@ -774,17 +981,20 @@ img { display: block; max-width: 100%; }
       <div class="hero-left">
         <div class="hero-pill">
           <div class="hero-pill-dot"></div>
-          Smart Solutions. Global Impact.
+          Migra.ng
         </div>
 
         <h1>
-          Migration Made Smarter.<br>
-          <span class="green">Futures Made Better.</span>
+          Migration, <span class="green">without the confusion.</span>
         </h1>
 
+        <p class="hero-tagline">Your journey beyond borders starts with clarity.</p>
+
         <p class="hero-desc">
-          MigraTech is a digital platform that connects people to global
-          opportunities through technology, expertise and trust.
+          Migra.ng is an AI-powered technology platform that helps Africans discover
+          legitimate migration pathways, understand their options, prepare with confidence,
+          and connect with the right opportunities and support to move, work, study and
+          build a life abroad.
         </p>
 
         <div class="hero-btns">
@@ -792,13 +1002,14 @@ img { display: block; max-width: 100%; }
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
             </svg>
-            Start Your Journey
+            Start Your Migration Journey
           </button>
-          <button class="hero-btn-ghost" id="btn-watch">
-            <span class="play-ring" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="currentColor"><polygon points="6,4 20,12 6,20"/></svg>
-            </span>
-            Watch How It Works
+          <button class="hero-btn-ghost" id="btn-explore">
+            <svg width="17" height="17" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="12" cy="12" r="9" stroke-width="2"/>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 9l-2 6-6 2 2-6 6-2z"/>
+            </svg>
+            Explore Your Options
           </button>
         </div>
 
@@ -978,8 +1189,101 @@ img { display: block; max-width: 100%; }
   </div>
 </section>
 
+<!-- ══════════════ ABOUT US ══════════════ -->
+<section id="about" class="about-section" aria-label="About MigraTech" style="scroll-margin-top:84px">
+  <div class="container">
+    <div class="about-grid">
+
+      <div class="about-copy">
+        <div class="section-eyebrow reveal">About Us</div>
+        <h2 class="reveal" style="transition-delay:60ms">Africa is moving. We're building the infrastructure to help it <span class="accent">move better.</span></h2>
+        <div class="about-divider reveal" style="transition-delay:120ms" aria-hidden="true"></div>
+        <p class="reveal" style="transition-delay:160ms">Migration should not be a maze of conflicting information, unreliable agents, hidden costs and uncertainty.</p>
+        <p class="reveal" style="transition-delay:200ms">At Migra.ng, we believe every African who wants to move across borders deserves access to trusted information, intelligent guidance and legitimate opportunities.</p>
+        <p class="reveal" style="transition-delay:240ms">We're building a technology-powered migration platform that brings the fragmented migration journey into one ecosystem — from discovering where you can go, to understanding the pathway that fits you, preparing your documents, connecting with opportunities and getting the support you need to relocate.</p>
+        <p class="reveal" style="transition-delay:280ms">Migra.ng helps you navigate the journey with greater clarity and confidence.</p>
+        <p class="about-lede reveal" style="transition-delay:320ms">We don't just help people move. We help them move better.</p>
+      </div>
+
+      <div class="about-illustration reveal reveal-right" style="transition-delay:120ms">
+        <div class="about-dots" aria-hidden="true"></div>
+
+        <svg class="about-africa" viewBox="0 0 300 340" aria-hidden="true">
+          <path fill="#00B140" fill-opacity="0.22" stroke="#00B140" stroke-opacity="0.35" stroke-width="1.5" d="M145,6 C175,4 205,10 222,28 C236,43 232,58 244,72 C258,88 266,102 258,118 C252,130 240,134 238,146 C246,158 258,166 252,180 C246,192 230,196 222,208 C228,224 232,240 222,256 C212,274 200,288 188,302 C178,316 166,328 154,334 C148,337 142,335 140,328 C132,333 122,330 118,320 C110,326 100,320 98,308 C90,301 92,286 84,276 C74,264 68,247 72,230 C64,218 54,207 60,190 C52,175 46,157 54,140 C46,124 42,106 52,90 C44,74 48,54 64,40 C80,24 100,10 128,7 C134,6 140,6 145,6 Z"/>
+        </svg>
+
+        <svg class="about-flight" viewBox="0 0 400 460" aria-hidden="true">
+          <circle cx="175" cy="150" r="5" fill="#00B140"/>
+          <path class="about-flight-line" d="M175,150 C225,120 275,90 330,65" fill="none" stroke="#00B140" stroke-width="2" stroke-linecap="round"/>
+          <g class="about-flight-plane" transform="translate(310,42) rotate(35) scale(1.5)">
+            <path fill="#00B140" d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2.5 1.5V22l4-1 4 1v-1.5L13 19v-5.5l8 2.5z"/>
+          </g>
+        </svg>
+
+        <img class="about-person" src="/hero-person.png" alt="A young professional ready to relocate abroad" loading="lazy" />
+        <div class="about-illustration-blob" aria-hidden="true"></div>
+      </div>
+
+    </div>
+
+    <div class="about-mission-band reveal">
+      <div class="about-mission-dots left" aria-hidden="true"></div>
+      <div class="about-mission-dots right" aria-hidden="true"></div>
+      <div class="about-mission-icon">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke-width="2"/><circle cx="12" cy="12" r="5" stroke-width="2"/><circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/></svg>
+      </div>
+      <div class="about-mission-label">Our Mission</div>
+      <p>To make migration more accessible, transparent, intelligent and structured for Africans everywhere.</p>
+    </div>
+
+    <div class="about-values-row reveal">
+
+      <div class="about-value-card">
+        <div class="about-value-ico">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 2 4 5v6c0 5 3.4 8.6 8 10 4.6-1.4 8-5 8-10V5l-8-3z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4"/></svg>
+        </div>
+        <h4>Trust</h4>
+        <p>We prioritize verified information, transparent processes and legitimate opportunities.</p>
+      </div>
+
+      <div class="about-value-card">
+        <div class="about-value-ico">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.2 1 2.3h6c0-1.1.4-1.8 1-2.3A7 7 0 0 0 12 2z"/></svg>
+        </div>
+        <h4>Intelligence</h4>
+        <p>We use technology and data to help people make better migration decisions.</p>
+      </div>
+
+      <div class="about-value-card">
+        <div class="about-value-ico">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="1.5"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 11V8a4 4 0 0 1 7.2-2.4"/></svg>
+        </div>
+        <h4>Accessibility</h4>
+        <p>Migration guidance shouldn't be available only to those who can afford expensive consultants.</p>
+      </div>
+
+      <div class="about-value-card">
+        <div class="about-value-ico">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
+        </div>
+        <h4>Transparency</h4>
+        <p>No false promises. No guaranteed visas. No hidden pathways.</p>
+      </div>
+
+      <div class="about-value-card">
+        <div class="about-value-ico">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M23 6l-9.5 9.5-5-5L1 18"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 6h6v6"/></svg>
+        </div>
+        <h4>Opportunity</h4>
+        <p>More than crossing a border — accessing education, employment, entrepreneurship and a better future.</p>
+      </div>
+
+    </div>
+  </div>
+</section>
+
 <!-- ══════════════ WHY TRUST MIGRATECH ══════════════ -->
-<section id="about" class="trusted" aria-label="Why people trust MigraTech" style="scroll-margin-top:84px">
+<section id="trust" class="trusted" aria-label="Why people trust MigraTech" style="scroll-margin-top:84px">
   <div class="container">
     <h3>Built for Honest, Secure Migration Guidance</h3>
     <div class="logos">
@@ -1304,7 +1608,7 @@ img { display: block; max-width: 100%; }
     <div class="plans-grid">
 
       <div class="plan-card">
-        <div class="plan-name">Discover</div>
+        <div class="plan-name">Migra Discover</div>
         <div class="plan-price">Free</div>
         <p class="plan-desc">Explore your options with our WhatsApp assistant — no cost, no commitment.</p>
         <ul class="plan-features">
@@ -1317,23 +1621,23 @@ img { display: block; max-width: 100%; }
 
       <div class="plan-card plan-card-featured">
         <div class="plan-badge">Most Popular</div>
-        <div class="plan-name">Migra Plan</div>
+        <div class="plan-name">Migra Navigate</div>
         <div class="plan-price" data-price="navigate">…</div>
-        <p class="plan-desc">Everything in Discover, plus a real specialist reviewing your case.</p>
+        <p class="plan-desc">Everything in Migra Discover, plus a real specialist reviewing your case.</p>
         <ul class="plan-features">
-          <li>Everything in Discover</li>
+          <li>Everything in Migra Discover</li>
           <li>One-on-one consultation with a migration specialist</li>
           <li>Expert review of your profile and options</li>
         </ul>
-        <a href="https://wa.me/2348153955718" target="_blank" rel="noopener" class="plan-btn plan-btn-solid">Get Migra Plan</a>
+        <a href="https://wa.me/2348153955718" target="_blank" rel="noopener" class="plan-btn plan-btn-solid">Get Migra Navigate</a>
       </div>
 
       <div class="plan-card">
-        <div class="plan-name">Migra Go</div>
+        <div class="plan-name">Migra Relocate</div>
         <div class="plan-price" data-price="relocate">…</div>
         <p class="plan-desc">Full application support — priced per pathway, quoted by a specialist for your case.</p>
         <ul class="plan-features">
-          <li>Everything in Migra Plan</li>
+          <li>Everything in Migra Navigate</li>
           <li>Document checklist &amp; tracked application progress</li>
           <li>Specialist-managed submission through to decision</li>
         </ul>
@@ -1543,14 +1847,14 @@ img { display: block; max-width: 100%; }
 <section class="cta-band" aria-label="Start your journey">
   <div class="container cta-band-inner">
     <div>
-      <h2>Ready to start your journey?</h2>
-      <p>Chat with MigraTech on WhatsApp right now — no forms, no waiting rooms.</p>
+      <h2>Wherever you're starting from, there's a next step.</h2>
+      <p>You don't need to have everything figured out. Tell Migra.ng where you want to go, and we'll help you understand what comes next.</p>
     </div>
     <a href="https://wa.me/2348153955718" target="_blank" rel="noopener" class="btn-wa">
       <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
         <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347zm-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884zm8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893A11.821 11.821 0 0020.885 3.488"/>
       </svg>
-      Start on WhatsApp
+      Start My Migration Journey
     </a>
   </div>
 </section>
@@ -1608,11 +1912,11 @@ img { display: block; max-width: 100%; }
       <div class="f-col">
         <h5>Resources</h5>
         <ul>
+          <li><a href="/resources">Resource Centre</a></li>
           <li><a href="/blog">Blog</a></li>
           <li><a href="/guides">Guides</a></li>
           <li><a href="/#faqs">FAQs</a></li>
-          <li><a href="/#programs">Country Information</a></li>
-          <li><a href="/#programs">Visa Resources</a></li>
+          <li><a href="/countries">Country Information</a></li>
         </ul>
         <h5 style="margin-top:20px;">Support</h5>
         <ul>
@@ -1670,9 +1974,37 @@ img { display: block; max-width: 100%; }
     }
   });
 
+  // Mobile menu toggle
+  (function () {
+    const burger = document.getElementById('nav-burger');
+    const menu = document.getElementById('nav-mobile');
+    if (!burger || !menu) return;
+    function closeMenu() {
+      menu.classList.remove('open');
+      burger.classList.remove('open');
+      burger.setAttribute('aria-expanded', 'false');
+      document.body.style.overflow = '';
+    }
+    function toggleMenu() {
+      const isOpen = menu.classList.toggle('open');
+      burger.classList.toggle('open', isOpen);
+      burger.setAttribute('aria-expanded', String(isOpen));
+      document.body.style.overflow = isOpen ? 'hidden' : '';
+    }
+    burger.addEventListener('click', toggleMenu);
+    menu.querySelectorAll('a').forEach((a) => a.addEventListener('click', closeMenu));
+    window.addEventListener('resize', () => { if (window.innerWidth > 900) closeMenu(); });
+  })();
+
   // Journey btn → scroll to WhatsApp
   document.getElementById('btn-journey').addEventListener('click', () => {
     document.querySelector('.wa-section').scrollIntoView({ behavior: 'smooth' });
+  });
+
+  // Explore Your Options → scroll to the destinations/pathways section (was an unwired
+  // "Watch How It Works" video button before — no video ever existed behind it).
+  document.getElementById('btn-explore').addEventListener('click', () => {
+    document.getElementById('programs').scrollIntoView({ behavior: 'smooth' });
   });
 
   // Animated stat counters
@@ -1701,6 +2033,24 @@ img { display: block; max-width: 100%; }
     }
   }, { threshold: 0.3 });
   io.observe(document.querySelector('.stats-band'));
+
+  // About section — scroll-triggered reveal (fade/slide in as each piece enters view,
+  // staggered via the transition-delay set inline on each .reveal element in the markup).
+  // Fires once per element then stops observing it — a reveal that re-plays every time you
+  // scroll past it reads as jittery, not polished.
+  (function aboutReveal() {
+    const targets = document.querySelectorAll('#about .reveal');
+    if (!targets.length) return;
+    const revealIo = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('in-view');
+          revealIo.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.15, rootMargin: '0px 0px -40px 0px' });
+    targets.forEach(el => revealIo.observe(el));
+  })();
 
   // Hero motion background — flight routes with a traveling plane
   (function heroFlightCanvas() {

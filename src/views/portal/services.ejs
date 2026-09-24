@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Services — MigraTech</title>
+<meta name="description" content="Everything you need to navigate your migration journey — discovery, assessment, planning, and pathways for work, study, family migration and relocation." />
+<link rel="icon" type="image/png" href="/brand/favicon.png" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/portal.css" />
+<style>
+.services-header { position: relative; overflow: hidden; background: #F9FAFB; padding: 72px 0 60px; text-align: center; }
+.services-header::before {
+  content: ""; position: absolute; top: -160px; left: 50%; transform: translateX(-50%);
+  width: 700px; height: 460px; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle, rgba(0,177,64,0.14) 0%, transparent 70%);
+}
+/* Dotted "map" texture, top-right — approximates the mockup's world-map backdrop */
+.services-header::after {
+  content: ""; position: absolute; top: -20px; right: -60px; width: 420px; height: 320px;
+  pointer-events: none; opacity: 0.5;
+  background-image: radial-gradient(circle, #D1D5DB 1.4px, transparent 1.4px);
+  background-size: 16px 16px;
+  -webkit-mask-image: radial-gradient(ellipse at 70% 30%, #000 0%, transparent 72%);
+  mask-image: radial-gradient(ellipse at 70% 30%, #000 0%, transparent 72%);
+}
+.services-header .container { position: relative; }
+.services-pin { position: absolute; color: #00B140; opacity: 0.55; pointer-events: none; }
+.services-pin svg { width: 22px; height: 22px; }
+.services-pin.p1 { top: 18px; right: 14%; }
+.services-pin.p2 { top: 96px; right: 5%; opacity: 0.35; }
+.services-plane { position: absolute; top: 40px; left: 6%; color: #9CA3AF; opacity: 0.7; pointer-events: none; }
+.services-plane svg { width: 30px; height: 30px; }
+.services-eyebrow {
+  display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 100px;
+  background: #e8f7ee; border: 1px solid rgba(0,177,64,0.3);
+  font-size: 12.5px; font-weight: 700; color: #007a2e; margin-bottom: 20px;
+}
+.services-header h1 { font-size: clamp(28px, 3.6vw, 42px); font-weight: 900; color: #0B1E3F; letter-spacing: -0.035em; margin-bottom: 16px; max-width: 700px; margin-left: auto; margin-right: auto; line-height: 1.25; }
+.services-header h1 .accent { color: #00B140; }
+.services-header p { font-size: 15px; color: #6B7280; max-width: 620px; margin: 0 auto; line-height: 1.75; }
+
+.services-body { padding: 76px 0 0; background: #fff; }
+.services-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; max-width: 1180px; margin: 0 auto; }
+.service-card {
+  background: #F9FAFB; border: 1px solid #E5E7EB; border-radius: 20px; padding: 20px 22px 26px;
+  display: flex; flex-direction: column;
+  transition: box-shadow 200ms, transform 200ms, border-color 200ms;
+}
+.service-card:hover { transform: translateY(-4px); box-shadow: 0 16px 34px rgba(0,0,0,0.07); border-color: #cdeed9; }
+
+.service-photo {
+  aspect-ratio: 4 / 3; border-radius: 20px 20px 0 0; margin: 0 -22px 18px; margin-top: -20px;
+  border-bottom: 1px solid #E5E7EB;
+  width: calc(100% + 44px); display: block; object-fit: cover;
+  background: #EEF1F4;
+}
+
+.service-ico {
+  width: 44px; height: 44px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; margin-bottom: 14px;
+}
+.service-ico svg { width: 20px; height: 20px; }
+.service-ico.c-green  { background: #E8F7EE; color: #00B140; }
+.service-ico.c-blue   { background: #E8F0FE; color: #2563EB; }
+.service-ico.c-purple { background: #F1EAFE; color: #7C3AED; }
+.service-ico.c-amber  { background: #FEF3E2; color: #D97706; }
+.service-ico.c-teal   { background: #E1F7F5; color: #0D9488; }
+.service-ico.c-pink   { background: #FCE7F3; color: #DB2777; }
+
+.service-card h2 { font-size: 17px; font-weight: 800; color: #0B1E3F; margin-bottom: 8px; }
+.service-card p { font-size: 13px; color: #6B7280; line-height: 1.7; margin-bottom: 16px; }
+.service-link { margin-top: auto; display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; }
+.service-link:hover { text-decoration: underline; }
+.service-link.c-green  { color: #00B140; }
+.service-link.c-blue   { color: #2563EB; }
+.service-link.c-purple { color: #7C3AED; }
+.service-link.c-amber  { color: #D97706; }
+.service-link.c-teal   { color: #0D9488; }
+.service-link.c-pink   { color: #DB2777; }
+
+.support-cta {
+  max-width: 1180px; margin: 56px auto 0; position: relative; overflow: hidden;
+  background: #E8F7EE; border-radius: 18px; padding: 30px 38px;
+  display: flex; align-items: center; justify-content: space-between; gap: 24px; flex-wrap: wrap;
+}
+.support-cta-left { display: flex; align-items: center; gap: 18px; position: relative; z-index: 1; }
+.support-cta-ico {
+  width: 48px; height: 48px; border-radius: 50%; background: #fff; color: #00B140; flex: none;
+  display: flex; align-items: center; justify-content: center;
+}
+.support-cta-ico svg { width: 22px; height: 22px; }
+.support-cta h3 { font-size: 17px; font-weight: 800; color: #0B1E3F; margin-bottom: 4px; }
+.support-cta p { font-size: 13.5px; color: #4B5563; }
+.support-cta-btn {
+  position: relative; z-index: 1; flex: none; display: inline-flex; align-items: center; gap: 8px;
+  background: #00B140; color: #fff; font-size: 14px; font-weight: 700;
+  padding: 12px 22px; border-radius: 10px; white-space: nowrap;
+}
+.support-cta-btn:hover { background: #009636; }
+.support-cta-skyline { position: absolute; right: 0; bottom: 0; opacity: 0.5; pointer-events: none; color: #00B140; }
+
+.services-body > .container { padding-bottom: 90px; }
+
+@media (max-width: 1000px) {
+  .services-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 620px) {
+  .services-grid { grid-template-columns: 1fr; }
+  .support-cta { padding: 26px 24px; }
+}
+</style>
+</head>
+<body>
+
+<%- include('partials/nav') %>
+
+<header class="services-header">
+  <div class="services-plane" aria-hidden="true">
+    <svg fill="currentColor" viewBox="0 0 24 24"><path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 00-3 0V9l-8 5v2l8-2.5V19l-2.5 1.5V22l4-1 4 1v-1.5L13 19v-5.5l8 2.5z"/></svg>
+  </div>
+  <div class="services-pin p1" aria-hidden="true"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 22s7-6.5 7-12a7 7 0 10-14 0c0 5.5 7 12 7 12z"/><circle cx="12" cy="10" r="2.5" stroke-width="2"/></svg></div>
+  <div class="services-pin p2" aria-hidden="true"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 22s7-6.5 7-12a7 7 0 10-14 0c0 5.5 7 12 7 12z"/><circle cx="12" cy="10" r="2.5" stroke-width="2"/></svg></div>
+  <div class="container">
+    <div class="services-eyebrow">Services</div>
+    <h1>Everything you need to navigate your <span class="accent">migration journey.</span></h1>
+    <p>Migra.ng brings together the information, intelligence, tools and human support you need to move from "I want to migrate" to "I know exactly what to do next."</p>
+  </div>
+</header>
+
+<div class="services-body">
+  <div class="container">
+    <div class="services-grid">
+
+      <div class="service-card">
+        <img class="service-photo" src="/service-photos/migration-discovery.jpg" alt="A woman looking thoughtfully at a signpost pointing to USA, UK, Australia and Germany, city skyline behind her" />
+        <div class="service-ico c-green"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" stroke-width="2"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35"/></svg></div>
+        <h2>Migration Discovery</h2>
+        <p>Not sure where to go or which pathway is right for you? Tell us about yourself, your goals and what you are looking for. Migra.ng helps you explore destinations and potential migration pathways that may fit your profile.</p>
+        <a href="https://wa.me/2348153955718" target="_blank" rel="noopener" class="service-link c-green">Discover Your Options →</a>
+      </div>
+
+      <div class="service-card">
+        <img class="service-photo" src="/service-photos/migration-assessment.jpg" alt="A laptop screen showing an eligibility assessment with a 78% score" />
+        <div class="service-ico c-blue"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></div>
+        <h2>Migration Assessment</h2>
+        <p>Understand how your profile aligns with your preferred migration pathway. We assess relevant factors such as your education, occupation, experience, language ability and migration goals to provide a preliminary assessment and identify potential pathways.</p>
+        <a href="https://wa.me/2348153955718" target="_blank" rel="noopener" class="service-link c-blue">Check Your Eligibility →</a>
+      </div>
+
+      <div class="service-card">
+        <img class="service-photo" src="/service-photos/migration-planning.jpg" alt="A handwritten migration plan checklist — pathway, requirements, documents, key stages, next steps — next to a world map" />
+        <div class="service-ico c-purple"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg></div>
+        <h2>Migration Planning</h2>
+        <p>Turn your migration ambition into a clear plan. Receive a personalized roadmap showing your potential pathway, requirements, documents, key stages and recommended next steps.</p>
+        <a href="https://wa.me/2348153955718" target="_blank" rel="noopener" class="service-link c-purple">Build My Migration Plan →</a>
+      </div>
+
+      <div class="service-card">
+        <img class="service-photo" src="/service-photos/work-abroad.jpg" alt="A construction worker in a hard hat and hi-vis vest, city skyline behind him" />
+        <div class="service-ico c-amber"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7h-3V6a3 3 0 00-3-3h-4a3 3 0 00-3 3v1H4a1 1 0 00-1 1v3a4 4 0 004 4h10a4 4 0 004-4V8a1 1 0 00-1-1zM9 6a1 1 0 011-1h4a1 1 0 011 1v1H9V6zm11 5a2 2 0 01-2 2H6a2 2 0 01-2-2V9h16v2z"/></svg></div>
+        <h2>Work Abroad</h2>
+        <p>Access information and opportunities to help you pursue legitimate employment abroad. From identifying suitable destinations to understanding work pathways and preparing for applications, Migra.ng helps you navigate the process.</p>
+        <a href="/pathways?category=work" class="service-link c-amber">Explore Work Opportunities →</a>
+      </div>
+
+      <div class="service-card">
+        <img class="service-photo" src="/service-photos/study-abroad.jpg" alt="A smiling student carrying books and a backpack in front of a university campus" />
+        <div class="service-ico c-teal"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l6.16-3.42A12.02 12.02 0 0121 12.5c0 2.5-4 6.5-9 6.5s-9-4-9-6.5c0-.86.28-1.9.84-2.92L12 14z"/></svg></div>
+        <h2>Study Abroad</h2>
+        <p>Your education can be your pathway to a global future. Explore study destinations, programmes, admission pathways and the migration considerations associated with studying abroad.</p>
+        <a href="/pathways?category=study" class="service-link c-teal">Explore Study Options →</a>
+      </div>
+
+      <div class="service-card">
+        <img class="service-photo" src="/service-photos/family-migration.jpg" alt="A smiling family — mother, father and young child — sitting together at home" />
+        <div class="service-ico c-pink"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="10" cy="7" r="4" stroke-width="2"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+        <h2>Family Migration</h2>
+        <p>Moving with or joining the people who matter most requires careful planning. Migra.ng helps you understand potential family-based pathways and the requirements involved.</p>
+        <a href="/pathways?category=family" class="service-link c-pink">Explore Family Pathways →</a>
+      </div>
+
+      <div class="service-card">
+        <img class="service-photo" src="/service-photos/relocation-settlement.jpg" alt="A packed suitcase in a cozy living room, ready for relocation" />
+        <div class="service-ico c-green"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg></div>
+        <h2>Relocation &amp; Settlement</h2>
+        <p>Migration doesn't end when your visa is approved. We are building an ecosystem of services that can help you prepare for life in your new country — from pre-departure preparation to settlement support.</p>
+        <a href="https://wa.me/2348153955718" target="_blank" rel="noopener" class="service-link c-green">Plan Your Relocation →</a>
+      </div>
+
+    </div>
+
+    <div class="support-cta">
+      <div class="support-cta-left">
+        <div class="support-cta-ico"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 18v-6a9 9 0 0118 0v6"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 19a2 2 0 01-2 2h-1a2 2 0 01-2-2v-3a2 2 0 012-2h3v5zM3 19a2 2 0 002 2h1a2 2 0 002-2v-3a2 2 0 00-2-2H3v5z"/></svg></div>
+        <div>
+          <h3>Not sure where to start?</h3>
+          <p>Talk to our migration support team for personalized guidance.</p>
+        </div>
+      </div>
+      <a href="https://wa.me/2348153955718" target="_blank" rel="noopener" class="support-cta-btn">Get Support Now →</a>
+      <svg class="support-cta-skyline" width="220" height="70" viewBox="0 0 220 70" fill="none" aria-hidden="true">
+        <path d="M0 70V50h10V35h12v15h8V25h14v25h10V40h12v10h8V20h16v30h10V45h14v5h10V15h12v35h10V50h14v-8h12v8h10V60h20v10H0z" fill="currentColor" opacity="0.5"/>
+      </svg>
+    </div>
+  </div>
+</div>
+
+<%- include('partials/footer') %>
+
+</body>
+</html>

@@ -65,7 +65,7 @@ registerContentRoutes(BlogPost, "/blog", "Blog");
 registerContentRoutes(NewsPost, "/news", "News & Updates");
 registerContentRoutes(Guide, "/guides", "Guides");
 
-const STATIC_PAGES = ["/", "/privacy", "/terms", "/contact", "/countries", "/pathways", "/blog", "/news", "/guides"];
+const STATIC_PAGES = ["/", "/privacy", "/terms", "/contact", "/countries", "/pathways", "/blog", "/news", "/guides", "/resources", "/services", "/careers", "/team"];
 
 // Real, generated from actual published rows — not a static file, so a new blog post shows
 // up here on its own the moment it's published, no manual sitemap maintenance.

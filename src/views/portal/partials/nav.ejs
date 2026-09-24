@@ -7,8 +7,10 @@
       <div class="nav-links">
         <a href="/">Home</a>
         <a href="/#about">About Us</a>
-        <a href="/#programs">Programs</a>
+        <a href="/services">Services</a>
         <a href="/#plans">Plans</a>
+        <a href="/resources">Resources</a>
+        <a href="/agents/apply">For Partners</a>
         <a href="/contact">Contact</a>
       </div>
       <div class="nav-actions">
@@ -22,6 +24,54 @@
           <a href="/register"><button type="button" class="btn-gs">Get Started</button></a>
         <% } %>
       </div>
+      <button class="nav-burger" id="nav-burger" aria-label="Open menu" aria-expanded="false" aria-controls="nav-mobile">
+        <svg class="icon-open" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+        <svg class="icon-close" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="nav-mobile" id="nav-mobile">
+    <a href="/">Home</a>
+    <a href="/#about">About Us</a>
+    <a href="/services">Services</a>
+    <a href="/#plans">Plans</a>
+    <a href="/resources">Resources</a>
+    <a href="/agents/apply">For Partners</a>
+    <a href="/contact">Contact</a>
+    <div class="nav-mobile-actions">
+      <% if (typeof loggedInName !== "undefined" && loggedInName) { %>
+        <span class="nav-who">Hi, <b><%= loggedInName %></b></span>
+        <form method="post" action="/logout">
+          <button type="submit" class="btn-login" style="width:100%">Log out</button>
+        </form>
+      <% } else { %>
+        <a href="/login"><button type="button" class="btn-login" style="width:100%">Login</button></a>
+        <a href="/register"><button type="button" class="btn-gs" style="width:100%;justify-content:center">Get Started</button></a>
+      <% } %>
     </div>
   </div>
 </nav>
+
+<script>
+  (function () {
+    var burger = document.getElementById('nav-burger');
+    var menu = document.getElementById('nav-mobile');
+    if (!burger || !menu) return;
+    function closeMenu() {
+      menu.classList.remove('open');
+      burger.classList.remove('open');
+      burger.setAttribute('aria-expanded', 'false');
+      document.body.style.overflow = '';
+    }
+    function toggleMenu() {
+      var isOpen = menu.classList.toggle('open');
+      burger.classList.toggle('open', isOpen);
+      burger.setAttribute('aria-expanded', String(isOpen));
+      document.body.style.overflow = isOpen ? 'hidden' : '';
+    }
+    burger.addEventListener('click', toggleMenu);
+    menu.querySelectorAll('a').forEach(function (a) { a.addEventListener('click', closeMenu); });
+    window.addEventListener('resize', function () { if (window.innerWidth > 900) closeMenu(); });
+  })();
+</script>

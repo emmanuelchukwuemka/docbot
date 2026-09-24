@@ -1,11 +1,112 @@
 <footer class="footer" role="contentinfo">
   <div class="container">
+    <div class="footer-grid">
+
+      <!-- Brand col -->
+      <div class="f-brand">
+        <a href="/" class="brand"><img src="/brand/logo-full.png" alt="MigraTech" class="brand-logo brand-logo--invert" /></a>
+        <p class="f-desc">Enabling global opportunities through technology, expertise and trust. Your journey. Our mission.</p>
+        <div class="f-socials">
+          <div class="f-soc" aria-label="Facebook">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18 2h-3a5 5 0 00-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 011-1h3z"/></svg>
+          </div>
+          <div class="f-soc" aria-label="Instagram">
+            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="2" width="20" height="20" rx="5"/><path d="M16 11.37A4 4 0 1112.63 8 4 4 0 0116 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>
+          </div>
+          <div class="f-soc" aria-label="LinkedIn">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16 8a6 6 0 016 6v7h-4v-7a2 2 0 00-2-2 2 2 0 00-2 2v7h-4v-7a6 6 0 016-6zM2 9h4v12H2z"/><circle cx="4" cy="4" r="2"/></svg>
+          </div>
+          <div class="f-soc" aria-label="YouTube">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M22.54 6.42a2.78 2.78 0 00-1.95-1.96C18.88 4 12 4 12 4s-6.88 0-8.59.46a2.78 2.78 0 00-1.95 1.96A29 29 0 001 12a29 29 0 00.46 5.58A2.78 2.78 0 003.41 19.6C5.12 20 12 20 12 20s6.88 0 8.59-.46a2.78 2.78 0 001.95-1.95A29 29 0 0023 12a29 29 0 00-.46-5.58z"/><polygon points="9.75 15.02 15.5 12 9.75 8.98 9.75 15.02" fill="#0B1E3F"/></svg>
+          </div>
+        </div>
+      </div>
+
+      <!-- Company -->
+      <div class="f-col">
+        <h5>Company</h5>
+        <ul>
+          <li><a href="/#about">About Us</a></li>
+          <li><a href="/team">Our Team</a></li>
+          <li><a href="/careers">Careers</a></li>
+          <li><a href="/news">News &amp; Updates</a></li>
+          <li><a href="/contact">Contact Us</a></li>
+        </ul>
+      </div>
+
+      <!-- Services -->
+      <div class="f-col">
+        <h5>Services</h5>
+        <ul>
+          <li><a href="/services">All Services</a></li>
+          <li><a href="/pathways?category=study">Study Abroad</a></li>
+          <li><a href="/pathways?category=work">Work Abroad</a></li>
+          <li><a href="/pathways?category=family">Family Migration</a></li>
+          <li><a href="/#programs">Popular Destinations</a></li>
+        </ul>
+      </div>
+
+      <!-- Resources + Support -->
+      <div class="f-col">
+        <h5>Resources</h5>
+        <ul>
+          <li><a href="/resources">Resource Centre</a></li>
+          <li><a href="/blog">Blog</a></li>
+          <li><a href="/guides">Guides</a></li>
+          <li><a href="/#faqs">FAQs</a></li>
+          <li><a href="/countries">Country Information</a></li>
+        </ul>
+        <h5 style="margin-top:20px;">Support</h5>
+        <ul>
+          <li><a href="/contact">Help Center</a></li>
+          <li><a href="/contact">Contact Support</a></li>
+          <li><a href="/terms">Terms of Service</a></li>
+          <li><a href="/privacy">Privacy Policy</a></li>
+        </ul>
+      </div>
+
+      <!-- Newsletter -->
+      <div class="f-news">
+        <h5>Subscribe to Newsletter</h5>
+        <p>Get the latest updates and opportunities straight to your inbox.</p>
+        <div class="news-row">
+          <input type="email" class="news-input" id="news-email" placeholder="Enter your email" aria-label="Newsletter email" />
+          <button class="btn-sub" id="btn-sub" type="button">Subscribe</button>
+        </div>
+      </div>
+
+    </div>
+
     <div class="footer-bar">
-      <span>© 2026 MigraTech. All rights reserved.</span>
-      <div style="display:flex;gap:20px">
+      <span>© <%= new Date().getFullYear() %> MigraTech. All rights reserved.</span>
+      <div class="footer-bar-links">
         <a href="/privacy">Privacy Policy</a>
         <a href="/terms">Terms of Service</a>
+      </div>
+      <div class="footer-made">
+        Made with <span class="heart">♥</span> for a borderless future.
       </div>
     </div>
   </div>
 </footer>
+
+<script>
+  // Newsletter — same client-side-only validation as the homepage's copy of this footer today
+  // (no real subscription backend exists yet on either). Not wired to a mailing list.
+  (function () {
+    var btn = document.getElementById('btn-sub');
+    if (!btn) return;
+    btn.addEventListener('click', function () {
+      var el = document.getElementById('news-email');
+      if (el.value && /\S+@\S+\.\S+/.test(el.value)) {
+        el.value = '';
+        el.placeholder = '✓ Subscribed! Thank you.';
+        setTimeout(function () { el.placeholder = 'Enter your email'; }, 3000);
+      } else {
+        el.style.borderColor = '#ef4444';
+        el.placeholder = 'Enter a valid email';
+        setTimeout(function () { el.style.borderColor = ''; el.placeholder = 'Enter your email'; }, 2500);
+      }
+    });
+  })();
+</script>

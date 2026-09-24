@@ -245,6 +245,13 @@
                     <span style="font-size:12px;color:#6B7280;white-space:nowrap"><%= a.progressPercent %>% · <%= a.stageLabel %></span>
                   </div>
                   <div style="font-size:11.5px;color:#9CA3AF;margin-top:6px">Last updated: <%= new Date(a.updated_at).toLocaleDateString() %></div>
+                  <% if (a.agent) { %>
+                    <div style="font-size:12px;color:#0B1E3F;margin-top:8px">
+                      Agent: <b><%= a.agent.name %></b>
+                      <% if (a.unreadAgentMessages) { %><span style="background:#FEE2E2;color:#DC2626;font-size:10.5px;font-weight:700;padding:1px 7px;border-radius:10px;margin-left:6px"><%= a.unreadAgentMessages %> new</span><% } %>
+                      — <a href="/dashboard/cases/<%= a.id %>" style="color:#00B140;font-weight:700">Message →</a>
+                    </div>
+                  <% } %>
                 </div>
                 <a href="https://wa.me/2348153955718" target="_blank" rel="noopener" class="btn-mini" style="flex:none">Continue →</a>
               </div>
@@ -398,11 +405,11 @@
         </div>
 
         <% if (hasNavigateTier) { %>
-          <div class="dash-flash success" style="margin-bottom:16px">✅ Migra Plan unlocked — you have access to specialist consultations.</div>
+          <div class="dash-flash success" style="margin-bottom:16px">✅ Migra Navigate unlocked — you have access to specialist consultations.</div>
         <% } else if (paystackConfigured) { %>
           <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;background:#F9FAFB;border:1px solid #E5E7EB;border-radius:12px;padding:16px 20px;margin-bottom:20px;flex-wrap:wrap">
             <div>
-              <div style="font-size:14px;font-weight:800;color:#0B1E3F;margin-bottom:2px">Get Migra Plan</div>
+              <div style="font-size:14px;font-weight:800;color:#0B1E3F;margin-bottom:2px">Get Migra Navigate</div>
               <div style="font-size:12.5px;color:#6B7280">One-time payment · NGN <%= navigatePriceNgn.toLocaleString() %> · unlocks a specialist consultation</div>
             </div>
             <form method="post" action="/payments/navigate">

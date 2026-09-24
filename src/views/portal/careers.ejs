@@ -4,12 +4,119 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Careers — MigraTech</title>
+<meta name="description" content="Build the future of African migration with Migra.ng — join a team working at the intersection of technology, migration, AI and opportunity." />
 <link rel="icon" type="image/png" href="/brand/favicon.png" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,400;0,500;0,600;0,700;0,800;0,900;1,900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/portal.css" />
 <style>
+/* Header — same illustrated-decoration language as the Contact page */
+.careers-header { position: relative; overflow: hidden; background: #F9FAFB; padding: 68px 0 56px; text-align: center; }
+.careers-header::before {
+  content: ""; position: absolute; top: -160px; left: 50%; transform: translateX(-50%);
+  width: 700px; height: 460px; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle, rgba(0,177,64,0.14) 0%, transparent 70%);
+}
+.careers-header .container { position: relative; }
+.careers-ring { position: absolute; border: 1.5px dashed rgba(0,177,64,0.28); border-radius: 50%; pointer-events: none; }
+.careers-ring.r1 { width: 90px; height: 90px; top: 14px; left: 8%; }
+.careers-ring.r2 { width: 46px; height: 46px; bottom: 6px; right: 10%; border-style: solid; border-width: 1.5px; opacity: 0.6; }
+.careers-eyebrow {
+  display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 100px;
+  background: #e8f7ee; border: 1px solid rgba(0,177,64,0.3);
+  font-size: 12.5px; font-weight: 700; color: #007a2e; margin-bottom: 20px;
+}
+.careers-header h1 { font-size: clamp(30px, 4.2vw, 46px); font-weight: 900; color: #0B1E3F; letter-spacing: -0.035em; margin-bottom: 22px; max-width: 720px; margin-left: auto; margin-right: auto; line-height: 1.18; }
+.careers-intro { max-width: 640px; margin: 0 auto; }
+.careers-intro p { font-size: 15px; color: #6B7280; line-height: 1.8; margin-bottom: 14px; }
+.careers-cta-row { display: flex; align-items: center; justify-content: center; gap: 14px; flex-wrap: wrap; margin-top: 30px; }
+.careers-btn-primary {
+  display: inline-flex; align-items: center; gap: 8px; font-size: 14.5px; font-weight: 700; color: #fff;
+  background: #00B140; padding: 13px 26px; border-radius: 10px;
+  box-shadow: 0 8px 20px rgba(0,177,64,0.3); transition: background 150ms, box-shadow 150ms, transform 150ms;
+}
+.careers-btn-primary:hover { background: #009935; box-shadow: 0 10px 26px rgba(0,177,64,0.4); transform: translateY(-2px); }
+.careers-btn-ghost {
+  display: inline-flex; align-items: center; gap: 8px; font-size: 14.5px; font-weight: 700; color: #0B1E3F;
+  background: #fff; border: 1.5px solid #E5E7EB; padding: 12.5px 26px; border-radius: 10px;
+  transition: border-color 150ms, transform 150ms;
+}
+.careers-btn-ghost:hover { border-color: #0B1E3F; transform: translateY(-2px); }
+
+/* Why Migra.ng — narrative + intersection banner (mint gradient card, same illustrated
+   language as About Us's mission band, not plain text-on-white). */
+.careers-why { padding: 76px 0; background: #fff; }
+.careers-why-inner { max-width: 720px; margin: 0 auto; text-align: center; }
+.careers-why h2 { font-size: clamp(24px, 2.8vw, 32px); font-weight: 900; color: #0B1E3F; letter-spacing: -0.03em; margin-bottom: 20px; }
+.careers-why h2 .accent { color: #00B140; }
+.careers-why p { font-size: 15.5px; color: #4B5563; line-height: 1.8; margin-bottom: 14px; }
+.careers-intersection {
+  position: relative; overflow: hidden; margin-top: 40px; padding: 36px 32px;
+  background: linear-gradient(160deg, #F3FBF6 0%, #E7F7EC 100%); border: 1px solid #DCF2E3; border-radius: 20px;
+}
+.careers-intersection-dots {
+  position: absolute; top: 20px; right: 24px; width: 70px; height: 50px;
+  background-image: radial-gradient(circle, rgba(0,177,64,0.28) 1.5px, transparent 1.5px);
+  background-size: 12px 12px; opacity: 0.7;
+}
+.careers-intersection-label { position: relative; font-size: 12.5px; font-weight: 800; color: #007a2e; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 20px; }
+.careers-chip-row { position: relative; display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 12px; }
+.careers-chip {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 14px; font-weight: 700; color: #0B1E3F; background: #fff; border: 1px solid #DCF2E3;
+  padding: 10px 20px 10px 14px; border-radius: 100px; box-shadow: 0 4px 12px rgba(0,145,58,0.08);
+  transition: transform 200ms, box-shadow 200ms;
+}
+.careers-chip:hover { transform: translateY(-2px); box-shadow: 0 8px 18px rgba(0,145,58,0.15); }
+.careers-chip-ico {
+  width: 24px; height: 24px; border-radius: 50%; background: #e8f7ee; color: #00B140; flex: none;
+  display: flex; align-items: center; justify-content: center;
+}
+.careers-chip-ico svg { width: 12px; height: 12px; }
+.careers-chip-x { color: #B9DFC7; font-weight: 300; font-size: 16px; }
+
+/* Traits grid — bigger, icon-on-top cards matching the About Us "What We Stand For" treatment */
+.careers-traits { padding: 76px 0; background: #F9FAFB; }
+.careers-traits .section-head { max-width: 620px; margin: 0 auto 40px; text-align: center; }
+.careers-traits .section-head h3 { font-size: clamp(22px, 2.6vw, 28px); font-weight: 900; color: #0B1E3F; letter-spacing: -0.03em; }
+.careers-trait-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; max-width: 940px; margin: 0 auto; }
+.careers-trait {
+  background: #fff; border: 1px solid #E5E7EB; border-radius: 18px; padding: 28px 24px;
+  transition: box-shadow 200ms, transform 200ms, border-color 200ms;
+}
+.careers-trait:hover { transform: translateY(-4px); box-shadow: 0 16px 34px rgba(0,0,0,0.08); border-color: #cdeed9; }
+.careers-trait-ico {
+  width: 46px; height: 46px; border-radius: 12px; background: #e8f7ee; color: #00B140;
+  display: flex; align-items: center; justify-content: center; margin-bottom: 16px;
+}
+.careers-trait-ico svg { width: 21px; height: 21px; }
+.careers-trait span { font-size: 15px; font-weight: 800; color: #0B1E3F; line-height: 1.4; }
+
+/* Departments — dark band, matching the Contact page's own dark department band */
+.careers-depts-band { background: #0B1E3F; padding: 68px 0; position: relative; overflow: hidden; }
+.careers-depts-band::before {
+  content: ""; position: absolute; top: -200px; left: 50%; transform: translateX(-50%);
+  width: 800px; height: 400px; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle, rgba(0,177,64,0.18) 0%, transparent 70%);
+}
+.careers-depts-band .inner { position: relative; text-align: center; }
+.careers-depts-eyebrow { font-size: 12.5px; font-weight: 800; color: rgba(255,255,255,0.45); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 14px; }
+.careers-depts-band h3 { font-size: clamp(22px, 2.6vw, 28px); font-weight: 900; color: #fff; letter-spacing: -0.02em; margin-bottom: 8px; }
+.careers-depts-band > .container > p { font-size: 14.5px; color: rgba(255,255,255,0.6); max-width: 560px; margin: 0 auto 36px; line-height: 1.7; }
+.careers-dept-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.careers-dept-chip {
+  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px;
+  padding: 16px 14px; font-size: 13.5px; font-weight: 700; color: #fff;
+  transition: background 200ms, border-color 200ms, transform 200ms;
+}
+.careers-dept-chip:hover { background: rgba(255,255,255,0.07); border-color: rgba(0,177,64,0.4); transform: translateY(-2px); }
+
+/* Open roles (existing, real/DB-driven listings) */
+.careers-roles { padding: 76px 0; background: #F9FAFB; scroll-margin-top: 84px; }
+.careers-roles .section-head { max-width: 560px; margin: 0 auto 40px; text-align: center; }
+.careers-roles .section-head h3 { font-size: clamp(22px, 2.6vw, 28px); font-weight: 900; color: #0B1E3F; letter-spacing: -0.03em; margin-bottom: 8px; }
+.careers-roles .section-head p { font-size: 14.5px; color: #6B7280; }
 .job-list { display: flex; flex-direction: column; gap: 16px; max-width: 760px; margin: 0 auto; }
 .job-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 14px; padding: 24px 26px; }
 .job-card h3 { font-size: 17px; font-weight: 800; color: #0B1E3F; margin-bottom: 6px; }
@@ -17,44 +124,159 @@
 .job-desc { font-size: 13.5px; color: #6B7280; line-height: 1.7; margin-bottom: 16px; white-space: pre-wrap; }
 .job-apply { display: inline-flex; align-items: center; gap: 8px; font-size: 13.5px; font-weight: 700; color: #fff; background: #00B140; padding: 9px 20px; border-radius: 8px; }
 .job-apply:hover { background: #009935; }
+.content-empty { text-align: center; padding: 40px 20px; color: #6B7280; font-size: 14.5px; }
+.careers-empty {
+  max-width: 480px; margin: 0 auto; text-align: center;
+  background: #fff; border: 1.5px dashed #D1D5DB; border-radius: 20px; padding: 48px 36px;
+}
+.careers-empty-ico {
+  width: 60px; height: 60px; border-radius: 16px; background: #F0FBF4; color: #00B140;
+  display: flex; align-items: center; justify-content: center; margin: 0 auto 20px;
+}
+.careers-empty-ico svg { width: 27px; height: 27px; }
+.careers-empty h4 { font-size: 17px; font-weight: 800; color: #0B1E3F; margin-bottom: 8px; }
+.careers-empty p { font-size: 13.5px; color: #6B7280; line-height: 1.7; margin-bottom: 22px; }
+
+@media (max-width: 800px) {
+  .careers-trait-grid { grid-template-columns: 1fr; }
+  .careers-dept-grid { grid-template-columns: repeat(2, 1fr); }
+}
 </style>
 </head>
 <body>
 
 <%- include('partials/nav') %>
 
-<header class="content-header">
+<header class="careers-header">
+  <div class="careers-ring r1" aria-hidden="true"></div>
+  <div class="careers-ring r2" aria-hidden="true"></div>
   <div class="container">
-    <div class="content-eyebrow">Company</div>
-    <h1>Careers</h1>
-    <p>Help us make migration honest and accessible.</p>
+    <div class="careers-eyebrow">Careers</div>
+    <h1>Build the future of African migration with us.</h1>
+    <div class="careers-intro">
+      <p>Africa is entering one of the most significant periods of mobility in its history. Millions of Africans will study, work, build businesses and establish families across borders in the years ahead.</p>
+      <p>We believe technology can make that movement safer, smarter and more equitable. That's why we're building Migra.ng.</p>
+    </div>
+    <div class="careers-cta-row">
+      <a href="#open-roles" class="careers-btn-primary">View Open Roles →</a>
+      <a href="mailto:careers@migra.ng?subject=My%20Profile" class="careers-btn-ghost">Send Us Your Profile →</a>
+    </div>
   </div>
 </header>
 
-<div class="content-body">
-  <% if (jobs.length) { %>
-    <div class="job-list">
-      <% jobs.forEach(function(j) { %>
-        <div class="job-card">
-          <h3><%= j.title %></h3>
-          <div class="job-meta">
-            <% if (j.department) { %><span class="badge grey"><%= j.department %></span><% } %>
-            <% if (j.location) { %><span class="badge grey"><%= j.location %></span><% } %>
-            <% if (j.employment_type) { %><span class="badge grey"><%= j.employment_type %></span><% } %>
-          </div>
-          <p class="job-desc"><%= j.description %></p>
-          <% if (j.apply_url) { %>
-            <a href="<%= j.apply_url %>" target="_blank" rel="noopener" class="job-apply">Apply →</a>
-          <% } else if (j.apply_email) { %>
-            <a href="mailto:<%= j.apply_email %>?subject=<%= encodeURIComponent('Application: ' + j.title) %>" class="job-apply">Apply via email →</a>
-          <% } %>
-        </div>
-      <% }) %>
+<section class="careers-why">
+  <div class="container careers-why-inner">
+    <h2>Why <span class="accent">Migra.ng</span>?</h2>
+    <p>Because your work here won't just build another technology product. You'll help build infrastructure for a generation of Africans moving across the world.</p>
+
+    <div class="careers-intersection">
+      <div class="careers-intersection-dots" aria-hidden="true"></div>
+      <div class="careers-intersection-label">You'll work at the intersection of</div>
+      <div class="careers-chip-row">
+        <span class="careers-chip"><span class="careers-chip-ico"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3" stroke-width="2"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 9h6v6H9z"/></svg></span>Technology</span>
+        <span class="careers-chip-x">×</span>
+        <span class="careers-chip"><span class="careers-chip-ico"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke-width="2"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12h18M12 3c2.5 2.5 4 6 4 9s-1.5 6.5-4 9c-2.5-2.5-4-6-4-9s1.5-6.5 4-9z"/></svg></span>Migration</span>
+        <span class="careers-chip-x">×</span>
+        <span class="careers-chip"><span class="careers-chip-ico"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 2 4 14h6l-1 8 9-12h-6l1-8z"/></svg></span>AI</span>
+        <span class="careers-chip-x">×</span>
+        <span class="careers-chip"><span class="careers-chip-ico"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M23 6l-9.5 9.5-5-5L1 18"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 6h6v6"/></svg></span>Opportunity</span>
+        <span class="careers-chip-x">×</span>
+        <span class="careers-chip"><span class="careers-chip-ico"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg></span>Africa</span>
+      </div>
     </div>
-  <% } else { %>
-    <div class="content-empty">No open roles right now — check back soon, or <a href="/contact" style="color:#00B140;font-weight:700">get in touch</a> anyway.</div>
-  <% } %>
-</div>
+  </div>
+</section>
+
+<section class="careers-traits">
+  <div class="container">
+    <div class="section-head">
+      <h3>We're looking for people who are</h3>
+    </div>
+    <div class="careers-trait-grid">
+      <div class="careers-trait">
+        <div class="careers-trait-ico"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7" stroke-width="2"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35"/></svg></div>
+        <span>Curious</span>
+      </div>
+      <div class="careers-trait">
+        <div class="careers-trait-ico"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 2 4 5v6c0 5 3.4 8.6 8 10 4.6-1.4 8-5 8-10V5l-8-3z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4"/></svg></div>
+        <span>Mission-driven</span>
+      </div>
+      <div class="careers-trait">
+        <div class="careers-trait-ico"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 2 4 14h6l-1 8 9-12h-6l1-8z"/></svg></div>
+        <span>Excellent at what they do</span>
+      </div>
+      <div class="careers-trait">
+        <div class="careers-trait-ico"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.2 1 2.3h6c0-1.1.4-1.8 1-2.3A7 7 0 0 0 12 2z"/></svg></div>
+        <span>Comfortable solving difficult problems</span>
+      </div>
+      <div class="careers-trait">
+        <div class="careers-trait-ico"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg></div>
+        <span>Passionate about Africa</span>
+      </div>
+      <div class="careers-trait">
+        <div class="careers-trait-ico"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M23 6l-9.5 9.5-5-5L1 18"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 6h6v6"/></svg></div>
+        <span>Excited about building from the ground up</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="careers-depts-band">
+  <div class="container inner">
+    <div class="careers-depts-eyebrow">Join the Journey</div>
+    <h3>We're always interested in hearing from exceptional people</h3>
+  </div>
+  <div class="container">
+    <p>Whether or not a role is open right now, if one of these is your world, we'd like to know you exist.</p>
+    <div class="careers-dept-grid">
+      <div class="careers-dept-chip">Engineering</div>
+      <div class="careers-dept-chip">Product</div>
+      <div class="careers-dept-chip">AI &amp; Data</div>
+      <div class="careers-dept-chip">Migration Research</div>
+      <div class="careers-dept-chip">Customer Success</div>
+      <div class="careers-dept-chip">Sales &amp; Partnerships</div>
+      <div class="careers-dept-chip">Operations</div>
+      <div class="careers-dept-chip">Marketing &amp; Growth</div>
+    </div>
+  </div>
+</section>
+
+<section id="open-roles" class="careers-roles">
+  <div class="container">
+    <div class="section-head">
+      <h3>Open Roles</h3>
+      <p>Real openings, updated as they come up.</p>
+    </div>
+
+    <% if (jobs.length) { %>
+      <div class="job-list">
+        <% jobs.forEach(function(j) { %>
+          <div class="job-card">
+            <h3><%= j.title %></h3>
+            <div class="job-meta">
+              <% if (j.department) { %><span class="badge grey"><%= j.department %></span><% } %>
+              <% if (j.location) { %><span class="badge grey"><%= j.location %></span><% } %>
+              <% if (j.employment_type) { %><span class="badge grey"><%= j.employment_type %></span><% } %>
+            </div>
+            <p class="job-desc"><%= j.description %></p>
+            <% if (j.apply_url) { %>
+              <a href="<%= j.apply_url %>" target="_blank" rel="noopener" class="job-apply">Apply →</a>
+            <% } else if (j.apply_email) { %>
+              <a href="mailto:<%= j.apply_email %>?subject=<%= encodeURIComponent('Application: ' + j.title) %>" class="job-apply">Apply via email →</a>
+            <% } %>
+          </div>
+        <% }) %>
+      </div>
+    <% } else { %>
+      <div class="careers-empty">
+        <div class="careers-empty-ico"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="7" width="20" height="14" rx="2" stroke-width="2"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16"/></svg></div>
+        <h4>No open roles right now</h4>
+        <p>We're always interested in hearing from exceptional people, whether or not there's a role posted today. Send us your profile and we'll reach out when something fits.</p>
+        <a href="mailto:careers@migra.ng?subject=My%20Profile" class="careers-btn-primary">Send Us Your Profile →</a>
+      </div>
+    <% } %>
+  </div>
+</section>
 
 <%- include('partials/footer') %>
 
