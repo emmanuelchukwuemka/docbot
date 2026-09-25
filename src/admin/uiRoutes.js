@@ -745,21 +745,20 @@ router.post("/whatsapp/relink", requireAdminRolePage("/admin/whatsapp"), async (
 
 // Alternative to the QR above — links by phone number instead, same destructive "fresh
 // session" shape as relink (see WhatsAppClient.requestPairingCode's own doc comment).
+//
+// Disabled 2026-09-25: fails every time with a connection error a few seconds after issuing
+// the code — a known, open upstream Baileys bug (WhiskeySockets/Baileys#2364), not something
+// wrong in this deployment. Each attempt is still a real connection cycle against WhatsApp's
+// servers for no benefit, so this route refuses instead of trying. The previous implementation
+// (calling whatsappClient.requestPairingCode()) is unchanged and in git history — restore this
+// route from before this commit once that issue is fixed upstream.
 router.post("/whatsapp/pairing-code", requireAdminRolePage("/admin/whatsapp"), async (req, res) => {
-  await withError(req, res, "/admin/whatsapp", async () => {
-    const digits = (req.body.phone_number || "").replace(/\D/g, "");
-    if (digits.length < 7) {
-      return redirect(res, "/admin/whatsapp", "Enter a valid phone number (with country code).", true);
-    }
-    await logAction({
-      actor: req.adminUser.username,
-      action: "whatsapp_pairing_code_requested",
-      targetType: "whatsapp",
-      details: { phone_number: digits },
-    });
-    await whatsappClient.requestPairingCode(digits);
-    redirect(res, "/admin/whatsapp", "Pairing code requested — enter it in WhatsApp below.");
-  });
+  redirect(
+    res,
+    "/admin/whatsapp",
+    "Phone-number pairing is temporarily disabled (open upstream Baileys bug) — use the QR code instead.",
+    true
+  );
 });
 
 // --------------------------------------------------------------------------- //

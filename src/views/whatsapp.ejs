@@ -51,17 +51,17 @@
     <h2>Link with phone number instead</h2>
   </div>
   <p class="muted" style="margin-bottom:16px;">
-    Alternative to scanning a QR — enter the phone number you want to link (with country code), and WhatsApp will
-    show you an 8-character code to type in instead. Same as relinking: this drops any current session for good.
+    Temporarily unavailable — WhatsApp/Baileys' phone-number pairing currently fails with a connection error a few
+    seconds after issuing the code (a known, open upstream bug, not specific to this deployment:
+    <a href="https://github.com/WhiskeySockets/Baileys/issues/2364" target="_blank" rel="noopener">WhiskeySockets/Baileys#2364</a>).
+    Use the QR code above instead — re-enable this once that's fixed upstream.
   </p>
-  <form method="post" action="/admin/whatsapp/pairing-code"
-        onsubmit="return confirm('This disconnects the current WhatsApp session for good and starts a fresh pairing with this number. Continue?');"
-        style="display:flex;gap:10px;align-items:flex-end;max-width:420px;">
+  <form style="display:flex;gap:10px;align-items:flex-end;max-width:420px;opacity:0.5;">
     <div class="field" style="flex:1;margin-bottom:0;">
       <label for="phone_number">Phone number</label>
-      <input type="text" id="phone_number" name="phone_number" placeholder="e.g. 2348012345678" required />
+      <input type="text" id="phone_number" name="phone_number" placeholder="e.g. 2348012345678" disabled />
     </div>
-    <button type="submit" class="btn" style="white-space:nowrap;padding:7px 16px;">Get pairing code</button>
+    <button type="button" class="btn" style="white-space:nowrap;padding:7px 16px;" disabled>Get pairing code</button>
   </form>
 </div>
 
