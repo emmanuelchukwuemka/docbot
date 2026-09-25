@@ -28,6 +28,18 @@ import { startScheduler } from "./scheduler.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+// Express 4 doesn't catch a rejected promise returned by an async route handler — left
+// alone, that becomes an unhandled rejection, and Node's default behavior (since v15) is to
+// crash the entire process for it, not just fail that one request. That took the whole bot
+// (including the live WhatsApp connection) down on 2026-09-25 from a single admin route's
+// bug. Logging and continuing here matches how a synchronous throw in a route is already
+// handled (that request fails, the server keeps running) — deliberately not also handling
+// uncaughtException, since that indicates real state corruption where letting the process
+// exit and restart (see docker-compose.yml's restart: unless-stopped) is the safer choice.
+process.on("unhandledRejection", (err) => {
+  logger.error({ err }, "Unhandled promise rejection (continuing, not crashing)");
+});
+
 async function main() {
   await connectDb();
   if (settings.environment === "development") {

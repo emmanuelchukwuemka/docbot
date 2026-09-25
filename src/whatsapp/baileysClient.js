@@ -23,7 +23,7 @@ import qrcode from "qrcode-terminal";
 import { Boom } from "@hapi/boom";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { rm } from "node:fs/promises";
+import { readdir, rm } from "node:fs/promises";
 import { settings } from "../config.js";
 import { logger } from "../logger.js";
 import { SendQueue } from "./sendQueue.js";
@@ -48,6 +48,24 @@ export const connectionState = {
 
 function toJid(whatsappNumber) {
   return whatsappNumber.includes("@") ? whatsappNumber : `${whatsappNumber}@s.whatsapp.net`;
+}
+
+/** Empties BAILEYS_AUTH_DIR without removing the directory itself. In production that path
+ * is a Docker volume mount point (see docker-compose.yml), and the kernel refuses to rmdir
+ * an active mount — `rm(dir, { recursive: true })` throws EBUSY every time, which previously
+ * crashed the whole process (an unhandled rejection, not just a failed request) the first
+ * time relink/pairing-code actually ran against the real deployment. Deleting only the
+ * directory's contents sidesteps that entirely and needs no special-casing for local dev,
+ * where the dir isn't a mount point but this is still correct either way. */
+async function clearAuthDir(dir) {
+  let entries;
+  try {
+    entries = await readdir(dir);
+  } catch (err) {
+    if (err.code === "ENOENT") return;
+    throw err;
+  }
+  await Promise.all(entries.map((entry) => rm(path.join(dir, entry), { recursive: true, force: true })));
 }
 
 /** Fire-and-forget alert to STAFF_NOTIFICATION_WEBHOOK_URL (same env var conversation/
@@ -393,7 +411,7 @@ export class WhatsAppClient {
         logger.warn({ err }, "Error ending previous WhatsApp socket during relink");
       }
     }
-    await rm(settings.baileysAuthDir, { recursive: true, force: true });
+    await clearAuthDir(settings.baileysAuthDir);
     this.numberMismatch = false;
     this.profilePictureSynced = false;
     this.reconnectAttempts = 0;
@@ -421,7 +439,7 @@ export class WhatsAppClient {
         logger.warn({ err }, "Error ending previous WhatsApp socket during pairing-code request");
       }
     }
-    await rm(settings.baileysAuthDir, { recursive: true, force: true });
+    await clearAuthDir(settings.baileysAuthDir);
     this.numberMismatch = false;
     this.profilePictureSynced = false;
     this.reconnectAttempts = 0;
