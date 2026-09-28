@@ -213,6 +213,14 @@ export class WhatsAppClient {
         const statusCode = new Boom(lastDisconnect?.error)?.output?.statusCode;
         const shouldReconnect = !this.numberMismatch && statusCode !== DisconnectReason.loggedOut;
         logger.warn({ statusCode }, "WhatsApp connection closed.");
+        // A closed connection's QR/pairing code is already dead — Baileys only reaches "close"
+        // here after its own QR rotation gives up (or a real disconnect), so whatever was last
+        // displayed can no longer be scanned successfully. Left set, the admin page kept
+        // showing that stale code as if it were still live for the whole backoff gap below
+        // (up to 5 minutes) — indistinguishable from a working QR, but any scan against it
+        // would just fail or hang. Found 2026-09-28 after a real link attempt did exactly that.
+        connectionState.qr = null;
+        connectionState.pairingCode = null;
         if (shouldReconnect) {
           connectionState.status = "disconnected";
           this.reconnectAttempts += 1;

@@ -98,6 +98,11 @@
     } else if (data.status === 'open' && qrImg) {
       // Connected since the last poll — drop the stale QR image.
       location.reload();
+    } else if (qrImg && data.status !== 'open') {
+      // The QR just went stale (connection closed/reconnecting) — leaving the old <img> up
+      // looks identical to a live, scannable code. Replace it with an honest "hang on" state
+      // instead of a dead image nobody can tell apart from a working one.
+      qrArea.innerHTML = '<p class="muted">Reconnecting to WhatsApp — a fresh QR code will appear here shortly.</p>';
     }
 
     const pairingArea = document.getElementById('pairing-code-area');
