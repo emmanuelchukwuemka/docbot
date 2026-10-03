@@ -194,13 +194,12 @@ export class ConversationManager {
       return;
     }
 
-    // Only genuine safety/liability triggers hand off here (fraud, legal, visa refusal,
+    // Silently flags genuine safety/liability triggers for staff (fraud, legal, visa refusal,
     // immigration violation, sensitive family circumstances, document concerns) — see
-    // escalation.js. Routine friction (confused user, a bare "let me talk to a human",
-    // low-confidence FAQ answers) no longer escalates at all; the only other ways a
-    // conversation goes quiet are the payment gate (_requireTier) and a staff member
-    // manually taking over in the admin dashboard.
-    if (await this._maybeEscalate(user, conversation, text, null)) return;
+    // escalation.js — but never halts the conversation; _maybeEscalate always returns false
+    // here. The only ways a conversation actually goes quiet are the payment gate
+    // (_requireTier) and a staff member manually taking over in the admin dashboard.
+    await this._maybeEscalate(user, conversation, text, null);
 
     const handlers = {
       welcome: this._handleWelcome,
@@ -476,7 +475,7 @@ export class ConversationManager {
 
     if (value === null) {
       const extracted = await understand(this.llmClient, text);
-      if (await this._maybeEscalate(user, conversation, text, extracted)) return;
+      await this._maybeEscalate(user, conversation, text, extracted);
       value = extracted[q.field_name] ?? null;
     }
 
@@ -861,7 +860,7 @@ export class ConversationManager {
 
   async _tryShortcutFromFreeText(user, conversation, text) {
     const extracted = await understand(this.llmClient, text);
-    if (await this._maybeEscalate(user, conversation, text, extracted)) return true;
+    await this._maybeEscalate(user, conversation, text, extracted);
 
     if (extracted.intent === "application_status") {
       if (await this._handleTrackApplication(user, conversation)) {
@@ -1153,15 +1152,24 @@ export class ConversationManager {
     }
   }
 
+  // Business decision 2026-09-28: these automatically-detected triggers (legal questions,
+  // visa refusal, immigration violations, document concerns, fraud reports, AI-flagged
+  // complaints) used to hard-stop the conversation with a canned "this requires a specialist"
+  // and nothing else. Now that AI is actually configured, the bot keeps trying to help
+  // instead of immediately punting — staff still get silently flagged for visibility (same
+  // _escalate bookkeeping as before), but the user never sees a hand-off message and
+  // processing continues normally. This is separate from the *explicit* "Speak to an Expert"/
+  // consultation-booking flow and the structural hand-offs (Relocate custom pricing, failed
+  // payment links) — those still need an actual human and are untouched.
   async _maybeEscalate(user, conversation, text, extracted) {
     const reason = detectEscalationReason(text, extracted);
     if (!reason) return false;
-    await this._send(user, conversation, ESCALATION_MESSAGE);
     if (reason.toLowerCase().includes("suspicious") || reason.toLowerCase().includes("fraud")) {
+      // Not a hand-off message — genuinely useful safety info regardless of who/what answers.
       await this._send(user, conversation, FRAUD_WARNING_MESSAGE);
     }
     await this._escalate(conversation, reason);
-    return true;
+    return false;
   }
 
   async _escalate(conversation, reason) {

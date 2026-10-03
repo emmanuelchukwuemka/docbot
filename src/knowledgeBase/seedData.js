@@ -182,6 +182,18 @@ export const PATHWAYS = [
 
 export const FAQS = [
   {
+    question: "What is MigraTech?",
+    answer:
+      "MigraTech (Migra.ng) is a technology-powered migration platform built for Africans " +
+      "looking to work, study, relocate with family, or explore legitimate opportunities " +
+      "abroad. We bring the whole migration journey into one place — from discovering where " +
+      "you can go, to finding the pathway that fits you, preparing your documents, and " +
+      "connecting with real opportunities and support to relocate. Our mission is to make " +
+      "migration more accessible, transparent, intelligent, and structured for Africans " +
+      "everywhere.",
+    category: "about",
+  },
+  {
     question: "How much does migration cost?",
     answer:
       "Costs vary widely by destination, pathway, and whether you use professional " +
