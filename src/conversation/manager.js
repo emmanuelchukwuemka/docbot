@@ -101,17 +101,6 @@ const RESOURCES_MESSAGE =
   "⚠️ Important: migration policies and requirements change. Always verify critical " +
   "requirements against the relevant official government authority or a qualified professional.";
 
-const SUGGESTED_COUNTRIES_BY_PRIORITY = {
-  "Employment opportunities": ["Canada", "Germany"],
-  Education: ["Germany"],
-  "Permanent residency prospects": ["Canada"],
-  "Family relocation": ["United Kingdom"],
-  "Lower migration cost": ["Germany"],
-  "Faster processing": ["Canada"],
-  "Higher earning potential": ["Canada", "United Kingdom"],
-  "Business opportunities": ["Canada"],
-};
-
 const GREETING_RE = /^(hi|hello|hey|good\s?(morning|afternoon|evening)|hola|start|menu)[\s!.,]*$/i;
 
 function isGreeting(text) {
@@ -205,9 +194,7 @@ export class ConversationManager {
       welcome: this._handleWelcome,
       collecting_name: this._handleCollectingName,
       main_menu: this._handleMainMenu,
-      goal_selection: this._handleGoalSelection,
-      destination_discovery: this._handleDestinationDiscovery,
-      collecting: this._handleCollecting,
+      discover_intake: this._handleDiscoverIntake,
       assessment_menu: this._handleAssessmentMenu,
       faq_waiting_question: this._handleFaqWaitingQuestion,
       consultation_menu: this._handleConsultationMenu,
@@ -346,15 +333,13 @@ export class ConversationManager {
     const option = flows.MAIN_MENU_OPTIONS[idx];
 
     if (["Explore Migration Options", "Check My Eligibility"].includes(option)) {
-      conversation.state = "goal_selection";
-      await conversation.save();
-      await this._send(user, conversation, "What is your primary goal?", flows.GOAL_OPTIONS);
+      await this._startDiscoverFlow(user, conversation);
     } else if (option === "Work Abroad") {
-      await this._startFlow(user, conversation, "work");
+      await this._startDiscoverFlow(user, conversation, "Work");
     } else if (option === "Study Abroad") {
-      await this._startFlow(user, conversation, "study");
+      await this._startDiscoverFlow(user, conversation, "Study");
     } else if (option === "Family Migration") {
-      await this._startFlow(user, conversation, "family");
+      await this._startDiscoverFlow(user, conversation, "Family reunification");
     } else if (option === "Migration Costs") {
       await this._answerFaq(user, conversation, "How much does migration cost?");
       await this._sendMainMenu(user, conversation, "Anything else I can help with?");
@@ -378,94 +363,40 @@ export class ConversationManager {
     }
   }
 
-  async _handleGoalSelection(user, conversation, text, interactiveId) {
-    if (isGreeting(text)) {
-      conversation.fallback_count = 0;
-      await conversation.save();
-      await this._send(user, conversation, "What is your primary goal?", flows.GOAL_OPTIONS);
-      return;
-    }
-
-    const idx = resolveSelection(text, interactiveId, flows.GOAL_OPTIONS);
-    if (idx === null) {
-      if (await this._tryShortcutFromFreeText(user, conversation, text)) return;
-      conversation.fallback_count += 1;
-      await conversation.save();
-      const acknowledged = await this._conversationalNudge(
-        user, conversation, text,
-        "The user is being asked their primary migration goal (work, study, family, business, etc.) and just replied with something that isn't one of the goal options."
-      );
-      await this._send(
-        user, conversation,
-        acknowledged ? "What is your primary goal?" : "Sorry, I didn't catch that — what is your primary goal?",
-        flows.GOAL_OPTIONS
-      );
-      return;
-    }
-
-    conversation.fallback_count = 0;
-    const category = flows.GOAL_CODES[idx];
-    if (category === "unsure") {
-      conversation.state = "destination_discovery";
-      await conversation.save();
-      await this._send(user, conversation, "No problem. What is most important to you?", flows.DESTINATION_DISCOVERY_OPTIONS);
-      return;
-    }
-    await this._startFlow(user, conversation, category);
-  }
-
-  async _handleDestinationDiscovery(user, conversation, text, interactiveId) {
-    if (isGreeting(text)) {
-      conversation.fallback_count = 0;
-      await conversation.save();
-      await this._send(user, conversation, "What is most important to you?", flows.DESTINATION_DISCOVERY_OPTIONS);
-      return;
-    }
-
-    const idx = resolveSelection(text, interactiveId, flows.DESTINATION_DISCOVERY_OPTIONS);
-    if (idx === null) {
-      conversation.fallback_count += 1;
-      await conversation.save();
-      const acknowledged = await this._conversationalNudge(
-        user, conversation, text,
-        "The user is being asked what matters most to them in choosing a migration destination (cost, speed, PR prospects, etc.) and just replied with something that isn't one of the options."
-      );
-      await this._send(
-        user, conversation,
-        acknowledged ? "What is most important to you?" : "Could you pick one of the options below?",
-        flows.DESTINATION_DISCOVERY_OPTIONS
-      );
-      return;
-    }
-
-    conversation.fallback_count = 0;
-    const priority = flows.DESTINATION_DISCOVERY_OPTIONS[idx];
-    const suggestions = SUGGESTED_COUNTRIES_BY_PRIORITY[priority] || [];
-    const suggestionText = suggestions.length
-      ? ` Many people exploring that priority look at: ${suggestions.join(", ")}.`
-      : "";
-    conversation.state = "goal_selection";
-    await conversation.save();
-    await this._send(
-      user, conversation,
-      `Thanks — that helps.${suggestionText} These are starting points, not ` +
-        "guarantees. What is your primary goal?",
-      flows.GOAL_OPTIONS
-    );
-  }
-
-  async _handleCollecting(user, conversation, text, interactiveId) {
+  /** Walks flows.DISCOVER_SECTIONS one field at a time — the generalized replacement for the
+   * old per-category goal_selection/destination_discovery/collecting trio. A question's
+   * `target` ("profile" or "user") decides which record gets read/written; `skipIf(profile)`
+   * lets conditional sub-questions (travel detail, visa refusal detail, dependants detail,
+   * family-abroad detail, the asylum follow-up) skip themselves without being asked at all;
+   * `allowSkip` lets the doc's own explicit "(Optional)" fields accept a literal "skip" reply. */
+  async _handleDiscoverIntake(user, conversation, text, interactiveId) {
     const profile = await this._getOrCreateProfile(user);
-    const category = conversation.context.category;
-    const fieldIndex = conversation.context.field_index || 0;
-    const questions = flows.FLOWS[category] || [];
-
-    if (fieldIndex >= questions.length) {
-      await this._completeFlow(user, conversation, profile, category);
+    const fieldName = conversation.context.current_field;
+    const q = flows.DISCOVER_SECTIONS.find((f) => f.field_name === fieldName);
+    if (!q) {
+      // Stale/corrupted context (e.g. a conversation mid-flow from before this redesign) —
+      // just resume from wherever the profile actually is rather than erroring out.
+      await this._askNextDiscoverQuestion(user, conversation, profile);
       return;
     }
 
-    const q = questions[fieldIndex];
+    if (isGreeting(text)) {
+      conversation.fallback_count = 0;
+      await conversation.save();
+      await this._send(user, conversation, q.prompt, q.options);
+      return;
+    }
+
+    if (q.allowSkip && /^skip$/i.test(text.trim())) {
+      const target = q.target === "user" ? user : profile;
+      target[q.field_name] = "";
+      await target.save();
+      conversation.fallback_count = 0;
+      await conversation.save();
+      await this._askNextDiscoverQuestion(user, conversation, profile);
+      return;
+    }
+
     let value = null;
     if (q.options.length) {
       const optIdx = resolveSelection(text, interactiveId, q.options);
@@ -473,7 +404,10 @@ export class ConversationManager {
     }
     if (value === null) value = q.parser(text);
 
-    if (value === null) {
+    if (value === null && !q.options.length) {
+      // Free-text question with no direct parse — try the same AI NLU extraction fallback
+      // the old flow used. Most of the new fields have no NLU mapping, so this mainly helps
+      // the handful (destination/occupation/education/etc.) the extractor already knows.
       const extracted = await understand(this.llmClient, text);
       await this._maybeEscalate(user, conversation, text, extracted);
       value = extracted[q.field_name] ?? null;
@@ -484,18 +418,37 @@ export class ConversationManager {
       await conversation.save();
       const acknowledged = await this._conversationalNudge(
         user, conversation, text,
-        `The user is being asked: "${q.prompt}" (as part of MigraTech's ${category} migration ` +
-          "assessment) and their reply didn't give a usable answer to that specific question."
+        `The user is going through MigraTech's Discover intake and is being asked: "${q.prompt}" ` +
+          "— their reply didn't give a usable answer to that specific question."
       );
       await this._send(user, conversation, (acknowledged ? "" : "Sorry, I didn't quite catch that. ") + q.prompt, q.options);
       return;
     }
 
-    profile[q.field_name] = value;
-    await profile.save();
+    const target = q.target === "user" ? user : profile;
+    target[q.field_name] = value;
+    await target.save();
     conversation.fallback_count = 0;
     await conversation.save();
-    await this._askNextCollectingQuestion(user, conversation, profile, category);
+
+    if (q.field_name === "migration_reason") {
+      profile.migration_objective = flows.migrationObjectiveFor(value);
+      await profile.save();
+      if (value === flows.ASYLUM_REASON) {
+        // Silent staff flag only — bot keeps going, same pattern as the fraud/legal/violation
+        // triggers in escalation.js. A specialist gets visibility into a safety-sensitive case
+        // without interrupting someone who may already be in a vulnerable situation.
+        await this._escalate(conversation, "User indicated asylum/protection-related migration reason — flagged for sensitive review.");
+      }
+    } else if (q.field_name === "date_of_birth") {
+      const ageYears = Math.floor((Date.now() - new Date(value).getTime()) / (365.25 * 24 * 3600 * 1000));
+      if (ageYears >= 0 && ageYears < 120) {
+        profile.age = ageYears;
+        await profile.save();
+      }
+    }
+
+    await this._askNextDiscoverQuestion(user, conversation, profile);
   }
 
   async _handleAssessmentMenu(user, conversation, text, interactiveId) {
@@ -700,45 +653,77 @@ export class ConversationManager {
   // Shared flow logic
   // ------------------------------------------------------------------ //
 
-  async _startFlow(user, conversation, category) {
+  /** `presetReason` is one of flows.MIGRATION_REASON_OPTIONS' exact labels — used by the main
+   * menu's "Work Abroad"/"Study Abroad"/"Family Migration" shortcuts so the migration_reason
+   * question is pre-answered (and therefore skipped) for someone who already told us their
+   * goal by tapping that option, without duplicating the rest of the 8-section intake. */
+  async _startDiscoverFlow(user, conversation, presetReason = null) {
     const profile = await this._getOrCreateProfile(user);
-    profile.migration_objective = category;
-    await profile.save();
-    conversation.context = { category };
-    conversation.state = "collecting";
+    if (presetReason && profile.migration_reason == null) {
+      profile.migration_reason = presetReason;
+      profile.migration_objective = flows.migrationObjectiveFor(presetReason);
+      await profile.save();
+    }
+    conversation.context = { ...conversation.context, flow: "discover" };
+    conversation.state = "discover_intake";
     await conversation.save();
     await this._getOrCreateApplication(user);
-    await this._askNextCollectingQuestion(user, conversation, profile, category);
+    await this._askNextDiscoverQuestion(user, conversation, profile);
   }
 
-  async _askNextCollectingQuestion(user, conversation, profile, category) {
-    const questions = flows.FLOWS[category] || [];
-    for (let i = 0; i < questions.length; i++) {
-      const q = questions[i];
-      // == null (not falsy) so a legitimately-answered `false` (e.g. job_offer_status) or
-      // `0` (e.g. experience_years) doesn't get treated as "still unanswered" and re-asked
-      // forever — only a genuinely unset null/undefined should move on to this question.
-      if (profile[q.field_name] == null) {
-        conversation.context = { ...conversation.context, category, field_index: i };
+  async _askNextDiscoverQuestion(user, conversation, profile) {
+    for (const q of flows.DISCOVER_SECTIONS) {
+      if (q.skipIf && q.skipIf(profile)) continue;
+      const target = q.target === "user" ? user : profile;
+      // == null (not falsy) so a legitimately-answered `false`/`0` isn't treated as
+      // "still unanswered" and re-asked forever — same reasoning the old flow used.
+      if (target[q.field_name] == null) {
+        conversation.context = { ...conversation.context, flow: "discover", current_field: q.field_name };
         await conversation.save();
         await this._send(user, conversation, q.prompt, q.options);
         return;
       }
     }
-    await this._completeFlow(user, conversation, profile, category);
+    await this._completeDiscoverFlow(user, conversation, profile);
   }
 
-  async _completeFlow(user, conversation, profile, category) {
-    const pathway = await this._bestMatchingPathway(profile, category);
+  async _completeDiscoverFlow(user, conversation, profile) {
+    // The intake asks destination_countries (free text, plural) and the structured family
+    // section separately from the two single-value fields the existing pathway-matching/
+    // eligibility logic (_bestMatchingPathway, eligibility/engine.js) already keys off —
+    // derive those here so that logic keeps working completely unmodified.
+    if (!profile.destination_country && profile.destination_countries) {
+      profile.destination_country = profile.destination_countries.split(/,| and |\/|;/i)[0].trim();
+    }
+    if (!profile.family_status) {
+      const parts = [];
+      if (profile.migrating_with) parts.push(`Migrating: ${profile.migrating_with}`);
+      if (profile.marital_status) parts.push(profile.marital_status);
+      if (profile.has_dependents) parts.push(`${profile.dependents_count || "some"} dependent(s)`);
+      if (parts.length) profile.family_status = parts.join("; ");
+    }
+    await profile.save();
+
+    const pathway = await this._bestMatchingPathway(profile, profile.migration_objective);
 
     if (!pathway) {
       await this._send(
         user, conversation,
-        "Thanks — I don't yet have a specific pathway on file for that " +
-          "destination, but a MigraTech specialist can help you explore options there."
+        "Your MIGRA Discovery Profile is Ready 🎉\n\n" +
+          "Thanks for sharing all of that — I don't yet have a specific pathway on file for " +
+          "that destination, but a MigraTech specialist can help you explore options there. " +
+          "This is only an initial match: real eligibility depends on factors like your " +
+          "qualifications, finances, family situation, immigration history and " +
+          "destination-specific requirements."
       );
       await this._upsertLead(user, profile, null);
-      await this._sendMainMenu(user, conversation);
+      if (profile.wants_navigate === "yes") {
+        await this._requireTier(user, conversation, "navigate", {
+          purpose: "MIGRA Navigate — deeper migration pathway analysis", pendingAction: null,
+        });
+      } else {
+        await this._sendMainMenu(user, conversation);
+      }
       return;
     }
 
@@ -750,7 +735,7 @@ export class ConversationManager {
       reasons: result.reasons,
     });
 
-    const lines = [result.message];
+    const lines = ["Your MIGRA Discovery Profile is Ready 🎉", "", result.message];
     if (result.reasons.length) {
       lines.push("");
       lines.push(...result.reasons.map((r) => `• ${r}`));
@@ -769,13 +754,13 @@ export class ConversationManager {
       lines.push(...officialResources.map((r) => `• ${r.label}: ${r.url}`));
     }
     lines.push("");
+    lines.push("But this is only an initial match — your eligibility can depend on factors such as " +
+      "your qualifications, occupation, work experience, finances, family situation, " +
+      "immigration history and destination-specific requirements.");
+    lines.push("");
     lines.push(result.disclaimer);
     lines.push("");
     lines.push(FRAUD_EDUCATION_TIP);
-
-    conversation.context = { ...conversation.context, pathway_id: pathway.id };
-    conversation.state = "assessment_menu";
-    await conversation.save();
 
     const application = await this._getOrCreateApplication(user);
     application.pathway_id = pathway.id;
@@ -783,9 +768,25 @@ export class ConversationManager {
       application.stage = "pathway_selection";
     }
     await application.save();
-
-    await this._send(user, conversation, lines.join("\n"), ASSESSMENT_MENU_OPTIONS);
     await this._upsertLead(user, profile, assessment);
+
+    if (profile.wants_navigate === "yes") {
+      // They already said yes to deeper analysis moments ago (the intake's closing question)
+      // — go straight to the real Navigate checkout gate instead of asking again.
+      conversation.context = { ...conversation.context, pathway_id: pathway.id };
+      conversation.state = "assessment_menu";
+      await conversation.save();
+      await this._send(user, conversation, lines.join("\n"));
+      await this._requireTier(user, conversation, "navigate", {
+        purpose: "MIGRA Navigate — deeper migration pathway analysis", pendingAction: null,
+      });
+      return;
+    }
+
+    conversation.context = { ...conversation.context, pathway_id: pathway.id };
+    conversation.state = "assessment_menu";
+    await conversation.save();
+    await this._send(user, conversation, lines.join("\n"), ASSESSMENT_MENU_OPTIONS);
   }
 
   async _handleDocumentsRequest(user, conversation) {
@@ -800,9 +801,7 @@ export class ConversationManager {
       await this._sendMainMenu(user, conversation);
     } else {
       await this._send(user, conversation, "Let's first find your pathway so I can generate an accurate checklist.");
-      conversation.state = "goal_selection";
-      await conversation.save();
-      await this._send(user, conversation, "What is your primary goal?", flows.GOAL_OPTIONS);
+      await this._startDiscoverFlow(user, conversation);
     }
   }
 
@@ -884,13 +883,15 @@ export class ConversationManager {
     if (updatedFields.length) await profile.save();
 
     if (extracted.migration_objective) {
+      profile.migration_objective = extracted.migration_objective;
+      await profile.save();
       const destClause = profile.destination_country ? ` to ${profile.destination_country}` : "";
       await this._send(
         user, conversation,
         `Great, I can help you explore legitimate migration pathways${destClause}. ` +
           "Let's get a bit more detail."
       );
-      await this._startFlow(user, conversation, extracted.migration_objective);
+      await this._startDiscoverFlow(user, conversation);
       return true;
     }
 
@@ -898,11 +899,9 @@ export class ConversationManager {
       await this._send(
         user, conversation,
         "Great, I can help you explore legitimate migration pathways to " +
-          `${profile.destination_country}. What is your primary goal?`,
-        flows.GOAL_OPTIONS
+          `${profile.destination_country}. Let's get started.`
       );
-      conversation.state = "goal_selection";
-      await conversation.save();
+      await this._startDiscoverFlow(user, conversation);
       return true;
     }
 

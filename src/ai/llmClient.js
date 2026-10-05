@@ -58,7 +58,7 @@ const EXTRACTION_TOOL = {
         family_status: { type: ["string", "null"] },
         timeline: {
           type: ["string", "null"],
-          enum: ["within_3_months", "3_6_months", "6_12_months", "more_than_12_months", null],
+          enum: ["within_3_months", "3_6_months", "6_12_months", "1_2_years", "more_than_2_years", "just_exploring", null],
         },
         budget: {
           type: ["string", "null"],

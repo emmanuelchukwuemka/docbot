@@ -245,6 +245,10 @@ export async function getDashboardData(userId) {
           migration_objective: user.profile.migration_objective,
           timeline: user.profile.timeline,
           financial_readiness: user.profile.financial_readiness,
+          nationality: user.profile.nationality,
+          occupation: user.profile.occupation,
+          education: user.profile.education,
+          migration_reason: user.profile.migration_reason,
         }
       : null,
     progressPercent: primaryApplication ? stageProgressPercent(primaryApplication.stage) : 0,

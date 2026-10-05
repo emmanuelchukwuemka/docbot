@@ -10,7 +10,9 @@ const TIMELINE_POINTS = {
   within_3_months: 15,
   "3_6_months": 10,
   "6_12_months": 5,
-  more_than_12_months: 2,
+  "1_2_years": 3,
+  more_than_2_years: 1,
+  just_exploring: 0,
 };
 
 const HOT_THRESHOLD = 70;

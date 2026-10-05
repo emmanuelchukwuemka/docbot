@@ -49,6 +49,34 @@
         <% if (conversation.profile.financial_readiness) { %><tr><td>Financial readiness</td><td><%= conversation.profile.financial_readiness %></td></tr><% } %>
         <% if (conversation.profile.job_offer_status != null) { %><tr><td>Job offer</td><td><%= conversation.profile.job_offer_status ? 'Yes' : 'No' %></td></tr><% } %>
         <% if (conversation.profile.professional_registration != null) { %><tr><td>Professional registration</td><td><%= conversation.profile.professional_registration ? 'Yes' : 'No' %></td></tr><% } %>
+        <%# --- MIGRA Discover deep-intake fields (2026-09-28) --- visa_refusal_reason and
+             asylum_context_detail deliberately excluded: encrypted precisely because they're
+             sensitive, so they don't belong in this unredacted table dump. %>
+        <% if (conversation.profile.date_of_birth) { %><tr><td>Date of birth</td><td><%= conversation.profile.date_of_birth %></td></tr><% } %>
+        <% if (conversation.profile.gender) { %><tr><td>Gender</td><td><%= conversation.profile.gender %></td></tr><% } %>
+        <% if (conversation.profile.nationality) { %><tr><td>Nationality</td><td><%= conversation.profile.nationality %></td></tr><% } %>
+        <% if (conversation.profile.other_citizenship_or_pr) { %><tr><td>Other citizenship/PR</td><td><%= conversation.profile.other_citizenship_or_pr %></td></tr><% } %>
+        <% if (conversation.profile.preferred_language) { %><tr><td>Preferred language</td><td><%= conversation.profile.preferred_language %></td></tr><% } %>
+        <% if (conversation.profile.migration_reason) { %><tr><td>Migration reason</td><td><%= conversation.profile.migration_reason %></td></tr><% } %>
+        <% if (conversation.profile.migration_goal_detail) { %><tr><td>Goal detail</td><td><%= conversation.profile.migration_goal_detail %></td></tr><% } %>
+        <% if (conversation.profile.has_destination_in_mind) { %><tr><td>Has destination in mind</td><td><%= conversation.profile.has_destination_in_mind %></td></tr><% } %>
+        <% if (conversation.profile.destination_countries) { %><tr><td>Destination countries considered</td><td><%= conversation.profile.destination_countries %></td></tr><% } %>
+        <% if (conversation.profile.destination_flexibility) { %><tr><td>Destination flexibility</td><td><%= conversation.profile.destination_flexibility %></td></tr><% } %>
+        <% if (conversation.profile.field_of_study) { %><tr><td>Field of study</td><td><%= conversation.profile.field_of_study %></td></tr><% } %>
+        <% if (conversation.profile.institution) { %><tr><td>Institution</td><td><%= conversation.profile.institution %></td></tr><% } %>
+        <% if (conversation.profile.graduation_year) { %><tr><td>Graduation year</td><td><%= conversation.profile.graduation_year %></td></tr><% } %>
+        <% if (conversation.profile.job_title) { %><tr><td>Job title</td><td><%= conversation.profile.job_title %></td></tr><% } %>
+        <% if (conversation.profile.employment_type) { %><tr><td>Employment type</td><td><%= conversation.profile.employment_type %></td></tr><% } %>
+        <% if (conversation.profile.income_range) { %><tr><td>Income range</td><td><%= conversation.profile.income_range %></td></tr><% } %>
+        <% if (conversation.profile.visa_refused_before != null) { %><tr><td>Visa refused before</td><td><%= conversation.profile.visa_refused_before ? 'Yes' : 'No' %></td></tr><% } %>
+        <% if (conversation.profile.migrating_with) { %><tr><td>Migrating with</td><td><%= conversation.profile.migrating_with %></td></tr><% } %>
+        <% if (conversation.profile.has_dependents != null) { %><tr><td>Has dependents</td><td><%= conversation.profile.has_dependents ? 'Yes' : 'No' %></td></tr><% } %>
+        <% if (conversation.profile.family_abroad != null) { %><tr><td>Family abroad</td><td><%= conversation.profile.family_abroad ? 'Yes' : 'No' %></td></tr><% } %>
+        <% if (conversation.profile.funding_source) { %><tr><td>Funding source</td><td><%= conversation.profile.funding_source %></td></tr><% } %>
+        <% if (conversation.profile.destination_priorities && conversation.profile.destination_priorities.length) { %><tr><td>Priorities</td><td><%= conversation.profile.destination_priorities.join(', ') %></td></tr><% } %>
+        <% if (conversation.profile.migration_concerns && conversation.profile.migration_concerns.length) { %><tr><td>Concerns</td><td><%= conversation.profile.migration_concerns.join(', ') %></td></tr><% } %>
+        <% if (conversation.profile.biggest_question) { %><tr><td>Biggest question</td><td><%= conversation.profile.biggest_question %></td></tr><% } %>
+        <% if (conversation.profile.confidence_level != null) { %><tr><td>Confidence level</td><td><%= conversation.profile.confidence_level %>/5</td></tr><% } %>
       <% } %>
       <% if (conversation.latest_assessment_result) { %><tr><td>Latest eligibility assessment</td><td><%= conversation.latest_assessment_result.replaceAll('_', ' ') %></td></tr><% } %>
       <% if (conversation.lead) { %>

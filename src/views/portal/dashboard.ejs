@@ -209,9 +209,12 @@
         <% if (profile) { %>
           <div class="profile-grid">
             <div class="profile-stat"><div class="label">Destination</div><div class="value"><%= profile.destination_country || '—' %></div></div>
-            <div class="profile-stat"><div class="label">Goal</div><div class="value"><%= profile.migration_objective || '—' %></div></div>
+            <div class="profile-stat"><div class="label">Goal</div><div class="value"><%= profile.migration_reason || profile.migration_objective || '—' %></div></div>
             <div class="profile-stat"><div class="label">Timeline</div><div class="value"><%= profile.timeline || '—' %></div></div>
             <div class="profile-stat"><div class="label">Financial readiness</div><div class="value"><%= profile.financial_readiness || '—' %></div></div>
+            <div class="profile-stat"><div class="label">Nationality</div><div class="value"><%= profile.nationality || '—' %></div></div>
+            <div class="profile-stat"><div class="label">Occupation</div><div class="value"><%= profile.occupation || '—' %></div></div>
+            <div class="profile-stat"><div class="label">Education</div><div class="value"><%= profile.education || '—' %></div></div>
           </div>
         <% } else { %>
           <div class="dash-empty">

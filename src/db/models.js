@@ -1,5 +1,7 @@
 import { DataTypes } from "sequelize";
 import { sequelize } from "./sequelize.js";
+import { encryptBytes, decryptBytes } from "../security/crypto.js";
+import { logger } from "../logger.js";
 
 const uuidPk = {
   id: { type: DataTypes.UUID, defaultValue: DataTypes.UUIDV4, primaryKey: true },
@@ -27,6 +29,42 @@ function jsonColumn(fieldName, defaultValue, extra = {}) {
       const raw = this.getDataValue(fieldName);
       if (raw == null) return raw;
       return typeof raw === "string" ? JSON.parse(raw) : raw;
+    },
+  };
+}
+
+// Sequelize get()/set() pair that transparently encrypts a TEXT column at rest, reusing the
+// same AES-256-GCM primitives already used for uploaded document bytes (security/crypto.js).
+// No other DB column in this codebase is encrypted (see that file's own header comment) —
+// this is reserved for the two most sensitive Discover-intake fields (visa refusal reason,
+// asylum/protection detail), an explicit 2026-09-28 decision, not a default for every text
+// field. Stored as base64 (iv+authTag+ciphertext) since MySQL TEXT isn't a binary type here.
+function encryptedTextField(fieldName) {
+  return {
+    type: DataTypes.TEXT,
+    allowNull: true,
+    get() {
+      const raw = this.getDataValue(fieldName);
+      if (!raw) return null;
+      try {
+        return decryptBytes(Buffer.from(raw, "base64")).toString("utf8");
+      } catch (err) {
+        logger.error({ err }, `Failed to decrypt ${fieldName}`);
+        return null;
+      }
+    },
+    set(value) {
+      // Deliberately does NOT special-case "" to null — the allowSkip mechanism (see
+      // flows.js/manager.js) stores "" as a real "intentionally skipped" sentinel distinct
+      // from null/"never asked"; collapsing it to null here broke that and caused an
+      // infinite re-ask loop for these two fields (caught by a real end-to-end test run,
+      // 2026-09-28). An empty string still encrypts/decrypts correctly (non-empty ciphertext
+      // of a 0-byte plaintext), so letting it through the normal path is both correct and
+      // consistent with how every other allowSkip field already behaves.
+      this.setDataValue(
+        fieldName,
+        value == null ? null : encryptBytes(Buffer.from(String(value), "utf8")).toString("base64")
+      );
     },
   };
 }
@@ -80,6 +118,82 @@ export const MigrationProfile = sequelize.define(
     financial_readiness: { type: DataTypes.STRING(50), allowNull: true },
     job_offer_status: { type: DataTypes.BOOLEAN, allowNull: true },
     professional_registration: { type: DataTypes.BOOLEAN, allowNull: true },
+
+    // --- MIGRA Discover deep-intake fields (added 2026-09-28) ---
+    // "About You" — full name/current country/region reuse User.name/.country/.state, not
+    // duplicated here.
+    date_of_birth: { type: DataTypes.DATEONLY, allowNull: true },
+    gender: { type: DataTypes.STRING(50), allowNull: true },
+    nationality: { type: DataTypes.STRING(120), allowNull: true },
+    other_citizenship_or_pr: { type: DataTypes.STRING(255), allowNull: true },
+    preferred_language: { type: DataTypes.STRING(50), allowNull: true },
+
+    // "What Are You Trying to Achieve" — migration_reason stores the full 13-option selection
+    // verbatim; migration_objective (above) keeps storing the mapped work/study/family/
+    // business/visit/unsure code that pathway matching already relies on.
+    migration_reason: { type: DataTypes.STRING(50), allowNull: true },
+    migration_goal_detail: { type: DataTypes.TEXT, allowNull: true },
+
+    // "Where Do You Want to Go"
+    has_destination_in_mind: { type: DataTypes.STRING(20), allowNull: true },
+    destination_countries: { type: DataTypes.STRING(255), allowNull: true },
+    destination_interest_reason: { type: DataTypes.TEXT, allowNull: true },
+    destination_flexibility: { type: DataTypes.STRING(50), allowNull: true },
+
+    // "Education & Professional Profile" — occupation/education/experience_years (above) reused.
+    field_of_study: { type: DataTypes.STRING(255), allowNull: true },
+    institution: { type: DataTypes.STRING(255), allowNull: true },
+    graduation_year: { type: DataTypes.INTEGER, allowNull: true },
+    certifications: { type: DataTypes.STRING(255), allowNull: true },
+    job_title: { type: DataTypes.STRING(120), allowNull: true },
+    industries: { type: DataTypes.STRING(255), allowNull: true },
+    key_skills: { type: DataTypes.STRING(255), allowNull: true },
+    employment_status: { type: DataTypes.STRING(50), allowNull: true },
+    employment_type: { type: DataTypes.STRING(50), allowNull: true },
+    income_range: { type: DataTypes.STRING(50), allowNull: true },
+
+    // "Migration Readiness"
+    travelled_before: { type: DataTypes.BOOLEAN, allowNull: true },
+    travel_history: { type: DataTypes.TEXT, allowNull: true },
+    returned_on_time: { type: DataTypes.BOOLEAN, allowNull: true },
+    visa_applied_before: { type: DataTypes.BOOLEAN, allowNull: true },
+    visa_type_applied: { type: DataTypes.STRING(120), allowNull: true },
+    visa_refused_before: { type: DataTypes.BOOLEAN, allowNull: true },
+    visa_refusal_country: { type: DataTypes.STRING(120), allowNull: true },
+    visa_refusal_type: { type: DataTypes.STRING(120), allowNull: true },
+    visa_refusal_when: { type: DataTypes.STRING(50), allowNull: true },
+    // Encrypted — see encryptedTextField's own comment above for why only this + asylum_context.
+    visa_refusal_reason: encryptedTextField("visa_refusal_reason"),
+
+    // "Family & Dependants"
+    migrating_with: { type: DataTypes.STRING(50), allowNull: true },
+    marital_status: { type: DataTypes.STRING(50), allowNull: true },
+    has_dependents: { type: DataTypes.BOOLEAN, allowNull: true },
+    dependents_count: { type: DataTypes.INTEGER, allowNull: true },
+    dependents_ages: { type: DataTypes.STRING(255), allowNull: true },
+    dependents_migrating: { type: DataTypes.BOOLEAN, allowNull: true },
+    family_abroad: { type: DataTypes.BOOLEAN, allowNull: true },
+    family_abroad_country: { type: DataTypes.STRING(120), allowNull: true },
+    family_abroad_relationship: { type: DataTypes.STRING(120), allowNull: true },
+    family_abroad_status: { type: DataTypes.STRING(120), allowNull: true },
+
+    // "Financial & Practical Capacity" — financial_readiness (above) doubles as budget_range;
+    // timeline (above) reused with an expanded option set (see flows.js).
+    funding_source: { type: DataTypes.STRING(50), allowNull: true },
+
+    // "Preferences & Constraints" — multi-pick, stored as JSON arrays.
+    destination_priorities: jsonColumn("destination_priorities", []),
+    migration_concerns: jsonColumn("migration_concerns", []),
+
+    // Final three closing questions
+    biggest_question: { type: DataTypes.TEXT, allowNull: true },
+    confidence_level: { type: DataTypes.INTEGER, allowNull: true },
+    wants_navigate: { type: DataTypes.STRING(20), allowNull: true },
+
+    // Gentle, explicitly-optional follow-up only asked when migration_reason is
+    // "Refuge/asylum/protection" — encrypted, same as visa_refusal_reason above.
+    asylum_context_detail: encryptedTextField("asylum_context_detail"),
+
     updated_at: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
   },
   { tableName: "migration_profiles", timestamps: false, hooks: { beforeUpdate: touchUpdatedAt } }
