@@ -178,7 +178,14 @@ const WANTS_NAVIGATE_OPTIONS = ["Yes — Take me to MIGRA Navigate", "Maybe late
 const WANTS_NAVIGATE_CODES = ["yes", "maybe_later"];
 
 export const DISCOVER_SECTIONS = [
-  // --- 1. About You --- (full name / current country / current region reuse User fields)
+  // --- 1. About You --- (current country/region reuse User.country/.state below)
+  // Full name also reuses User.name, normally already set by onboarding's collecting_name
+  // state before anyone ever reaches a menu — asked again here (target: "user", so it writes
+  // straight to the same column) only as a safety net for accounts that reach this flow with
+  // no name on file (e.g. pre-existing test/seed rows from before that state existed). Auto-
+  // skipped for everyone who already has one, same "only ask if still null" scan as every
+  // other question here — never double-asked on the normal path.
+  question("name", "What is your full name?", textParser, [], { target: "user" }),
   question("date_of_birth", "What is your date of birth? (e.g. 15/04/1995)", dateParser),
   question("gender", "What is your gender?", textParser, ["Male", "Female", "Prefer not to say"], { allowSkip: true }),
   question("country", "Which country are you currently living in?", textParser, [], { target: "user" }),
