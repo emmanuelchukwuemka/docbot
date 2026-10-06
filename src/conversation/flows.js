@@ -185,15 +185,15 @@ export const DISCOVER_SECTIONS = [
   // no name on file (e.g. pre-existing test/seed rows from before that state existed). Auto-
   // skipped for everyone who already has one, same "only ask if still null" scan as every
   // other question here — never double-asked on the normal path.
-  question("name", "What is your full name?", textParser, [], { target: "user" }),
+  question("name", "What is your full name?", textParser, [], { target: "user", validate: true }),
   question("date_of_birth", "What is your date of birth? (e.g. 15/04/1995)", dateParser),
   question("gender", "What is your gender?", textParser, ["Male", "Female", "Prefer not to say"], { allowSkip: true }),
-  question("country", "Which country are you currently living in?", textParser, [], { target: "user" }),
+  question("country", "Which country are you currently living in?", textParser, [], { target: "user", validate: true }),
   question("state", "What city/state/region do you currently live in?", textParser, [], { target: "user" }),
-  question("nationality", "What is your nationality?"),
+  question("nationality", "What is your nationality?", textParser, [], { validate: true }),
   question("other_citizenship_or_pr", "Do you currently hold any other citizenship or permanent residence? (If none, reply No)"),
-  question("language_ability", "What languages do you speak?"),
-  question("preferred_language", "What is your preferred language for communicating with MIGRA?"),
+  question("language_ability", "What languages do you speak?", textParser, [], { validate: true }),
+  question("preferred_language", "What is your preferred language for communicating with MIGRA?", textParser, [], { validate: true }),
 
   // --- 2. What Are You Trying to Achieve ---
   question("migration_reason", "What is your main reason for considering migration?", textParser, MIGRATION_REASON_OPTIONS),
@@ -212,7 +212,7 @@ export const DISCOVER_SECTIONS = [
   // --- 3. Where Do You Want to Go ---
   question("has_destination_in_mind", "Do you already have a destination in mind?", makeOptionParser(HAS_DESTINATION_OPTIONS, HAS_DESTINATION_CODES), HAS_DESTINATION_OPTIONS),
   question("destination_countries", "Which country or countries are you considering?", textParser, [],
-    { skipIf: (p) => p.has_destination_in_mind === "no" || p.has_destination_in_mind === "open" }),
+    { skipIf: (p) => p.has_destination_in_mind === "no" || p.has_destination_in_mind === "open", validate: true }),
   question("destination_interest_reason", "Why are you interested in this country/countries?", textParser, [],
     { skipIf: (p) => p.has_destination_in_mind === "no" || p.has_destination_in_mind === "open" }),
   question("destination_flexibility", "How flexible are you about your destination?",
@@ -221,19 +221,21 @@ export const DISCOVER_SECTIONS = [
   // --- 4. Education & Professional Profile ---
   question("education", "What is your highest level of education?", textParser,
     ["Secondary", "Diploma", "Bachelor's", "Master's", "PhD", "Professional qualification", "Other"]),
-  question("field_of_study", "What did you study?"),
-  question("institution", "What institution did you attend?"),
+  question("field_of_study", "What did you study?", textParser, [], { validate: true }),
+  question("institution", "What institution did you attend?", textParser, [], { validate: true }),
   question("graduation_year", "When did you graduate? (year, e.g. 2020)", intParser),
   question("certifications", "Do you have any professional certifications or licences? (If none, reply No)"),
-  question("occupation", "What is your current occupation?"),
-  question("job_title", "What is your job title?"),
+  question("occupation", "What is your current occupation?", textParser, [], { validate: true }),
+  question("job_title", "What is your job title?", textParser, [], { validate: true }),
   question("experience_years", "How many years of professional/work experience do you have?", intParser),
   question("industries", "What industries have you worked in?"),
   question("key_skills", "What are your key skills?"),
   question("employment_status", "Are you currently employed?", yesNoParser, ["Yes", "No"]),
   question("employment_type", "What type of employment do you have?", textParser,
     ["Full-time", "Part-time", "Self-employed", "Business owner", "Freelancer", "Unemployed", "Student", "Other"]),
-  question("income_range", "What is your current annual/monthly income range?", textParser, [], { allowSkip: true }),
+  question("income_range", "What is your current annual income, in USD? (approximate is fine)", textParser,
+    ["Under $5,000", "$5,000–$15,000", "$15,000–$30,000", "$30,000–$60,000", "$60,000–$100,000", "Above $100,000", "Prefer not to say"],
+    { allowSkip: true }),
 
   // --- 5. Migration Readiness ---
   question("travelled_before", "Have you travelled outside your country before?", yesNoParser, ["Yes", "No"]),
@@ -243,10 +245,10 @@ export const DISCOVER_SECTIONS = [
     { skipIf: skipUnless("travelled_before") }),
   question("visa_applied_before", "Have you ever applied for a visa?", yesNoParser, ["Yes", "No"]),
   question("visa_type_applied", "What type of visa did you apply for?", textParser, [],
-    { skipIf: skipUnless("visa_applied_before") }),
+    { skipIf: skipUnless("visa_applied_before"), validate: true }),
   question("visa_refused_before", "Have you ever had a visa application refused or denied?", yesNoParser, ["Yes", "No"],
     { skipIf: skipUnless("visa_applied_before") }),
-  question("visa_refusal_country", "Which country?", textParser, [], { skipIf: skipUnless("visa_refused_before") }),
+  question("visa_refusal_country", "Which country?", textParser, [], { skipIf: skipUnless("visa_refused_before"), validate: true }),
   question("visa_refusal_type", "What type of visa?", textParser, [], { skipIf: skipUnless("visa_refused_before") }),
   question("visa_refusal_when", "Approximately when?", textParser, [], { skipIf: skipUnless("visa_refused_before") }),
   question("visa_refusal_reason", "Do you know the reason for the refusal? (If you'd rather not say, reply skip)", textParser, [],
@@ -255,7 +257,7 @@ export const DISCOVER_SECTIONS = [
   // --- 6. Family & Dependants ---
   question("migrating_with", "Are you planning to migrate alone or with family?", textParser,
     ["Alone", "Spouse/partner", "Children", "Parents", "Other family members", "Not sure yet"]),
-  question("marital_status", "What is your marital/relationship status?"),
+  question("marital_status", "What is your marital/relationship status?", textParser, [], { validate: true }),
   question("has_dependents", "Do you have children/dependents?", yesNoParser, ["Yes", "No"]),
   question("dependents_count", "How many?", intParser, [], { skipIf: skipUnless("has_dependents") }),
   question("dependents_ages", "What are their approximate age ranges?", textParser, [], { skipIf: skipUnless("has_dependents") }),

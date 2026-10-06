@@ -425,6 +425,23 @@ export class ConversationManager {
       return;
     }
 
+    // A handful of short "named entity" fields (name, nationality, language, occupation, etc.)
+    // parse "successfully" even when the reply is actually gibberish or just an echo of the
+    // question itself (e.g. "languge" in reply to "what's your preferred language") — a plain
+    // non-empty-string parser can't tell the difference. q.validate opts specific fields into
+    // this extra AI check; genuinely open-ended fields (migration_goal_detail, biggest_question,
+    // etc.) deliberately skip it since almost any text is a legitimate answer there, and it'd
+    // just add latency/cost for no benefit.
+    if (q.validate) {
+      const { valid } = await this.llmClient.validateAnswer(q.prompt, text);
+      if (!valid) {
+        conversation.fallback_count += 1;
+        await conversation.save();
+        await this._send(user, conversation, "Hmm, that doesn't quite look like an answer to this — " + q.prompt, q.options);
+        return;
+      }
+    }
+
     const target = q.target === "user" ? user : profile;
     target[q.field_name] = value;
     await target.save();

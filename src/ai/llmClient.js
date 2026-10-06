@@ -170,6 +170,47 @@ export class LLMClient {
     }
   }
 
+  /** Returns {valid}. Catches gibberish/non-answers a plain parser can't (e.g. a question
+   * echoed back with a typo, like "languge" in reply to "what's your preferred language") —
+   * those parse "successfully" as non-empty text, so they'd otherwise get silently accepted.
+   * Deliberately lenient (short/terse/informal real answers, or genuine "no"/"none"/"not
+   * sure", must still pass) — only flags actual gibberish, a restated question, or a clearly
+   * different topic. Fails OPEN (valid: true) when not configured/rate-limited/erroring, same
+   * degrade-gracefully pattern as every other method here — a validation hiccup should never
+   * block someone from progressing through the flow. */
+  async validateAnswer(question, answer) {
+    if (!this._client) return { valid: true };
+    if (!aiRateLimiter.consume()) return { valid: true };
+
+    try {
+      const response = await this._client.chat.completions.create({
+        model: settings.openaiModel,
+        max_tokens: 30,
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          {
+            role: "user",
+            content:
+              `A migration-intake bot asked: "${question}"\n` +
+              `The user replied: "${answer}"\n\n` +
+              "Does this reply plausibly and specifically answer that question — not just " +
+              "echo/restate the question's own wording, gibberish, or a clearly unrelated " +
+              'topic? Respond with JSON: {"valid": true|false}. Be lenient: short, terse, or ' +
+              'informally-worded real answers are valid, and so are genuine "no"/"none"/"not ' +
+              'sure" replies where those make sense. Only say false for actual gibberish, a ' +
+              "restated question, or an unrelated answer.",
+          },
+        ],
+      });
+      const data = JSON.parse(response.choices[0]?.message?.content ?? '{"valid":true}');
+      return { valid: data.valid !== false };
+    } catch (err) {
+      logger.error({ err }, "LLM answer validation failed — accepting answer");
+      return { valid: true };
+    }
+  }
+
   /** General open-ended conversational reply — used when the structured flow has no specific
    * action for what the user said (e.g. a bare "no" that doesn't match any menu option, or
    * any other free text outside what a parser/menu expects). Not grounded in KB snippets like
