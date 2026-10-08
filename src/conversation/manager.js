@@ -1158,6 +1158,27 @@ export class ConversationManager {
 
     await this._send(user, conversation, `✅ Payment received for "${payment.purpose}" — you're all set.`);
 
+    // Everything the bot does lives in this WhatsApp conversation with no way to review it
+    // outside the chat history — the web portal is the actual place to track progress/
+    // documents/payments over time, but nothing ever pointed a paying customer at it.
+    // user.password_hash is what actually distinguishes "has a portal account" from "just a
+    // WhatsApp contact" (see portal/service.js) — registering with this same WhatsApp number
+    // claims this exact row (payment, profile, conversation history included), so this is a
+    // real account, not a fresh empty one.
+    if (!user.password_hash) {
+      await this._send(
+        user, conversation,
+        "One more thing — you can create a free account at https://migra.ng/register using " +
+          "this same WhatsApp number to track this payment, your documents, and your " +
+          "migration progress online anytime, not just here in chat."
+      );
+    } else {
+      await this._send(
+        user, conversation,
+        "You can view this and everything else on your account anytime at https://migra.ng/dashboard."
+      );
+    }
+
     conversation.context = {
       ...conversation.context,
       pending_tier: null, pending_action: null, pending_purpose: null, pending_checkout_url: null, pending_payment_id: null,
