@@ -722,24 +722,31 @@ export class ConversationManager {
     await profile.save();
 
     const pathway = await this._bestMatchingPathway(profile, profile.migration_objective);
+    // Drives whether we pitch Navigate below — re-pitching something someone already bought
+    // doesn't make sense, but everyone else should always see the direct next step rather
+    // than dead-ending into a generic menu. Not gated on profile.wants_navigate (the intake's
+    // closing question) -- that's still recorded for lead scoring, but a "maybe later" answer
+    // shouldn't mean the free tier ends without ever showing the real paid option.
+    const alreadyHasNavigate = await hasPaidTier(user.id, "navigate");
 
     if (!pathway) {
+      const destClause = profile.destination_country ? ` for ${profile.destination_country}` : "";
       await this._send(
         user, conversation,
         "Your MIGRA Discovery Profile is Ready 🎉\n\n" +
-          "Thanks for sharing all of that — I don't yet have a specific pathway on file for " +
-          "that destination, but a MigraTech specialist can help you explore options there. " +
-          "This is only an initial match: real eligibility depends on factors like your " +
+          `Thanks for sharing all of that — I don't yet have a specific pathway on file${destClause}, ` +
+          "but based on what you've told us, a MigraTech specialist can map out real options " +
+          "there. This is only an initial match: real eligibility depends on factors like your " +
           "qualifications, finances, family situation, immigration history and " +
           "destination-specific requirements."
       );
       await this._upsertLead(user, profile, null);
-      if (profile.wants_navigate === "yes") {
+      if (alreadyHasNavigate) {
+        await this._sendMainMenu(user, conversation, "Anything else I can help with?");
+      } else {
         await this._requireTier(user, conversation, "navigate", {
           purpose: "MIGRA Navigate — deeper migration pathway analysis", pendingAction: null,
         });
-      } else {
-        await this._sendMainMenu(user, conversation);
       }
       return;
     }
@@ -787,23 +794,24 @@ export class ConversationManager {
     await application.save();
     await this._upsertLead(user, profile, assessment);
 
-    if (profile.wants_navigate === "yes") {
-      // They already said yes to deeper analysis moments ago (the intake's closing question)
-      // — go straight to the real Navigate checkout gate instead of asking again.
-      conversation.context = { ...conversation.context, pathway_id: pathway.id };
-      conversation.state = "assessment_menu";
-      await conversation.save();
-      await this._send(user, conversation, lines.join("\n"));
-      await this._requireTier(user, conversation, "navigate", {
-        purpose: "MIGRA Navigate — deeper migration pathway analysis", pendingAction: null,
-      });
-      return;
-    }
-
     conversation.context = { ...conversation.context, pathway_id: pathway.id };
     conversation.state = "assessment_menu";
     await conversation.save();
-    await this._send(user, conversation, lines.join("\n"), ASSESSMENT_MENU_OPTIONS);
+
+    if (alreadyHasNavigate) {
+      await this._send(user, conversation, lines.join("\n"), ASSESSMENT_MENU_OPTIONS);
+      return;
+    }
+
+    lines.push("");
+    lines.push(
+      "Ready to go deeper? *MIGRA Navigate* gives you a full personalised pathway, " +
+        "eligibility analysis, document guidance and a step-by-step roadmap."
+    );
+    await this._send(user, conversation, lines.join("\n"));
+    await this._requireTier(user, conversation, "navigate", {
+      purpose: "MIGRA Navigate — deeper migration pathway analysis", pendingAction: null,
+    });
   }
 
   async _handleDocumentsRequest(user, conversation) {
