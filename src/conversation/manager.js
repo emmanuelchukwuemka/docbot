@@ -636,7 +636,7 @@ export class ConversationManager {
 
   async _offerConsultation(user, conversation) {
     const unlocked = await this._requireTier(user, conversation, "navigate", {
-      purpose: "MIGRA PLAN — human expert review",
+      purpose: "MIGRA Navigate — human expert review",
       pendingAction: "consultation",
     });
     if (!unlocked) return;
@@ -853,7 +853,7 @@ export class ConversationManager {
     }
 
     const unlocked = await this._requireTier(user, conversation, "relocate", {
-      purpose: "MIGRA GO — application tracking",
+      purpose: "MIGRA Relocate — application tracking",
       pendingAction: "track_application",
     });
     if (!unlocked) return false;
@@ -1130,7 +1130,7 @@ export class ConversationManager {
     if (tier === "navigate" && checkoutUrl) {
       await this._send(
         user, conversation,
-        `Still waiting on payment for "${purpose || "your MIGRA PLAN package"}" — complete ` +
+        `Still waiting on payment for "${purpose || "your MIGRA Navigate package"}" — complete ` +
           `it here:\n${checkoutUrl}\n\nI'll confirm automatically once it clears, or reply ` +
           '"menu" to go back for now.'
       );

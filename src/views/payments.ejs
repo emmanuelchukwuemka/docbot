@@ -67,7 +67,7 @@
           <% users.forEach(u => { %><option value="<%= u.id %>"><%= u.name || u.whatsapp_number %> (<%= u.whatsapp_number %>)</option><% }) %>
         </select>
       </div>
-      <div class="field"><label>Purpose</label><input name="purpose" placeholder="e.g. MIGRA GO — Relocate package" required /></div>
+      <div class="field"><label>Purpose</label><input name="purpose" placeholder="e.g. MIGRA Relocate — custom quote" required /></div>
     </div>
     <div class="form-row">
       <div class="field"><label>Amount</label><input name="amount" type="number" min="0.01" step="0.01" required /></div>
