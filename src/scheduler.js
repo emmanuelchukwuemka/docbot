@@ -13,7 +13,7 @@ import cron from "node-cron";
 import { Op } from "sequelize";
 import { settings } from "./config.js";
 import { logger } from "./logger.js";
-import { Application, AuditLog, ConsultationBooking, Conversation, Document, Lead, Message, Pathway, Payment, User, Country } from "./db/models.js";
+import { Application, AuditLog, ConsultationBooking, Conversation, Document, Lead, Message, Pathway, Payment, ServiceItem, User, Country } from "./db/models.js";
 import { generateChecklist, renderChecklistWhatsappText } from "./documents/checklist.js";
 import { findRelocateUrgentItem } from "./relocate/nudge.js";
 import { inboundRateLimiter, sweepSeenMessageIds } from "./whatsapp/ingest.js";
@@ -27,6 +27,9 @@ const PAYMENT_REMINDER_INTERVAL_DAYS = 3;
 const RELOCATE_REMINDER_INTERVAL_DAYS = 5;
 // How far ahead of a real staff-set ConsultationBooking.scheduled_at to remind the client.
 const APPOINTMENT_REMINDER_WINDOW_HOURS = 24;
+// How far ahead of a real staff-set ServiceItem.deadline to start nudging (also naturally
+// catches anything already overdue, since an earlier date is always <= the lookahead cutoff).
+const SERVICE_ITEM_DEADLINE_LOOKAHEAD_DAYS = 7;
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -222,19 +225,32 @@ export async function runRelocateCaseReminders(whatsappClient) {
       : null;
     const documents = await Document.findAll({ where: { user_id: userId } });
     const item = findRelocateUrgentItem(application, documents, pathway);
-    if (!item) continue;
 
     let text;
-    if (item.kind === "missing_documents") {
+    if (item?.kind === "missing_documents") {
       text =
         `Your ${item.names[0]} is still outstanding. This is required before the next stage ` +
         'of your selected pathway. Reply "My Documents" to see your full checklist.';
-    } else if (item.kind === "expired_document") {
+    } else if (item?.kind === "expired_document") {
       text = `Your ${item.name} has expired and needs to be renewed/resubmitted. Reply "My Documents" for your full checklist.`;
-    } else if (item.kind === "inconsistent_document") {
+    } else if (item?.kind === "inconsistent_document") {
       text = `Your ${item.name} needs attention${item.notes ? ` — ${item.notes}` : ""}. Reply "My Documents" for details.`;
     } else {
-      continue;
+      // No document-level issue — check for a real staff-set ServiceItem deadline instead
+      // (credential assessments, specialist services, application follow-ups). This is the
+      // product spec's own illustrative example ("Your credential assessment is still
+      // outstanding...") — previously nothing proactively surfaced these, only the document
+      // checklist was checked.
+      const dueItem = await ServiceItem.findOne({
+        where: {
+          application_id: application.id,
+          status: { [Op.notIn]: ["done", "cancelled"] },
+          deadline: { [Op.ne]: null, [Op.lte]: new Date(Date.now() + SERVICE_ITEM_DEADLINE_LOOKAHEAD_DAYS * 24 * 60 * 60 * 1000) },
+        },
+        order: [["deadline", "ASC"]],
+      });
+      if (!dueItem) continue;
+      text = `Your ${dueItem.title} is still outstanding. This is required before the next stage of your selected pathway. Reply "My Application" to view the steps.`;
     }
 
     if (sent > 0) await sleep(reminderGapMs());

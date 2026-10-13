@@ -1828,6 +1828,9 @@ export class ConversationManager {
     } else {
       lines.push("Case owner: MigraTech staff are handling your case directly — no partner agent needed yet.");
     }
+    if (application.government_reference_number) {
+      lines.push(`Application reference: ${application.government_reference_number}`);
+    }
     await this._send(user, conversation, lines.join("\n"));
     await this._sendRelocateMenu(user, conversation);
   }
@@ -2140,6 +2143,9 @@ export class ConversationManager {
     // here is safe and doesn't affect any non-Relocate caller (there are none).
     const currentIndex = RELOCATE_STAGE_ORDER.indexOf(application.stage);
     const lines = ["Migration Journey", ""];
+    if (application.government_reference_number) {
+      lines.push(`Application reference: ${application.government_reference_number}`, "");
+    }
     RELOCATE_STAGE_ORDER.forEach((stage, i) => {
       const label = RELOCATE_STAGE_LABELS[stage];
       const stageIndex = i;
@@ -2194,6 +2200,7 @@ export class ConversationManager {
       unassign_vendor: "Your case's specialist assignment was removed",
       review_document: "A document was reviewed",
       update_application_stage: "Your case stage was updated",
+      update_application_reference: "Your application reference number was recorded",
       update_consultation: "Your consultation request was updated",
       enable_relocate_module: "A new part of your service was unlocked",
       create_service_item: "A new item was added to your case",

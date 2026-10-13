@@ -405,6 +405,9 @@ export const Application = sequelize.define(
     // purchased rather than showing every module to everyone regardless of package.
     departure_module_enabled: { type: DataTypes.BOOLEAN, defaultValue: false },
     settlement_module_enabled: { type: DataTypes.BOOLEAN, defaultValue: false },
+    // The actual government/institution reference once a case has been lodged (e.g. a UK
+    // visa GWF number) -- staff-entered only, real data, never fabricated or guessed.
+    government_reference_number: { type: DataTypes.STRING(120), allowNull: true },
     created_at: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
     updated_at: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
   },

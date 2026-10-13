@@ -72,6 +72,10 @@
           <% } %>
         </td>
         <td>
+          <form method="post" action="/admin/applications/<%= a.id %>/reference" class="inline-form" style="margin-bottom:6px">
+            <input type="text" name="government_reference_number" value="<%= a.government_reference_number || '' %>" placeholder="Application reference #" style="font-size:12px" />
+            <button class="btn secondary" type="submit" style="font-size:11px;padding:2px 8px">Save</button>
+          </form>
           <div style="margin-bottom:6px">
             <% if (a.departure_module_enabled) { %><span class="badge green">Departure ✓</span>
             <% } else { %>

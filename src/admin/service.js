@@ -794,6 +794,7 @@ export async function listApplications() {
     // Raw client self-report from Relocate onboarding ("where are you in your journey?") —
     // shown for staff context only, never used to drive `stage` itself (see manager.js).
     relocate_phase: a.relocate_phase,
+    government_reference_number: a.government_reference_number,
     departure_module_enabled: a.departure_module_enabled,
     settlement_module_enabled: a.settlement_module_enabled,
     assigned_specialist: a.assigned_specialist,
@@ -818,6 +819,21 @@ export async function updateApplicationStage(applicationId, stage, actor) {
   await application.save();
   await logAction({ actor, action: "update_application_stage", targetType: "application", targetId: applicationId, details: { stage } });
   return { id: application.id, stage: application.stage };
+}
+
+/** The real government/institution reference once a case has been lodged (e.g. a UK visa
+ * GWF number) -- staff-entered only, shown back to the client in My Relocate Case/My
+ * Application. Never inferred or guessed. */
+export async function updateApplicationReference(applicationId, referenceNumber, actor) {
+  const application = await Application.findByPk(applicationId);
+  if (!application) throw new HttpError(404, "Application not found");
+  application.government_reference_number = (referenceNumber || "").trim() || null;
+  await application.save();
+  await logAction({
+    actor, action: "update_application_reference", targetType: "application",
+    targetId: applicationId, details: { government_reference_number: application.government_reference_number },
+  });
+  return { id: application.id, government_reference_number: application.government_reference_number };
 }
 
 const RELOCATE_MODULES = {

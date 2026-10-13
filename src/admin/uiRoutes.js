@@ -649,6 +649,13 @@ router.post("/applications/:id/stage", async (req, res) => {
   });
 });
 
+router.post("/applications/:id/reference", async (req, res) => {
+  await withError(req, res, "/admin/applications", async () => {
+    await svc.updateApplicationReference(req.params.id, req.body.government_reference_number, req.adminUser.username);
+    redirect(res, "/admin/applications", "Application reference updated.");
+  });
+});
+
 router.post("/applications/:id/enable-module", async (req, res) => {
   await withError(req, res, "/admin/applications", async () => {
     await svc.enableRelocateModule(req.params.id, req.body.module, req.adminUser.username);
