@@ -14,7 +14,14 @@ const STATUS_EMOJI = {
 export function renderChecklistWhatsappText(checklist) {
   const lines = [`${checklist.country_name} ${checklist.pathway_name} — Preliminary Document Checklist`, ""];
   for (const item of checklist.items) {
-    lines.push(`${STATUS_EMOJI[item.status] || "⬜"} ${item.name}`);
+    let line = `${STATUS_EMOJI[item.status] || "⬜"} ${item.name}`;
+    // verification_status/verified_by were already real columns on Document, just never
+    // surfaced here — distinguishing "uploaded, awaiting review" from "verified by staff"
+    // without inventing any new tier the data doesn't actually support.
+    if (item.status === "verified" && item.verified_by) line += ` — verified by ${item.verified_by}`;
+    else if (item.status === "uploaded") line += " — awaiting review";
+    else if (item.status === "rejected") line += " — needs resubmission";
+    lines.push(line);
   }
   lines.push("");
   lines.push(
@@ -25,15 +32,20 @@ export function renderChecklistWhatsappText(checklist) {
 }
 
 export function generateChecklist(pathway, existingDocuments = []) {
-  const uploadedByType = {};
+  const byType = {};
   for (const doc of existingDocuments) {
-    uploadedByType[doc.document_type.toLowerCase()] = doc.status;
+    byType[doc.document_type.toLowerCase()] = doc;
   }
 
-  const items = (pathway.documents || []).map((docName) => ({
-    name: docName,
-    status: uploadedByType[docName.toLowerCase()] || "missing",
-  }));
+  const items = (pathway.documents || []).map((docName) => {
+    const doc = byType[docName.toLowerCase()];
+    return {
+      name: docName,
+      status: doc ? doc.status : "missing",
+      verification_status: doc ? doc.verification_status : null,
+      verified_by: doc ? doc.verified_by : null,
+    };
+  });
 
   return {
     pathway_name: pathway.name,

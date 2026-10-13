@@ -194,6 +194,26 @@ export const MigrationProfile = sequelize.define(
     // "Refuge/asylum/protection" — encrypted, same as visa_refusal_reason above.
     asylum_context_detail: encryptedTextField("asylum_context_detail"),
 
+    // --- MIGRA Navigate deep-assessment fields (added 2026-09-28) --- everything the
+    // Navigate spec's adaptive-assessment table asks for that Discover already collects
+    // (occupation/experience_years/education/language_ability/professional_registration/
+    // job_offer_status/funding_source/financial_readiness/family_abroad_*/visa_refusal_*/
+    // destination_country) is reused unchanged, not duplicated here.
+    target_salary: { type: DataTypes.STRING(120), allowNull: true },
+    language_test_type: { type: DataTypes.STRING(50), allowNull: true },
+    language_test_score: { type: DataTypes.STRING(50), allowNull: true },
+    admission_status: { type: DataTypes.STRING(50), allowNull: true },
+    tuition_budget: { type: DataTypes.STRING(50), allowNull: true },
+    business_model: { type: DataTypes.TEXT, allowNull: true },
+    target_market: { type: DataTypes.STRING(120), allowNull: true },
+    licensing_exams_completed: { type: DataTypes.BOOLEAN, allowNull: true },
+    offer_sponsorship: { type: DataTypes.BOOLEAN, allowNull: true },
+    offer_details: { type: DataTypes.TEXT, allowNull: true },
+    // Drives the Stage-1 "confirm or update your profile" flow and whether deep-assessment
+    // has already run, so a returning Navigate subscriber isn't re-onboarded from scratch.
+    navigate_started_at: { type: DataTypes.DATE, allowNull: true },
+    navigate_profile_confirmed: { type: DataTypes.BOOLEAN, allowNull: true },
+
     updated_at: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
   },
   { tableName: "migration_profiles", timestamps: false, hooks: { beforeUpdate: touchUpdatedAt } }

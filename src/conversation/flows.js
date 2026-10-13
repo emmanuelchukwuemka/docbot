@@ -298,6 +298,74 @@ export const DISCOVER_SECTIONS = [
     makeOptionParser(WANTS_NAVIGATE_OPTIONS, WANTS_NAVIGATE_CODES), WANTS_NAVIGATE_OPTIONS),
 ];
 
+// MIGRA Navigate's deep-assessment follow-ups (paid tier, asked once per subscriber after
+// Discover's profile is confirmed/updated). Everything the Navigate spec's adaptive-assessment
+// table asks for that Discover *already* collects (occupation, experience_years, education,
+// language_ability, professional_registration, job_offer_status, funding_source,
+// financial_readiness, family_abroad_*, visa_refusal_*, destination_country) is reused
+// unchanged here, not re-asked — only genuinely new questions are added, each conditioned on
+// the category it's actually relevant to via skipIf (profile.migration_objective is already
+// set by the time Navigate runs).
+const HEALTHCARE_OCCUPATION_RE = /\b(nurse|nursing|doctor|physician|medic|healthcare|health care|clinical|pharmacist|dentist|surgeon|radiograph|midwife|paramedic)\b/i;
+const NO_TEST_RE = /^(no|none|n\/a|na)$/i;
+
+export const NAVIGATE_SECTIONS = [
+  // Existing job/admission offer — job_offer_status (from Discover) is the gate.
+  question("offer_sponsorship", "Does the offer include visa sponsorship?", yesNoParser, ["Yes", "No"],
+    { skipIf: (p) => p.job_offer_status !== true }),
+  question(
+    "offer_details",
+    "Briefly describe the offer — employer/institution name, role or programme, and any other relevant details.",
+    textParser, [],
+    { skipIf: (p) => p.job_offer_status !== true }
+  ),
+
+  // Skilled worker
+  question("target_salary", "What is your target salary range for this role? (approximate, any currency)", textParser, [],
+    { skipIf: (p) => p.migration_objective !== "work" }),
+  question(
+    "language_test_type",
+    "Have you taken a language proficiency test (e.g. IELTS, TOEFL, Goethe)? Which one? (If none, reply No)",
+    textParser, [],
+    { skipIf: (p) => p.migration_objective !== "work" }
+  ),
+  question("language_test_score", "What score did you get?", textParser, [],
+    { skipIf: (p) => p.migration_objective !== "work" || !p.language_test_type || NO_TEST_RE.test(p.language_test_type) }),
+
+  // Student
+  question("admission_status", "Have you been admitted to a specific program yet?", textParser,
+    ["Yes, admitted", "Applied, waiting to hear", "Not yet applied"],
+    { skipIf: (p) => p.migration_objective !== "study" }),
+  question("tuition_budget", "What is your approximate tuition budget?", textParser, [],
+    { skipIf: (p) => p.migration_objective !== "study" }),
+
+  // Business/entrepreneur
+  question("business_model", "Briefly describe your business model or what the business does.", textParser, [],
+    { skipIf: (p) => p.migration_objective !== "business" }),
+  question("target_market", "What is your target market for this business?", textParser, [],
+    { skipIf: (p) => p.migration_objective !== "business" }),
+
+  // Healthcare professional — inferred from the occupation already on file, not a separate
+  // category (migration_objective has no "healthcare" value).
+  question(
+    "licensing_exams_completed",
+    "Healthcare roles often require destination-specific licensing exams — have you completed any of these already?",
+    yesNoParser, ["Yes", "No"],
+    { skipIf: (p) => !HEALTHCARE_OCCUPATION_RE.test(p.occupation || "") }
+  ),
+];
+
+export const NAVIGATE_MENU_OPTIONS = [
+  "My migration assessment",
+  "My recommended pathways",
+  "My documents",
+  "My migration roadmap",
+  "Ask MIGRA",
+  "Find a verified expert",
+  "Update my profile",
+  "Talk to human support",
+];
+
 export const CONSULTATION_MENU_OPTIONS = ["Book Consultation", "Talk to an Expert Now", "Continue Later"];
 
 export const MAIN_MENU_OPTIONS = [

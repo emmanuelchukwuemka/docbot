@@ -32,7 +32,7 @@ import {
 import { generateChecklist, renderChecklistWhatsappText } from "../documents/checklist.js";
 import { LocalEncryptedStorage } from "../documents/storage.js";
 import { assess } from "../eligibility/engine.js";
-import { getPathwaysForCountry, searchFaqs, searchPathways } from "../knowledgeBase/service.js";
+import { getPathwaysForCountry, listCountries, searchFaqs, searchPathways } from "../knowledgeBase/service.js";
 import { scoreLead } from "../leads/scoring.js";
 import { initializeTransaction } from "../payments/paystackClient.js";
 import { hasPaidTier } from "../payments/tierAccess.js";
@@ -195,6 +195,9 @@ export class ConversationManager {
       collecting_name: this._handleCollectingName,
       main_menu: this._handleMainMenu,
       discover_intake: this._handleDiscoverIntake,
+      navigate_profile_update: this._handleNavigateProfileUpdate,
+      navigate_assessment: this._handleNavigateAssessment,
+      navigate_menu: this._handleNavigateMenu,
       assessment_menu: this._handleAssessmentMenu,
       faq_waiting_question: this._handleFaqWaitingQuestion,
       consultation_menu: this._handleConsultationMenu,
@@ -814,6 +817,428 @@ export class ConversationManager {
     });
   }
 
+  // ------------------------------------------------------------------ //
+  // MIGRA Navigate — post-payment deep assessment, pathway shortlist, roadmap
+  // ------------------------------------------------------------------ //
+
+  /** Stage 1 (welcome + profile retrieval). `pendingAction` carries over whatever the person
+   * originally paid Navigate to unlock ("consultation"/"track_application"/null) — honored
+   * once the real Navigate onboarding finishes (see _enterNavigateMenu) rather than dropped,
+   * so paying specifically to "Speak to an Expert" still ends there, just via the fuller
+   * experience now instead of skipping straight past it. */
+  async _startNavigateOnboarding(user, conversation, pendingAction = null) {
+    const profile = await this._getOrCreateProfile(user);
+    if (!profile.navigate_started_at) {
+      profile.navigate_started_at = new Date();
+      await profile.save();
+    }
+    await this._getOrCreateApplication(user);
+
+    await this._send(
+      user, conversation,
+      "Welcome to MIGRA Navigate! 🎉 Your payment is confirmed, and we're ready to help you " +
+        "move beyond exploring possibilities to building a migration pathway tailored to you."
+    );
+
+    const summary = ["Here's what we already have from your Discover profile:"];
+    if (user.name) summary.push(`• Name: ${user.name}`);
+    if (profile.destination_country) summary.push(`• Destination: ${profile.destination_country}`);
+    if (profile.migration_reason) summary.push(`• Goal: ${profile.migration_reason}`);
+    if (profile.occupation) summary.push(`• Occupation: ${profile.occupation}`);
+    if (profile.education) summary.push(`• Education: ${profile.education}`);
+    if (profile.experience_years != null) summary.push(`• Experience: ${profile.experience_years} years`);
+    if (profile.timeline) summary.push(`• Timeline: ${profile.timeline.replaceAll("_", " ")}`);
+    if (profile.financial_readiness) summary.push(`• Budget: ${profile.financial_readiness}`);
+    await this._send(user, conversation, summary.join("\n"));
+
+    conversation.context = { ...conversation.context, flow: "navigate", navigate_pending_action: pendingAction };
+    conversation.state = "navigate_profile_update";
+    await conversation.save();
+    await this._send(
+      user, conversation,
+      "Before we go deeper — has anything changed since you completed Discover? New " +
+        "qualifications, work experience, language test results, or changes in your finances " +
+        'or family situation? Reply with details, or just "No changes".'
+    );
+  }
+
+  /** Also the re-entry point for the Navigate menu's "Update my profile" option — in that case
+   * everything's already confirmed/assessed once, so after capturing any update this just
+   * flows into _askNextNavigateQuestion finding nothing new to ask and refreshing the pathway
+   * shortlist, which is the right outcome for "I updated something, show me what changed." */
+  async _handleNavigateProfileUpdate(user, conversation, text) {
+    const profile = await this._getOrCreateProfile(user);
+    const noChangeRe = /^(no|none|no changes?|nothing|all good|nope)[\s.!]*$/i;
+
+    if (isGreeting(text)) {
+      await this._send(
+        user, conversation,
+        'Has anything changed since Discover? Reply with details, or just "No changes".'
+      );
+      return;
+    }
+
+    if (!noChangeRe.test(text.trim())) {
+      const extracted = await understand(this.llmClient, text);
+      await this._maybeEscalate(user, conversation, text, extracted);
+      const updatedFields = [];
+      for (const fieldName of [
+        "destination_country", "occupation", "education", "experience_years",
+        "age", "language_ability", "family_status", "timeline",
+      ]) {
+        const value = extracted[fieldName];
+        if (value != null && value !== "") {
+          profile[fieldName] = value;
+          updatedFields.push(fieldName);
+        }
+      }
+      if (updatedFields.length) {
+        await profile.save();
+        await this._send(user, conversation, `Got it — updated: ${updatedFields.join(", ").replaceAll("_", " ")}.`);
+      }
+    }
+
+    profile.navigate_profile_confirmed = true;
+    await profile.save();
+    await this._startNavigateAssessment(user, conversation, profile);
+  }
+
+  async _startNavigateAssessment(user, conversation, profile) {
+    conversation.state = "navigate_assessment";
+    await conversation.save();
+    await this._askNextNavigateQuestion(user, conversation, profile);
+  }
+
+  async _askNextNavigateQuestion(user, conversation, profile) {
+    for (const q of flows.NAVIGATE_SECTIONS) {
+      if (q.skipIf && q.skipIf(profile)) continue;
+      const target = q.target === "user" ? user : profile;
+      if (target[q.field_name] == null) {
+        conversation.context = { ...conversation.context, flow: "navigate", current_field: q.field_name };
+        await conversation.save();
+        await this._send(user, conversation, q.prompt, q.options);
+        return;
+      }
+    }
+    await this._buildPathwayShortlist(user, conversation, profile);
+  }
+
+  /** Stage 2 (deep assessment) — structurally mirrors _handleDiscoverIntake but walks
+   * NAVIGATE_SECTIONS instead; kept as a separate function rather than sharing code with the
+   * already-verified, live Discover handler to avoid any regression risk there. */
+  async _handleNavigateAssessment(user, conversation, text, interactiveId) {
+    const profile = await this._getOrCreateProfile(user);
+    const fieldName = conversation.context.current_field;
+    const q = flows.NAVIGATE_SECTIONS.find((f) => f.field_name === fieldName);
+    if (!q) {
+      await this._askNextNavigateQuestion(user, conversation, profile);
+      return;
+    }
+
+    if (isGreeting(text)) {
+      conversation.fallback_count = 0;
+      await conversation.save();
+      await this._send(user, conversation, q.prompt, q.options);
+      return;
+    }
+
+    let value = null;
+    if (q.options.length) {
+      const optIdx = resolveSelection(text, interactiveId, q.options);
+      if (optIdx !== null) value = q.parser(q.options[optIdx]);
+    }
+    if (value === null) value = q.parser(text);
+
+    if (value === null) {
+      conversation.fallback_count += 1;
+      await conversation.save();
+      const acknowledged = await this._conversationalNudge(
+        user, conversation, text,
+        `The user is going through MigraTech Navigate's deep assessment and is being asked: ` +
+          `"${q.prompt}" — their reply didn't give a usable answer to that specific question.`
+      );
+      await this._send(user, conversation, (acknowledged ? "" : "Sorry, I didn't quite catch that. ") + q.prompt, q.options);
+      return;
+    }
+
+    if (q.validate) {
+      const { valid } = await this.llmClient.validateAnswer(q.prompt, text);
+      if (!valid) {
+        conversation.fallback_count += 1;
+        await conversation.save();
+        await this._send(user, conversation, "Hmm, that doesn't quite look like an answer to this — " + q.prompt, q.options);
+        return;
+      }
+    }
+
+    const target = q.target === "user" ? user : profile;
+    target[q.field_name] = value;
+    await target.save();
+    conversation.fallback_count = 0;
+    await conversation.save();
+
+    await this._askNextNavigateQuestion(user, conversation, profile);
+  }
+
+  /** Stage 3 (global pathway matching) — real data only. If the person is destination-flexible
+   * (or said "several"/"open" on destination), searches every seeded country for their
+   * category and ranks whatever real matches actually exist (today: up to 5, since the
+   * knowledge base has exactly one pathway per country+category); otherwise just their one
+   * stated country+category, same as _bestMatchingPathway already does for Discover. Never
+   * fabricates a country/pathway that isn't actually in the knowledge base — cost/timeline
+   * fields are shown exactly as they are in the data (today that's always a "confirm with a
+   * specialist" placeholder, not invented numbers). Also reachable directly from the Navigate
+   * menu's "My recommended pathways" to recompute a fresh shortlist. */
+  async _buildPathwayShortlist(user, conversation, profile) {
+    if (!profile.destination_country && profile.destination_countries) {
+      profile.destination_country = profile.destination_countries.split(/,| and |\/|;/i)[0].trim();
+      await profile.save();
+    }
+
+    const category = profile.migration_objective;
+    const flexible =
+      profile.destination_flexibility === "very_flexible" ||
+      profile.destination_flexibility === "somewhat_flexible" ||
+      profile.has_destination_in_mind === "several" ||
+      profile.has_destination_in_mind === "open";
+
+    let pathways = [];
+    if (flexible) {
+      const countries = await listCountries();
+      const perCountry = await Promise.all(countries.map((c) => getPathwaysForCountry(c.name, category)));
+      pathways = perCountry.flat();
+    } else if (profile.destination_country) {
+      pathways = await getPathwaysForCountry(profile.destination_country, category);
+      if (!pathways.length) {
+        pathways = await searchPathways(`${category || ""} ${profile.destination_country}`.trim());
+      }
+    }
+
+    if (!pathways.length) {
+      await this._send(
+        user, conversation,
+        "I don't have a specific real pathway on file yet for your current goal/destination — " +
+          "a MigraTech specialist will put together real options for you directly."
+      );
+      await this._escalate(conversation, "Navigate pathway shortlist found zero real matches — needs specialist review.");
+      await this._enterNavigateMenu(user, conversation);
+      return;
+    }
+
+    const RESULT_RANK = { potentially_suitable: 0, more_information_required: 1, likely_not_suitable: 2 };
+    const scored = pathways
+      .map((pathway) => ({ pathway, assessment: assess(profile, pathway) }))
+      .sort((a, b) => {
+        const rankDiff = RESULT_RANK[a.assessment.result] - RESULT_RANK[b.assessment.result];
+        if (rankDiff !== 0) return rankDiff;
+        return `${a.pathway.country.name} ${a.pathway.name}`.localeCompare(`${b.pathway.country.name} ${b.pathway.name}`);
+      });
+
+    const lines = [
+      "Your MIGRA Navigate Pathway Shortlist 🎯", "",
+      `${scored.length} real option${scored.length === 1 ? "" : "s"} based on your profile:`,
+    ];
+    for (const [i, { pathway, assessment }] of scored.entries()) {
+      lines.push("", `${i + 1}. ${pathway.country.name} — ${pathway.name}`);
+      lines.push(`Eligibility: ${assessment.result.replaceAll("_", " ")}`);
+      if (assessment.reasons.length) lines.push(...assessment.reasons.map((r) => `   • ${r}`));
+      if (pathway.requirements?.length) lines.push(`Key requirements: ${pathway.requirements.join("; ")}`);
+      lines.push(`Cost & timeline: ${pathway.government_fees || "to be confirmed by a specialist"}`);
+      if (pathway.is_verified_content && pathway.source_url) {
+        const verifiedDate = pathway.last_verified_at ? pathway.last_verified_at.toISOString().slice(0, 10) : "unknown";
+        lines.push(`Source: ${pathway.source_url} (verified ${verifiedDate})`);
+      } else {
+        lines.push("Source: not yet independently verified — a specialist will confirm current requirements.");
+      }
+    }
+    lines.push(
+      "",
+      "These are promising options based on what you've told us, not confirmed eligibility — " +
+        "final decisions always rest with the relevant government, institution or employer."
+    );
+    await this._send(user, conversation, lines.join("\n"));
+
+    for (const { pathway, assessment } of scored) {
+      await EligibilityAssessment.create({
+        user_id: user.id, pathway_id: pathway.id, result: assessment.result, reasons: assessment.reasons,
+      });
+    }
+
+    const application = await this._getOrCreateApplication(user);
+    application.pathway_id = scored[0].pathway.id;
+    if (APPLICATION_STAGE_ORDER.indexOf(application.stage) < APPLICATION_STAGE_ORDER.indexOf("pathway_selection")) {
+      application.stage = "pathway_selection";
+    }
+    await application.save();
+    await this._upsertLead(user, profile, null);
+
+    await this._enterNavigateMenu(user, conversation);
+  }
+
+  /** Enters (or returns to) the Navigate menu state. If the person originally paid Navigate to
+   * unlock a specific thing ("Speak to an Expert" / "Track My Application"), honors that intent
+   * once here rather than silently dropping it — see _startNavigateOnboarding's comment. */
+  async _enterNavigateMenu(user, conversation) {
+    conversation.state = "navigate_menu";
+    await conversation.save();
+
+    const pendingAction = conversation.context?.navigate_pending_action;
+    if (pendingAction) {
+      conversation.context = { ...conversation.context, navigate_pending_action: null };
+      await conversation.save();
+      if (pendingAction === "consultation") {
+        await this._offerConsultation(user, conversation);
+        return;
+      }
+      if (pendingAction === "track_application") {
+        if (await this._handleTrackApplication(user, conversation)) await this._sendNavigateMenu(user, conversation);
+        return;
+      }
+    }
+    await this._sendNavigateMenu(user, conversation);
+  }
+
+  async _sendNavigateMenu(user, conversation, prefix = null) {
+    await this._send(user, conversation, (prefix ? prefix + "\n\n" : "") + "What would you like to do?", flows.NAVIGATE_MENU_OPTIONS);
+  }
+
+  async _handleNavigateMenu(user, conversation, text, interactiveId) {
+    if (isGreeting(text)) {
+      conversation.fallback_count = 0;
+      await conversation.save();
+      await this._sendNavigateMenu(user, conversation);
+      return;
+    }
+
+    const idx = resolveSelection(text, interactiveId, flows.NAVIGATE_MENU_OPTIONS);
+    if (idx === null) {
+      const lowered = text.toLowerCase();
+      if (/progress|roadmap|what.*next/.test(lowered)) {
+        await this._renderRoadmap(user, conversation);
+        return;
+      }
+      conversation.fallback_count += 1;
+      await conversation.save();
+      const acknowledged = await this._conversationalNudge(
+        user, conversation, text,
+        "The user is at MigraTech Navigate's main menu and just replied with something that isn't one of the menu options."
+      );
+      await this._sendNavigateMenu(user, conversation, acknowledged ? null : "Sorry, I didn't quite catch that.");
+      return;
+    }
+
+    conversation.fallback_count = 0;
+    await conversation.save();
+    const option = flows.NAVIGATE_MENU_OPTIONS[idx];
+    const profile = await this._getOrCreateProfile(user);
+
+    if (option === "My migration assessment") {
+      await this._renderNavigateAssessmentSummary(user, conversation, profile);
+    } else if (option === "My recommended pathways") {
+      await this._buildPathwayShortlist(user, conversation, profile);
+    } else if (option === "My documents") {
+      await this._handleNavigateDocumentsRequest(user, conversation, profile);
+    } else if (option === "My migration roadmap") {
+      await this._renderRoadmap(user, conversation);
+    } else if (option === "Ask MIGRA") {
+      conversation.state = "faq_waiting_question";
+      await conversation.save();
+      await this._send(user, conversation, "What would you like to know?");
+    } else if (option === "Find a verified expert" || option === "Talk to human support") {
+      await this._offerConsultation(user, conversation);
+    } else if (option === "Update my profile") {
+      conversation.context = { ...conversation.context, flow: "navigate" };
+      conversation.state = "navigate_profile_update";
+      await conversation.save();
+      await this._send(user, conversation, 'What\'s changed? Tell me in a sentence or two, or reply "No changes" to go back.');
+    }
+  }
+
+  async _renderNavigateAssessmentSummary(user, conversation, profile) {
+    const lines = ["Your Migration Assessment", ""];
+    if (profile.destination_country) lines.push(`Destination: ${profile.destination_country}`);
+    if (profile.migration_reason) lines.push(`Goal: ${profile.migration_reason}`);
+    if (profile.occupation) lines.push(`Occupation: ${profile.occupation}`);
+    if (profile.education) lines.push(`Education: ${profile.education}`);
+    if (profile.experience_years != null) lines.push(`Experience: ${profile.experience_years} years`);
+    if (profile.language_ability) lines.push(`Languages: ${profile.language_ability}`);
+    if (profile.target_salary) lines.push(`Target salary: ${profile.target_salary}`);
+    if (profile.financial_readiness) lines.push(`Budget: ${profile.financial_readiness}`);
+    if (profile.timeline) lines.push(`Timeline: ${profile.timeline.replaceAll("_", " ")}`);
+    if (profile.visa_refused_before) lines.push(`Previous visa refusal: Yes (${profile.visa_refusal_country || "details on file"})`);
+    if (lines.length === 2) lines.push("No profile details on file yet.");
+    await this._send(user, conversation, lines.join("\n"));
+    await this._sendNavigateMenu(user, conversation);
+  }
+
+  /** "My documents" from the Navigate menu — same checklist generator/renderer as Discover's
+   * _handleDocumentsRequest, but returns to the Navigate menu afterward instead of the
+   * Discover main menu (kept separate from _handleDocumentsRequest for that reason). */
+  async _handleNavigateDocumentsRequest(user, conversation, profile) {
+    const pathway = profile.migration_objective ? await this._bestMatchingPathway(profile, profile.migration_objective) : null;
+    if (pathway) {
+      const documents = await Document.findAll({ where: { user_id: user.id } });
+      const checklist = generateChecklist(pathway, documents);
+      await this._send(user, conversation, renderChecklistWhatsappText(checklist));
+    } else {
+      await this._send(user, conversation, 'I don\'t have a specific pathway on file yet — check "My recommended pathways" first.');
+    }
+    await this._enterNavigateMenu(user, conversation);
+  }
+
+  /** Stage 5 (personalised roadmap) — tasks are derived fresh from real state (profile
+   * completeness, document checklist, consultation booking, application stage) every time
+   * this is viewed, not hand-authored busy-work, so it always reflects the actual case record.
+   * Also the target of "show my progress"/"what should I do next" free-text triggers from the
+   * Navigate menu. Writes the result into Application.milestones (previously unused). */
+  async _renderRoadmap(user, conversation) {
+    const profile = await this._getOrCreateProfile(user);
+    const application = await this._getOrCreateApplication(user);
+    const documents = await Document.findAll({ where: { user_id: user.id } });
+    const pathway = application.pathway_id
+      ? await Pathway.findByPk(application.pathway_id, { include: [{ model: Country, as: "country" }] })
+      : null;
+    const consultation = await ConsultationBooking.findOne({ where: { user_id: user.id }, order: [["created_at", "DESC"]] });
+
+    const checklist = pathway ? generateChecklist(pathway, documents) : { items: [] };
+    const missingDocs = checklist.items.filter((i) => i.status === "missing").length;
+    const awaitingReview = checklist.items.filter((i) => i.status === "uploaded").length;
+    const pastStage = (stage) => APPLICATION_STAGE_ORDER.indexOf(application.stage) > APPLICATION_STAGE_ORDER.indexOf(stage);
+
+    const tasks = [
+      { phase: "Confirm eligibility", label: "Complete your migration profile", status: profile.navigate_profile_confirmed ? "done" : "pending" },
+      { phase: "Confirm eligibility", label: "Review your recommended pathway(s)", status: application.pathway_id ? "done" : "pending" },
+      {
+        phase: "Prepare evidence",
+        label: `Upload required documents${checklist.items.length ? ` (${missingDocs} still missing)` : ""}`,
+        status: !checklist.items.length ? "pending" : missingDocs === 0 ? "done" : missingDocs < checklist.items.length ? "in_progress" : "pending",
+      },
+    ];
+    if (awaitingReview) tasks.push({ phase: "Prepare evidence", label: `${awaitingReview} document(s) awaiting specialist review`, status: "in_progress" });
+    tasks.push({ phase: "Pursue the pathway", label: "Speak with a MigraTech specialist", status: consultation ? "done" : "pending" });
+    tasks.push({
+      phase: "Prepare for application & relocation",
+      label: "Final application preparation",
+      status: application.stage === "application_preparation" || pastStage("application_preparation") ? "done" : "pending",
+    });
+
+    application.milestones = { phase: application.stage, tasks, generated_at: new Date().toISOString() };
+    await application.save();
+
+    const STATUS_EMOJI = { done: "✅", in_progress: "🟡", pending: "⬜" };
+    const lines = ["Your Migration Roadmap", ""];
+    let currentPhase = null;
+    for (const t of tasks) {
+      if (t.phase !== currentPhase) {
+        lines.push("", `*${t.phase}*`);
+        currentPhase = t.phase;
+      }
+      lines.push(`${STATUS_EMOJI[t.status]} ${t.label}`);
+    }
+    await this._send(user, conversation, lines.join("\n"));
+    await this._enterNavigateMenu(user, conversation);
+  }
+
   async _handleDocumentsRequest(user, conversation) {
     const profile = await this._getOrCreateProfile(user);
     const pathway = profile.migration_objective
@@ -1183,6 +1608,17 @@ export class ConversationManager {
       ...conversation.context,
       pending_tier: null, pending_action: null, pending_purpose: null, pending_checkout_url: null, pending_payment_id: null,
     };
+    await conversation.save();
+
+    // Navigate's actual post-payment experience (re-assessment, pathway shortlist, roadmap,
+    // Navigate-specific menu) — hasPaidTier short-circuits _requireTier before a second
+    // Payment row is ever created for an already-subscribed user, so a "navigate" tier
+    // confirmation here always means this is the moment they become a subscriber.
+    if (payment.tier === "navigate") {
+      await this._startNavigateOnboarding(user, conversation, pendingAction);
+      return;
+    }
+
     conversation.state = "main_menu";
     await conversation.save();
 
