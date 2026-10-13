@@ -6,7 +6,7 @@
     read the direct agent↔client message thread (you're not part of these conversations, but you can always see them).
   </p>
   <table>
-    <tr><th>Name</th><th>WhatsApp</th><th>Pathway</th><th>Stage</th><th>Client self-report</th><th>Status</th><th>Agent</th><th>Commission</th><th>Updated</th><th></th></tr>
+    <tr><th>Name</th><th>WhatsApp</th><th>Pathway</th><th>Stage</th><th>Client self-report</th><th>Status</th><th>Agent</th><th>Commission</th><th>Updated</th><th></th><th>Relocate modules &amp; items</th></tr>
     <% applications.forEach(a => { %>
       <tr>
         <td><%= a.name || '—' %></td>
@@ -71,9 +71,70 @@
             </details>
           <% } %>
         </td>
+        <td>
+          <div style="margin-bottom:6px">
+            <% if (a.departure_module_enabled) { %><span class="badge green">Departure ✓</span>
+            <% } else { %>
+              <form method="post" action="/admin/applications/<%= a.id %>/enable-module" class="inline-form">
+                <input type="hidden" name="module" value="departure" />
+                <button class="btn secondary" type="submit" style="font-size:11px;padding:2px 8px">Enable departure</button>
+              </form>
+            <% } %>
+            <% if (a.settlement_module_enabled) { %><span class="badge green">Settlement ✓</span>
+            <% } else { %>
+              <form method="post" action="/admin/applications/<%= a.id %>/enable-module" class="inline-form">
+                <input type="hidden" name="module" value="settlement" />
+                <button class="btn secondary" type="submit" style="font-size:11px;padding:2px 8px">Enable settlement</button>
+              </form>
+            <% } %>
+          </div>
+          <details class="edit-row">
+            <summary>Service Items</summary>
+            <div style="max-width:300px;max-height:220px;overflow-y:auto;font-size:12px;margin-bottom:8px">
+              <% (serviceItemsByApplication[a.id] || []).forEach(function(i) { %>
+                <div style="margin-bottom:6px">
+                  <b><%= i.title %></b> (<%= i.category %>) — <%= i.status %>
+                  <% if (i.fee) { %> — <%= i.currency %> <%= i.fee.toLocaleString() %><% } %>
+                  <% if (i.deadline) { %> — due <%= i.deadline %><% } %>
+                  <form method="post" action="/admin/service-items/<%= i.id %>/status" class="inline-form">
+                    <select name="status" onchange="this.form.submit()">
+                      <% ['requested','in_progress','done','cancelled'].forEach(function(s) { %>
+                        <option value="<%= s %>" <%= s === i.status ? 'selected' : '' %>><%= s %></option>
+                      <% }) %>
+                    </select>
+                  </form>
+                </div>
+              <% }) %>
+              <% if (!(serviceItemsByApplication[a.id] || []).length) { %><span class="muted">No service items.</span><% } %>
+            </div>
+            <form class="field-form" method="post" action="/admin/applications/<%= a.id %>/service-items">
+              <div class="field">
+                <select name="category">
+                  <option value="document_coordination">Document coordination</option>
+                  <option value="specialist_service">Specialist service</option>
+                  <option value="application_followup">Application follow-up</option>
+                  <option value="pre_departure">Pre-departure</option>
+                  <option value="settlement">Settlement</option>
+                </select>
+              </div>
+              <div class="field"><input name="title" type="text" placeholder="Title" required /></div>
+              <div class="field"><input name="fee" type="number" min="0" step="1" placeholder="Fee (optional)" /></div>
+              <div class="field"><input name="deadline" type="date" placeholder="Deadline (optional)" /></div>
+              <div class="field">
+                <select name="assigned_vendor_id">
+                  <option value="">— no specific agent —</option>
+                  <% approvedVendors.forEach(function(v) { %>
+                    <option value="<%= v.id %>"><%= v.name %></option>
+                  <% }) %>
+                </select>
+              </div>
+              <button class="btn secondary" type="submit">Add Item</button>
+            </form>
+          </details>
+        </td>
       </tr>
     <% }) %>
-    <% if (!applications.length) { %><tr><td class="muted" colspan="10">No applications yet.</td></tr><% } %>
+    <% if (!applications.length) { %><tr><td class="muted" colspan="11">No applications yet.</td></tr><% } %>
   </table>
 </div>
 

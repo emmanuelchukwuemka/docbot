@@ -25,6 +25,8 @@ const PAYMENT_REMINDER_INTERVAL_DAYS = 3;
 // Paying Relocate subscribers, not pre-conversion Leads — a longer, distinct cadence from
 // runMissingDocumentReminders' 3-day one.
 const RELOCATE_REMINDER_INTERVAL_DAYS = 5;
+// How far ahead of a real staff-set ConsultationBooking.scheduled_at to remind the client.
+const APPOINTMENT_REMINDER_WINDOW_HOURS = 24;
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -247,6 +249,35 @@ export async function runRelocateCaseReminders(whatsappClient) {
   return sent;
 }
 
+/** Real "appointment alerts" (product spec, section 5 item 4) — only ever fires once staff
+ * have set a real ConsultationBooking.scheduled_at (admin's updateConsultation); never
+ * guesses a reminder time from the client's original free-text preferred_time_text. */
+export async function runAppointmentReminders(whatsappClient) {
+  const now = new Date();
+  const windowEnd = new Date(now.getTime() + APPOINTMENT_REMINDER_WINDOW_HOURS * 60 * 60 * 1000);
+
+  const bookings = await ConsultationBooking.findAll({
+    where: { scheduled_at: { [Op.gt]: now, [Op.lte]: windowEnd }, appointment_reminder_sent_at: null },
+    include: [{ association: "user" }],
+  });
+
+  let sent = 0;
+  for (const booking of bookings) {
+    if (!booking.user) continue;
+    if (sent > 0) await sleep(reminderGapMs());
+
+    const text = `Reminder: you have an appointment with MigraTech scheduled for ${booking.scheduled_at.toLocaleString()}.`;
+    const result = await whatsappClient.sendText(booking.user.whatsapp_number, text);
+    if (result?.skipped) continue;
+
+    await logReminderMessage(booking.user_id, text);
+    booking.appointment_reminder_sent_at = new Date();
+    await booking.save();
+    sent += 1;
+  }
+  return sent;
+}
+
 /** Pure query, no side effects — user IDs whose most recent conversation activity is older
  * than the retention window and who aren't an active lead. Split out from
  * runDataRetentionCleanup so it's easy to unit test / dry-run without deleting. */
@@ -325,13 +356,15 @@ export function startScheduler(whatsappClient) {
     cron.schedule("0 9 * * *", guardedJob("payment_reminders", () => runPaymentReminders(whatsappClient))),
     cron.schedule("0 1 * * *", guardedJob("document_expiry_sweep", runDocumentExpirySweep)),
     cron.schedule("0 11 * * *", guardedJob("relocate_case_reminders", () => runRelocateCaseReminders(whatsappClient))),
+    cron.schedule("0 */4 * * *", guardedJob("appointment_reminders", () => runAppointmentReminders(whatsappClient))),
     cron.schedule("0 0 * * *", guardedJob("data_retention", runDataRetentionCleanup)),
     cron.schedule("30 * * * *", guardedJob("rate_limiter_sweep", () => runRateLimiterSweep(whatsappClient))),
   ];
   logger.info(
     "Scheduler started (document reminders every 6h, consultation reminders hourly, " +
       "payment reminders daily at 9am, document expiry sweep daily at 1am, Relocate case " +
-      "reminders daily at 11am, retention daily, rate-limiter sweep hourly)."
+      "reminders daily at 11am, appointment reminders every 4h, retention daily, " +
+      "rate-limiter sweep hourly)."
   );
   return tasks;
 }

@@ -32,6 +32,7 @@ import {
   JobListing,
   Pathway,
   Payment,
+  ServiceItem,
   Task,
   TeamMember,
   User,
@@ -507,6 +508,7 @@ export async function listConsultations(status = null) {
     preferred_time_text: b.preferred_time_text,
     contact_email: b.contact_email,
     status: b.status,
+    scheduled_at: b.scheduled_at ? b.scheduled_at.toISOString() : null,
     created_at: b.created_at.toISOString(),
   }));
 }
@@ -524,6 +526,26 @@ export async function updateConsultation(bookingId, status, actor) {
     details: { status },
   });
   return { id: booking.id, status: booking.status };
+}
+
+/** Sets the real appointment time (distinct from the client's original free-text
+ * preferred_time_text) — the only thing that makes a booking a real "appointment" anywhere
+ * in the product (Relocate's My Expert, runAppointmentReminders). Resets
+ * appointment_reminder_sent_at so a rescheduled appointment gets a fresh reminder. */
+export async function scheduleConsultation(bookingId, scheduledAt, actor) {
+  const booking = await ConsultationBooking.findByPk(bookingId);
+  if (!booking) throw new HttpError(404, "Consultation booking not found");
+  booking.scheduled_at = scheduledAt ? new Date(scheduledAt) : null;
+  booking.appointment_reminder_sent_at = null;
+  await booking.save();
+  await logAction({
+    actor,
+    action: "update_consultation",
+    targetType: "consultation_booking",
+    targetId: bookingId,
+    details: { scheduled_at: booking.scheduled_at },
+  });
+  return { id: booking.id, scheduled_at: booking.scheduled_at };
 }
 
 // --------------------------------------------------------------------------- //
@@ -772,6 +794,8 @@ export async function listApplications() {
     // Raw client self-report from Relocate onboarding ("where are you in your journey?") —
     // shown for staff context only, never used to drive `stage` itself (see manager.js).
     relocate_phase: a.relocate_phase,
+    departure_module_enabled: a.departure_module_enabled,
+    settlement_module_enabled: a.settlement_module_enabled,
     assigned_specialist: a.assigned_specialist,
     vendor: a.vendor ? { id: a.vendor.id, name: a.vendor.name } : null,
     commissions: a.commissions.map((c) => ({ id: c.id, amount: Number(c.amount), status: c.status })),
@@ -794,6 +818,80 @@ export async function updateApplicationStage(applicationId, stage, actor) {
   await application.save();
   await logAction({ actor, action: "update_application_stage", targetType: "application", targetId: applicationId, details: { stage } });
   return { id: application.id, stage: application.stage };
+}
+
+const RELOCATE_MODULES = {
+  departure: { field: "departure_module_enabled", category: "pre_departure" },
+  settlement: { field: "settlement_module_enabled", category: "settlement" },
+};
+
+/** Staff-only switch — the departure/settlement checklists only exist on a case once this
+ * flips, reflecting what the client actually purchased rather than showing every module to
+ * everyone regardless of package. Idempotent: flipping an already-enabled module is a no-op. */
+export async function enableRelocateModule(applicationId, module, actor) {
+  const config = RELOCATE_MODULES[module];
+  if (!config) throw new HttpError(400, "module must be 'departure' or 'settlement'");
+  const application = await Application.findByPk(applicationId);
+  if (!application) throw new HttpError(404, "Application not found");
+  if (application[config.field]) return { id: application.id, [config.field]: true };
+
+  application[config.field] = true;
+  await application.save();
+  await logAction({ actor, action: "enable_relocate_module", targetType: "application", targetId: applicationId, details: { module } });
+  return { id: application.id, [config.field]: true };
+}
+
+export async function listServiceItems(applicationId) {
+  const items = await ServiceItem.findAll({
+    where: { application_id: applicationId },
+    include: [{ association: "vendor" }],
+    order: [["created_at", "DESC"]],
+  });
+  return items.map((i) => ({
+    id: i.id,
+    category: i.category,
+    title: i.title,
+    status: i.status,
+    fee: i.fee != null ? Number(i.fee) : null,
+    currency: i.currency,
+    deadline: i.deadline,
+    vendor: i.vendor ? { id: i.vendor.id, name: i.vendor.name } : null,
+    created_at: i.created_at.toISOString(),
+  }));
+}
+
+export async function createServiceItem(applicationId, { category, title, fee, currency, deadline, assignedVendorId }, actor) {
+  if (!["document_coordination", "specialist_service", "application_followup", "pre_departure", "settlement"].includes(category)) {
+    throw new HttpError(400, "Invalid category.");
+  }
+  if (!title || !title.trim()) throw new HttpError(400, "Title is required.");
+  const application = await Application.findByPk(applicationId);
+  if (!application) throw new HttpError(404, "Application not found");
+
+  const item = await ServiceItem.create({
+    application_id: applicationId,
+    category,
+    title: title.trim(),
+    fee: fee || null,
+    currency: fee ? currency || "NGN" : null,
+    deadline: deadline || null,
+    assigned_vendor_id: assignedVendorId || null,
+    requested_by: "staff",
+  });
+  await logAction({ actor, action: "create_service_item", targetType: "service_item", targetId: item.id, details: { application_id: applicationId, category, title } });
+  return { id: item.id };
+}
+
+export async function updateServiceItemStatus(itemId, status, actor) {
+  if (!["requested", "in_progress", "done", "cancelled"].includes(status)) {
+    throw new HttpError(400, "Invalid status.");
+  }
+  const item = await ServiceItem.findByPk(itemId);
+  if (!item) throw new HttpError(404, "Service item not found");
+  item.status = status;
+  await item.save();
+  await logAction({ actor, action: "update_service_item_status", targetType: "service_item", targetId: itemId, details: { status } });
+  return { id: item.id, status: item.status };
 }
 
 // --------------------------------------------------------------------------- //

@@ -396,6 +396,15 @@ export const Application = sequelize.define(
     relocate_phase: { type: DataTypes.STRING(50), allowNull: true },
     relocate_started_at: { type: DataTypes.DATE, allowNull: true },
     last_relocate_reminder_sent_at: { type: DataTypes.DATE, allowNull: true },
+    // Set once the client confirms MigraTech's Relocate service terms during onboarding
+    // (conversation/manager.js's relocate_consent state) — never assumed from general
+    // WhatsApp consent.
+    relocate_consent_given_at: { type: DataTypes.DATE, allowNull: true },
+    // Staff-only switches (admin's enableRelocateModule) — the departure/settlement
+    // checklists only exist once staff flip these, reflecting what the client actually
+    // purchased rather than showing every module to everyone regardless of package.
+    departure_module_enabled: { type: DataTypes.BOOLEAN, defaultValue: false },
+    settlement_module_enabled: { type: DataTypes.BOOLEAN, defaultValue: false },
     created_at: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
     updated_at: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
   },
@@ -429,6 +438,12 @@ export const ConsultationBooking = sequelize.define(
     contact_email: { type: DataTypes.STRING(255), allowNull: true },
     status: { type: DataTypes.STRING(30), defaultValue: "requested" },
     staff_reminder_sent_at: { type: DataTypes.DATE, allowNull: true },
+    // Real staff-set appointment time (admin's updateConsultation) — distinct from
+    // preferred_time_text, which stays the client's original free-text ask. Only once this
+    // is set does a booking count as a real "appointment" anywhere in the product (Relocate's
+    // My Expert, runAppointmentReminders).
+    scheduled_at: { type: DataTypes.DATE, allowNull: true },
+    appointment_reminder_sent_at: { type: DataTypes.DATE, allowNull: true },
     created_at: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
     updated_at: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
   },
@@ -760,6 +775,37 @@ export const Commission = sequelize.define(
   { tableName: "commissions", timestamps: false }
 );
 
+// A discrete, trackable item on a Relocate case -- the one real primitive behind several
+// product-spec bullets that otherwise have no structured data: a specialist service order
+// with a real fee/deadline, a document-coordination request (translation/credential
+// assessment/certification), an application follow-up, or one line in the now-stateful
+// departure/settlement checklists. Deliberately one model instead of four or five narrow
+// ones, since they're all the same real shape: a named thing on a case with a status.
+export const ServiceItem = sequelize.define(
+  "ServiceItem",
+  {
+    ...uuidPk,
+    application_id: { type: DataTypes.UUID, allowNull: false },
+    /** document_coordination | specialist_service | application_followup | pre_departure | settlement */
+    category: { type: DataTypes.STRING(40), allowNull: false },
+    title: { type: DataTypes.STRING(255), allowNull: false },
+    description: { type: DataTypes.TEXT, allowNull: true },
+    /** requested | in_progress | done | cancelled */
+    status: { type: DataTypes.STRING(20), defaultValue: "requested" },
+    // Real client-facing charge for a specialist_service item -- distinct from Commission,
+    // which is MigraTech's internal payout to the vendor and never shown to the client.
+    fee: { type: DataTypes.DECIMAL(12, 2), allowNull: true },
+    currency: { type: DataTypes.STRING(10), allowNull: true },
+    deadline: { type: DataTypes.DATEONLY, allowNull: true },
+    assigned_vendor_id: { type: DataTypes.UUID, allowNull: true },
+    /** client | staff -- who raised this item */
+    requested_by: { type: DataTypes.STRING(20), defaultValue: "client" },
+    created_at: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
+    updated_at: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
+  },
+  { tableName: "service_items", timestamps: false, hooks: { beforeUpdate: touchUpdatedAt } }
+);
+
 // --------------------------------------------------------------------------- //
 // Associations
 // --------------------------------------------------------------------------- //
@@ -824,6 +870,10 @@ Application.hasMany(Commission, { foreignKey: "application_id", as: "commissions
 Commission.belongsTo(Application, { foreignKey: "application_id", as: "application" });
 Vendor.hasMany(Commission, { foreignKey: "vendor_id", as: "commissions" });
 Commission.belongsTo(Vendor, { foreignKey: "vendor_id", as: "vendor" });
+
+Application.hasMany(ServiceItem, { foreignKey: "application_id", as: "service_items", onDelete: "CASCADE", hooks: true });
+ServiceItem.belongsTo(Application, { foreignKey: "application_id", as: "application" });
+ServiceItem.belongsTo(Vendor, { foreignKey: "assigned_vendor_id", as: "vendor" });
 
 export async function syncModels() {
   // Deliberately NOT { alter: true } — confirmed on 2026-08-22 that it silently emptied

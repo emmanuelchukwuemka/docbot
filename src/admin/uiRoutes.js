@@ -279,6 +279,13 @@ router.post("/consultations/:id/update", async (req, res) => {
   });
 });
 
+router.post("/consultations/:id/schedule", async (req, res) => {
+  await withError(req, res, "/admin/consultations", async () => {
+    await svc.scheduleConsultation(req.params.id, req.body.scheduled_at || null, req.adminUser.username);
+    redirect(res, "/admin/consultations", "Appointment time set.");
+  });
+});
+
 // --------------------------------------------------------------------------- //
 // Knowledge base
 // --------------------------------------------------------------------------- //
@@ -607,13 +614,16 @@ router.post("/users/:id/delete", requireAdminRolePage("/admin/users"), async (re
 router.get("/applications", async (req, res) => {
   const applications = await svc.listApplications();
   const messagesByApplication = {};
+  const serviceItemsByApplication = {};
   for (const a of applications) {
     if (a.vendor) messagesByApplication[a.id] = await svc.getCaseMessagesForStaff(a.id);
+    serviceItemsByApplication[a.id] = await svc.listServiceItems(a.id);
   }
   await render(req, res, "applications", "applications", {
     applications,
     approvedVendors: await svc.listApprovedVendorsForAssignment(),
     messagesByApplication,
+    serviceItemsByApplication,
     stageOptions: RELOCATE_STAGE_ORDER.map((s) => ({ value: s, label: RELOCATE_STAGE_LABELS[s] })),
   });
 });
@@ -636,6 +646,34 @@ router.post("/applications/:id/stage", async (req, res) => {
   await withError(req, res, "/admin/applications", async () => {
     await svc.updateApplicationStage(req.params.id, req.body.stage, req.adminUser.username);
     redirect(res, "/admin/applications", "Stage updated.");
+  });
+});
+
+router.post("/applications/:id/enable-module", async (req, res) => {
+  await withError(req, res, "/admin/applications", async () => {
+    await svc.enableRelocateModule(req.params.id, req.body.module, req.adminUser.username);
+    redirect(res, "/admin/applications", "Module enabled.");
+  });
+});
+
+router.post("/applications/:id/service-items", async (req, res) => {
+  await withError(req, res, "/admin/applications", async () => {
+    await svc.createServiceItem(req.params.id, {
+      category: req.body.category,
+      title: req.body.title,
+      fee: req.body.fee || null,
+      currency: req.body.currency || null,
+      deadline: req.body.deadline || null,
+      assignedVendorId: req.body.assigned_vendor_id || null,
+    }, req.adminUser.username);
+    redirect(res, "/admin/applications", "Service item added.");
+  });
+});
+
+router.post("/service-items/:id/status", async (req, res) => {
+  await withError(req, res, "/admin/applications", async () => {
+    await svc.updateServiceItemStatus(req.params.id, req.body.status, req.adminUser.username);
+    redirect(res, "/admin/applications", "Service item updated.");
   });
 });
 

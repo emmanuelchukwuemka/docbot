@@ -7,6 +7,7 @@
 // relevant fields are saved and the user is fast-forwarded past questions already answered.
 
 import { randomUUID } from "node:crypto";
+import { Op } from "sequelize";
 import { settings } from "../config.js";
 import { logger } from "../logger.js";
 import { logAction } from "../admin/audit.js";
@@ -17,6 +18,7 @@ import * as flows from "./flows.js";
 import { ESCALATION_MESSAGE, FRAUD_WARNING_MESSAGE, detectEscalationReason } from "./escalation.js";
 import {
   Application,
+  AuditLog,
   CaseMessage,
   ConsultationBooking,
   Conversation,
@@ -28,6 +30,7 @@ import {
   MigrationProfile,
   Pathway,
   Payment,
+  ServiceItem,
   User,
   Vendor,
 } from "../db/models.js";
@@ -74,6 +77,27 @@ export const RELOCATE_STAGE_LABELS = {
   pre_departure: "Pre-Departure Preparation",
   settlement: "Arrival & Settlement",
 };
+
+// Default ServiceItem rows seeded the first time staff enable the respective module for a
+// case (admin's enableRelocateModule) — honest, generic, pathway-agnostic categories, the
+// same content originally written as static text, now persisted and individually
+// completable. Never destination-specific — no real local-service data exists to back that.
+const DEPARTURE_CHECKLIST_DEFAULTS = [
+  "Flight booked",
+  "Passport validity checked",
+  "Travel insurance arranged",
+  "Bank notified of travel",
+  "Document copies prepared",
+  "Family/contacts briefed on itinerary",
+];
+const SETTLEMENT_CHECKLIST_DEFAULTS = [
+  "Local registration/residency formalities",
+  "Bank account opened",
+  "Local SIM/phone plan",
+  "Housing arranged",
+  "School/healthcare registration (if applicable)",
+  "Joined a local community/diaspora group",
+];
 
 const FRAUD_EDUCATION_TIP =
   "🛡️ Reminder: legitimate migration never requires paying government fees into a " +
@@ -218,6 +242,7 @@ export class ConversationManager {
       navigate_assessment: this._handleNavigateAssessment,
       navigate_pathway_selection: this._handleNavigatePathwaySelection,
       navigate_menu: this._handleNavigateMenu,
+      relocate_consent: this._handleRelocateConsent,
       relocate_phase_question: this._handleRelocatePhaseQuestion,
       relocate_pathway_confirm: this._handleRelocatePathwayConfirm,
       relocate_menu: this._handleRelocateMenu,
@@ -1478,6 +1503,33 @@ export class ConversationManager {
     );
 
     conversation.context = { ...conversation.context, flow: "relocate", relocate_pending_action: pendingAction };
+    conversation.state = "relocate_consent";
+    await conversation.save();
+    await this._send(
+      user, conversation,
+      "Before we set up your case — do you agree to MigraTech's Relocate service terms? " +
+        "https://migra.ng/terms",
+      ["Yes, I agree", "No"]
+    );
+  }
+
+  async _handleRelocateConsent(user, conversation, text, interactiveId) {
+    const idx = resolveSelection(text, interactiveId, ["Yes, I agree", "No"]);
+    if (idx !== 0) {
+      await this._send(
+        user, conversation,
+        "No problem — we can't set up your Relocate case without agreeing to the service " +
+          "terms first, but a MigraTech specialist will follow up to answer any questions. " +
+          'Reply "Yes, I agree" whenever you\'re ready to continue.'
+      );
+      await this._escalate(conversation, "Relocate subscriber hasn't agreed to service terms yet — follow up.");
+      return;
+    }
+
+    const application = await this._getOrCreateApplication(user);
+    application.relocate_consent_given_at = new Date();
+    await application.save();
+
     conversation.state = "relocate_phase_question";
     await conversation.save();
     await this._send(
@@ -1580,6 +1632,45 @@ export class ConversationManager {
         "Thanks for flagging that — a MigraTech specialist will review your case and update your pathway directly."
       );
       await this._escalate(conversation, "Relocate subscriber says their pathway has changed — needs specialist review/update.");
+      await this._enterRelocateMenu(user, conversation);
+      return;
+    }
+
+    await this._routeRelocateFirstTask(user, conversation);
+  }
+
+  /** Spec step 3 ("what should we help you with first?") — leads with the single most urgent
+   * real thing on the case instead of dropping the client into a generic menu, using only
+   * real signals (the document checklist, vendor assignment, the client's own phase answer,
+   * and staff-controlled module-enable flags). Falls through to the ordinary menu when
+   * nothing specific is more urgent than just looking around. */
+  async _routeRelocateFirstTask(user, conversation) {
+    const application = await this._getOrCreateApplication(user);
+    const pathway = application.pathway_id
+      ? await Pathway.findByPk(application.pathway_id, { include: [{ model: Country, as: "country" }] })
+      : null;
+    const documents = await Document.findAll({ where: { user_id: user.id } });
+    const urgentItem = findRelocateUrgentItem(application, documents, pathway);
+
+    if (urgentItem) {
+      await this._send(user, conversation, "Let's start with your documents — that's the most pressing thing on your case right now.");
+      await this._handleRelocateDocumentsRequest(user, conversation);
+      return;
+    }
+    if (application.relocate_phase === "need_expert" && !application.vendor_id) {
+      await this._send(user, conversation, "Let's get you connected with a specialist first.");
+      await this._handleRelocateExpertMenu(user, conversation);
+      return;
+    }
+    if (["approved_or_visa", "preparing_to_travel"].includes(application.relocate_phase) && application.departure_module_enabled) {
+      await this._send(user, conversation, "Since you're getting ready to travel, let's start with your departure preparation.");
+      await this._handleRelocateDeparturePrep(user, conversation);
+      return;
+    }
+    if (application.relocate_phase === "arrived_need_settlement" && application.settlement_module_enabled) {
+      await this._send(user, conversation, "Welcome! Let's get you settled in — here's where things stand.");
+      await this._handleRelocateSettlementGuidance(user, conversation);
+      return;
     }
 
     await this._enterRelocateMenu(user, conversation);
@@ -1641,6 +1732,21 @@ export class ConversationManager {
 
     const idx = resolveSelection(text, interactiveId, flows.RELOCATE_MENU_OPTIONS);
     if (idx === null) {
+      // Specific-action matchers run BEFORE the generic keyword router below — "flight
+      // booked" contains "flight", which would otherwise match the Prepare for Departure
+      // keyword route first and just re-show the checklist instead of ever marking anything
+      // done (found via live verification, not a hypothetical).
+      if (/\b(i have|i've got|already have|have my|have the|got my|ready)\b/i.test(text) && await this._tryMarkRelocateDocumentDeclared(user, conversation, text)) {
+        return;
+      }
+      if (
+        /\b(done|booked|arranged|sorted|opened|complete|completed|finished)\b/i.test(text) &&
+        (await this._tryMarkServiceItemDone(user, conversation, text, "pre_departure") ||
+          (await this._tryMarkServiceItemDone(user, conversation, text, "settlement")))
+      ) {
+        return;
+      }
+
       const lowered = text.toLowerCase();
       if (/case status|where (is|am) i|my case/.test(lowered)) {
         await this._handleRelocateMyCase(user, conversation);
@@ -1672,9 +1778,6 @@ export class ConversationManager {
       }
       if (/support|complain/.test(lowered)) {
         await this._offerConsultation(user, conversation);
-        return;
-      }
-      if (/\b(i have|i've got|already have|have my|have the|got my|ready)\b/i.test(text) && await this._tryMarkRelocateDocumentDeclared(user, conversation, text)) {
         return;
       }
       conversation.fallback_count += 1;
@@ -1807,8 +1910,36 @@ export class ConversationManager {
     }
 
     const lines = [`Your Expert: ${vendor.business_name || vendor.name}`, ""];
-    if (vendor.services_offered) lines.push(`Services: ${vendor.services_offered}`);
     if (vendor.countries_covered) lines.push(`Covers: ${vendor.countries_covered}`);
+
+    // Real structured service deliverables when they exist; the vendor's general description
+    // only as a fallback when no specific items have been set up yet (same graceful
+    // degradation as the rest of this section).
+    const deliverables = await ServiceItem.findAll({
+      where: { application_id: application.id, category: "specialist_service" },
+      order: [["created_at", "ASC"]],
+    });
+    if (deliverables.length) {
+      lines.push("", "Service deliverables:");
+      const STATUS_EMOJI = { requested: "⬜", in_progress: "🟡", done: "✅", cancelled: "❌" };
+      for (const item of deliverables) {
+        let line = `${STATUS_EMOJI[item.status] || "⬜"} ${item.title}`;
+        if (item.fee) line += ` (${item.currency || "NGN"} ${Number(item.fee).toLocaleString()})`;
+        if (item.deadline) line += ` — due ${item.deadline}`;
+        lines.push(line);
+      }
+    } else if (vendor.services_offered) {
+      lines.push("", `Services: ${vendor.services_offered}`);
+    }
+
+    const upcoming = await ConsultationBooking.findAll({
+      where: { user_id: user.id, scheduled_at: { [Op.gt]: new Date() } },
+      order: [["scheduled_at", "ASC"]],
+    });
+    if (upcoming.length) {
+      lines.push("", "Upcoming appointments:");
+      for (const booking of upcoming) lines.push(`• ${booking.scheduled_at.toLocaleString()}`);
+    }
 
     await markCaseMessagesRead(application.id, "user");
     const messages = await listCaseMessages(application.id);
@@ -1852,59 +1983,106 @@ export class ConversationManager {
   }
 
   /** Deliberately does not surface Commission data (MigraTech's internal payout to the
-   * assigned vendor) — that's not the client's business, only their own real Payment rows. */
+   * assigned vendor) — that's not the client's business. Specialist charges are a distinct,
+   * real client-facing concept (ServiceItem.fee), shown separately from MIGRA's own fees. */
   async _handleRelocateMyPayments(user, conversation) {
     const payments = await Payment.findAll({ where: { user_id: user.id }, order: [["created_at", "DESC"]] });
+    const lines = ["Your Payments", ""];
     if (!payments.length) {
-      await this._send(user, conversation, "No payments on file yet.");
+      lines.push("No MIGRA service fees on file yet.");
     } else {
-      const lines = ["Your Payments", ""];
       for (const p of payments) {
         const date = (p.paid_at || p.created_at).toISOString().slice(0, 10);
-        lines.push(`${date} — ${p.purpose}: ${p.currency} ${Number(p.amount).toLocaleString()} (${p.status})`);
+        lines.push(`${date} — ${p.purpose}: ${p.currency} ${Number(p.amount).toLocaleString()} (${p.status}, ref: ${p.reference})`);
       }
+    }
+
+    const application = await this._getOrCreateApplication(user);
+    const specialistCharges = await ServiceItem.findAll({
+      where: { application_id: application.id, category: "specialist_service", fee: { [Op.ne]: null } },
+      order: [["created_at", "DESC"]],
+    });
+    if (specialistCharges.length) {
+      lines.push("", "Specialist charges (arranged with your specialist):");
+      for (const item of specialistCharges) {
+        lines.push(`• ${item.title}: ${item.currency || "NGN"} ${Number(item.fee).toLocaleString()} (${item.status})`);
+      }
+    } else {
       lines.push(
         "",
         "Any additional fees for a specific verified professional's services are arranged " +
           'directly with your specialist — see "My Expert" for details.'
       );
-      await this._send(user, conversation, lines.join("\n"));
     }
+    await this._send(user, conversation, lines.join("\n"));
     await this._sendRelocateMenu(user, conversation);
   }
 
-  /** Static, hand-authored, pathway-agnostic copy — deliberately not country-specific (the
-   * knowledge base has no real local-service/travel data to draw on), explicitly framed as
-   * general guidance rather than fabricated destination facts. */
   async _handleRelocateDeparturePrep(user, conversation) {
-    await this._send(
-      user, conversation,
-      "Prepare for Departure\n\n" +
-        "A general checklist to start working through:\n" +
-        "• Confirm your flight booking and check passport validity against your travel date\n" +
-        "• Notify your bank of international travel and sort out local currency/cards\n" +
-        "• Arrange travel insurance\n" +
-        "• Keep copies (physical and digital) of your passport, visa, and key documents, stored separately from the originals\n" +
-        "• Share your travel itinerary with family\n\n" +
-        "This is general guidance — a MigraTech specialist will tailor this to your specific pathway and destination."
+    await this._handleRelocateServiceChecklist(
+      user, conversation, "pre_departure", "Prepare for Departure", DEPARTURE_CHECKLIST_DEFAULTS
     );
-    await this._sendRelocateMenu(user, conversation);
   }
 
   async _handleRelocateSettlementGuidance(user, conversation) {
-    await this._send(
-      user, conversation,
-      "Settle at My Destination\n\n" +
-        "General areas to plan for once you arrive:\n" +
-        "• Local registration/residency formalities\n" +
-        "• Opening a local bank account\n" +
-        "• A local SIM/phone plan\n" +
-        "• Temporary and longer-term housing\n" +
-        "• School or healthcare registration, if relevant to your family\n" +
-        "• Local community or diaspora groups\n\n" +
-        "This is general guidance — a MigraTech specialist will provide referrals specific to your destination."
+    await this._handleRelocateServiceChecklist(
+      user, conversation, "settlement", "Settle at My Destination", SETTLEMENT_CHECKLIST_DEFAULTS
     );
+  }
+
+  /** Shared renderer for the two staff-gated, stateful checklists. Only shown once staff have
+   * enabled that module for this specific case (admin's enableRelocateModule) — reflecting
+   * what was actually purchased rather than showing every module to everyone regardless of
+   * package. Real ServiceItem rows, not static text — individually completable. */
+  async _handleRelocateServiceChecklist(user, conversation, category, title, defaultTitles) {
+    const application = await this._getOrCreateApplication(user);
+    const enabled = category === "pre_departure" ? application.departure_module_enabled : application.settlement_module_enabled;
+    if (!enabled) {
+      await this._send(
+        user, conversation,
+        "This isn't part of your current Relocate package yet — ask your specialist or MigraTech staff about adding it."
+      );
+      await this._escalate(conversation, `Relocate subscriber asked about "${title}" but that module isn't enabled for their case yet.`);
+      await this._sendRelocateMenu(user, conversation);
+      return;
+    }
+
+    const existingCount = await ServiceItem.count({ where: { application_id: application.id, category } });
+    if (existingCount === 0) {
+      for (const itemTitle of defaultTitles) {
+        await ServiceItem.create({ application_id: application.id, category, title: itemTitle, requested_by: "staff" });
+      }
+    }
+
+    const items = await ServiceItem.findAll({ where: { application_id: application.id, category }, order: [["created_at", "ASC"]] });
+    const STATUS_EMOJI = { requested: "⬜", in_progress: "🟡", done: "✅", cancelled: "❌" };
+    const lines = [title, ""];
+    for (const item of items) lines.push(`${STATUS_EMOJI[item.status] || "⬜"} ${item.title}`);
+    lines.push("", 'Reply with an item name and "done" (e.g. "flight booked") to check it off.');
+    await this._send(user, conversation, lines.join("\n"));
     await this._sendRelocateMenu(user, conversation);
+  }
+
+  /** Mirrors _tryMarkRelocateDocumentDeclared's substring-match pattern — "I've booked my
+   * flight" marks the matching ServiceItem row done. Returns false (caller falls through) if
+   * nothing matched. */
+  async _tryMarkServiceItemDone(user, conversation, text, category) {
+    const application = await Application.findOne({ where: { user_id: user.id }, order: [["created_at", "DESC"]] });
+    if (!application) return false;
+    const items = await ServiceItem.findAll({
+      where: { application_id: application.id, category, status: { [Op.notIn]: ["done", "cancelled"] } },
+    });
+    if (!items.length) return false;
+
+    const lowered = text.toLowerCase();
+    const matched = items.find((item) => lowered.includes(item.title.toLowerCase()));
+    if (!matched) return false;
+
+    matched.status = "done";
+    await matched.save();
+    await this._send(user, conversation, `Noted — marked "${matched.title}" as done.`);
+    await this._sendRelocateMenu(user, conversation);
+    return true;
   }
 
   async _handleDocumentsRequest(user, conversation) {
@@ -1974,8 +2152,58 @@ export class ConversationManager {
       }
     });
 
+    const serviceItems = await ServiceItem.findAll({ where: { application_id: application.id } });
+    const upcomingDeadlines = serviceItems
+      .filter((s) => s.deadline && !["done", "cancelled"].includes(s.status))
+      .sort((a, b) => new Date(a.deadline) - new Date(b.deadline));
+    if (upcomingDeadlines.length) {
+      lines.push("", "Upcoming deadlines:");
+      for (const item of upcomingDeadlines) lines.push(`• ${item.title} — due ${item.deadline}`);
+    }
+
+    const recentUpdates = await this._recentCaseActivity(application, documents, serviceItems);
+    if (recentUpdates.length) {
+      lines.push("", "Recent updates:");
+      for (const line of recentUpdates) lines.push(`• ${line}`);
+    }
+
     await this._send(user, conversation, lines.join("\n"));
     return true;
+  }
+
+  /** "Recorded updates" for My Application — reuses the AuditLog table every staff action
+   * already writes to (assign_vendor, review_document, update_application_stage, etc.)
+   * instead of building a separate activity-log system. */
+  async _recentCaseActivity(application, documents, serviceItems) {
+    const consultations = await ConsultationBooking.findAll({ where: { user_id: application.user_id } });
+    const targetIds = [
+      application.id,
+      ...documents.map((d) => d.id),
+      ...serviceItems.map((s) => s.id),
+      ...consultations.map((c) => c.id),
+    ];
+    if (!targetIds.length) return [];
+
+    const entries = await AuditLog.findAll({
+      where: { target_id: { [Op.in]: targetIds } },
+      order: [["created_at", "DESC"]],
+      limit: 8,
+    });
+    const ACTION_LABELS = {
+      assign_vendor: "A specialist was assigned to your case",
+      unassign_vendor: "Your case's specialist assignment was removed",
+      review_document: "A document was reviewed",
+      update_application_stage: "Your case stage was updated",
+      update_consultation: "Your consultation request was updated",
+      enable_relocate_module: "A new part of your service was unlocked",
+      create_service_item: "A new item was added to your case",
+      update_service_item_status: "An item on your case was updated",
+    };
+    return entries.map((e) => {
+      const label = ACTION_LABELS[e.action] || e.action.replaceAll("_", " ");
+      const date = e.created_at.toISOString().slice(0, 10);
+      return `${date} — ${label}`;
+    });
   }
 
   async _tryShortcutFromFreeText(user, conversation, text) {

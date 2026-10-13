@@ -67,6 +67,10 @@ router.patch(
   "/consultations/:id",
   handle((req) => svc.updateConsultation(req.params.id, req.body.status, req.adminUser.username))
 );
+router.patch(
+  "/consultations/:id/schedule",
+  handle((req) => svc.scheduleConsultation(req.params.id, req.body.scheduled_at || null, req.adminUser.username))
+);
 
 router.get("/knowledge/countries", handle(() => svc.listCountries()));
 router.post(
