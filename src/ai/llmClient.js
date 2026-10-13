@@ -211,6 +211,58 @@ export class LLMClient {
     }
   }
 
+  /** Real document-content extraction via vision — reads the actual uploaded image and returns
+   * whatever the model genuinely reports, never invented. Only handles image mimetypes
+   * (standard chat-completions vision doesn't accept raw PDF bytes the same way); callers
+   * should skip non-image uploads entirely rather than call this. Returns null on any
+   * failure/not-configured/rate-limited/non-image case — same fail-open pattern as every
+   * other method here, since a failed extraction should never block the actual upload. */
+  async extractDocumentFields(mimeType, buffer) {
+    if (!this._client) return null;
+    if (!/^image\/(jpeg|jpg|png|webp)$/i.test(mimeType || "")) return null;
+    if (!aiRateLimiter.consume()) {
+      logger.warn("AI rate limit hit — skipping document extraction for this upload.");
+      return null;
+    }
+
+    try {
+      const response = await this._client.chat.completions.create({
+        model: settings.openaiModel,
+        max_tokens: 200,
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text:
+                  "This image was uploaded as a migration-related document. Looking only at " +
+                  "what's actually visible, respond with JSON: " +
+                  '{"document_type_guess": string or null, "name": string or null, ' +
+                  '"date": string or null, "legible": true|false}. Only report what you can ' +
+                  "actually read — use null for anything unclear or not visible. Don't guess " +
+                  "or infer beyond what's on the page.",
+              },
+              { type: "image_url", image_url: { url: `data:${mimeType};base64,${buffer.toString("base64")}` } },
+            ],
+          },
+        ],
+      });
+      const data = JSON.parse(response.choices[0]?.message?.content ?? "{}");
+      return {
+        document_type_guess: data.document_type_guess ?? null,
+        name: data.name ?? null,
+        date: data.date ?? null,
+        legible: data.legible === true,
+      };
+    } catch (err) {
+      logger.error({ err }, "LLM document extraction failed");
+      return null;
+    }
+  }
+
   /** General open-ended conversational reply — used when the structured flow has no specific
    * action for what the user said (e.g. a bare "no" that doesn't match any menu option, or
    * any other free text outside what a parser/menu expects). Not grounded in KB snippets like

@@ -214,6 +214,20 @@ export const MigrationProfile = sequelize.define(
     navigate_started_at: { type: DataTypes.DATE, allowNull: true },
     navigate_profile_confirmed: { type: DataTypes.BOOLEAN, allowNull: true },
 
+    // --- Navigate gap-closing round 2 (2026-09-28) — the remaining adaptive-assessment
+    // fields from the spec's table that weren't covered by existing/reused columns. ---
+    academic_results: { type: DataTypes.STRING(255), allowNull: true },
+    business_history: { type: DataTypes.TEXT, allowNull: true },
+    business_ownership: { type: DataTypes.STRING(120), allowNull: true },
+    // Distinct from family_abroad_* (which describes family already abroad generally) — a
+    // sponsor is specifically the person petitioning for this applicant, a narrower concept.
+    sponsor_status: { type: DataTypes.STRING(120), allowNull: true },
+    destination_specific_registration: { type: DataTypes.STRING(255), allowNull: true },
+    // Fake job/admission offers are an explicitly named fraud pattern (see escalation.js's
+    // FRAUD_REPORT_KEYWORDS) — a "no"/"not sure" answer here silently flags staff, same
+    // pattern as the asylum-reason trigger, not a hard stop.
+    offer_legitimacy_confirmed: { type: DataTypes.BOOLEAN, allowNull: true },
+
     updated_at: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
   },
   { tableName: "migration_profiles", timestamps: false, hooks: { beforeUpdate: touchUpdatedAt } }
@@ -304,6 +318,10 @@ export const Document = sequelize.define(
     verification_status: { type: DataTypes.STRING(30), defaultValue: "unreviewed" },
     verified_by: { type: DataTypes.STRING(255), allowNull: true },
     uploaded_at: { type: DataTypes.DATE, allowNull: true },
+    // Real output from LLMClient.extractDocumentFields (vision) — null until a real
+    // extraction call succeeds; never backfilled with invented content. See
+    // conversation/manager.js's handleDocumentUpload for where this gets set.
+    extracted_fields: jsonColumn("extracted_fields", null),
   },
   { tableName: "documents", timestamps: false }
 );
@@ -377,6 +395,10 @@ export const EligibilityAssessment = sequelize.define(
     pathway_id: { type: DataTypes.UUID, allowNull: true },
     result: { type: DataTypes.STRING(30), allowNull: false },
     reasons: jsonColumn("reasons", []),
+    // Pathway.version already existed and was already being set per-pathway -- just never
+    // captured onto the assessment record that references it, so there was no way to tell
+    // which version of a pathway's criteria actually produced a given result.
+    pathway_version: { type: DataTypes.STRING(20), allowNull: true },
     created_at: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
   },
   { tableName: "eligibility_assessments", timestamps: false }

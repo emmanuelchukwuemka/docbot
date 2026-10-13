@@ -197,6 +197,7 @@ export class ConversationManager {
       discover_intake: this._handleDiscoverIntake,
       navigate_profile_update: this._handleNavigateProfileUpdate,
       navigate_assessment: this._handleNavigateAssessment,
+      navigate_pathway_selection: this._handleNavigatePathwaySelection,
       navigate_menu: this._handleNavigateMenu,
       assessment_menu: this._handleAssessmentMenu,
       faq_waiting_question: this._handleFaqWaitingQuestion,
@@ -230,7 +231,11 @@ export class ConversationManager {
     const filePath = storage.save(user.id, filename, content);
 
     const documentType = await this._nextMissingDocumentType(user, conversation);
-    let document = await Document.findOne({ where: { user_id: user.id, document_type: documentType, status: "missing" } });
+    // Matches either an untouched "missing" row or one already marked "declared" (they told
+    // us they had it, this upload is almost certainly that one) -- fetching all candidates
+    // for this type and picking in JS avoids needing a second Sequelize Op import here.
+    const candidates = await Document.findAll({ where: { user_id: user.id, document_type: documentType } });
+    let document = candidates.find((d) => d.status === "declared") || candidates.find((d) => d.status === "missing");
     if (!document) document = Document.build({ user_id: user.id, document_type: documentType });
     document.file_location = filePath;
     document.original_filename = filename;
@@ -239,11 +244,28 @@ export class ConversationManager {
     document.status = "uploaded";
     document.verification_status = "unreviewed";
     document.uploaded_at = new Date();
+
+    // Real extraction only — reads the actual uploaded image via vision, never invents
+    // content. Wrapped so a vision failure/rate-limit/non-image file never blocks the upload
+    // itself; extracted_fields just stays null in that case, same as before this existed.
+    let extractionNote = "";
+    try {
+      const extracted = await this.llmClient.extractDocumentFields(mimeType, content);
+      if (extracted) {
+        document.extracted_fields = extracted;
+        if (extracted.legible && extracted.document_type_guess) {
+          extractionNote = ` Looks like: ${extracted.document_type_guess}.`;
+        }
+      }
+    } catch (err) {
+      logger.error({ err }, "Document extraction failed (upload itself still succeeded)");
+    }
+
     await document.save();
 
     await this._send(
       user, conversation,
-      `Got it — I've received your file and logged it as "${documentType}". ` +
+      `Got it — I've received your file and logged it as "${documentType}".${extractionNote} ` +
         "A MigraTech specialist will review it."
     );
     const profile = await this._getOrCreateProfile(user);
@@ -251,13 +273,21 @@ export class ConversationManager {
   }
 
   async _nextMissingDocumentType(user, conversation) {
-    const pathwayId = conversation.context.pathway_id;
+    // application.pathway_id is the authoritative source once explicit pathway selection
+    // exists (Navigate's _buildPathwayShortlist/_handleNavigatePathwaySelection only ever set
+    // that, never conversation.context.pathway_id) — conversation.context.pathway_id is kept
+    // as a fallback for the older Discover-flow path, which still sets it.
+    const application = await Application.findOne({ where: { user_id: user.id }, order: [["created_at", "DESC"]] });
+    const pathwayId = application?.pathway_id || conversation.context.pathway_id;
     const pathway = pathwayId ? await Pathway.findByPk(pathwayId, { include: [{ model: Country, as: "country" }] }) : null;
     if (!pathway) return "Uploaded document";
     const documents = await Document.findAll({ where: { user_id: user.id } });
     const checklist = generateChecklist(pathway, documents);
-    const missing = checklist.items.find((item) => item.status === "missing");
-    return missing ? missing.name : "Additional document";
+    // Prefer a "declared" item (they just told us they have it) over an untouched "missing"
+    // one — a file arriving right after "I have my passport" is almost certainly that
+    // document, not some unrelated still-missing item.
+    const target = checklist.items.find((item) => item.status === "declared") || checklist.items.find((item) => item.status === "missing");
+    return target ? target.name : "Additional document";
   }
 
   // ------------------------------------------------------------------ //
@@ -760,6 +790,7 @@ export class ConversationManager {
       pathway_id: pathway.id,
       result: result.result,
       reasons: result.reasons,
+      pathway_version: pathway.version,
     });
 
     const lines = ["Your MIGRA Discovery Profile is Ready 🎉", "", result.message];
@@ -977,6 +1008,13 @@ export class ConversationManager {
     conversation.fallback_count = 0;
     await conversation.save();
 
+    if (q.field_name === "offer_legitimacy_confirmed" && value === false) {
+      // Fake job/admission offers are an explicitly named fraud pattern elsewhere in this
+      // codebase (escalation.js's FRAUD_REPORT_KEYWORDS) — same silent staff-flag pattern as
+      // the asylum-reason trigger: the bot keeps going, staff just get visibility.
+      await this._escalate(conversation, "User has not independently verified their stated job/admission offer — possible fraud risk, needs review.");
+    }
+
     await this._askNextNavigateQuestion(user, conversation, profile);
   }
 
@@ -1060,8 +1098,25 @@ export class ConversationManager {
 
     for (const { pathway, assessment } of scored) {
       await EligibilityAssessment.create({
-        user_id: user.id, pathway_id: pathway.id, result: assessment.result, reasons: assessment.reasons,
+        user_id: user.id, pathway_id: pathway.id, result: assessment.result,
+        reasons: assessment.reasons, pathway_version: pathway.version,
       });
+    }
+    await this._upsertLead(user, profile, null);
+
+    if (scored.length > 1) {
+      // Genuine choice exists — ask rather than silently picking for them (the spec's own
+      // "ask the client to select a preferred pathway or request a comparison"). A single-
+      // result shortlist skips this (nothing to meaningfully choose between).
+      conversation.context = { ...conversation.context, shortlist_pathway_ids: scored.map((s) => s.pathway.id) };
+      conversation.state = "navigate_pathway_selection";
+      await conversation.save();
+      await this._send(
+        user, conversation,
+        `Which of these would you like to move forward with? Reply with a number (1-${scored.length}), ` +
+          'or reply "compare" and two numbers (e.g. "compare 1 3") for a side-by-side.'
+      );
+      return;
     }
 
     const application = await this._getOrCreateApplication(user);
@@ -1070,8 +1125,58 @@ export class ConversationManager {
       application.stage = "pathway_selection";
     }
     await application.save();
-    await this._upsertLead(user, profile, null);
 
+    await this._enterNavigateMenu(user, conversation);
+  }
+
+  /** Handles the reply to _buildPathwayShortlist's "which one?" prompt — a plain number picks
+   * one (sets Application.pathway_id to their actual choice, not an auto-pick), "compare N M"
+   * sends a short side-by-side using the same real per-pathway data already shown. */
+  async _handleNavigatePathwaySelection(user, conversation, text) {
+    const ids = conversation.context?.shortlist_pathway_ids || [];
+    const lowered = text.trim().toLowerCase();
+
+    const compareMatch = lowered.match(/^compare\s+(\d+)\s+(\d+)$/);
+    if (compareMatch) {
+      const [a, b] = [parseInt(compareMatch[1], 10) - 1, parseInt(compareMatch[2], 10) - 1];
+      if (a >= 0 && a < ids.length && b >= 0 && b < ids.length && a !== b) {
+        const [pathwayA, pathwayB] = await Promise.all([
+          Pathway.findByPk(ids[a], { include: [{ model: Country, as: "country" }] }),
+          Pathway.findByPk(ids[b], { include: [{ model: Country, as: "country" }] }),
+        ]);
+        const profile = await this._getOrCreateProfile(user);
+        const lines = ["Pathway Comparison", ""];
+        for (const [idx, pathway] of [[a, pathwayA], [b, pathwayB]]) {
+          const assessment = assess(profile, pathway);
+          lines.push(`${idx + 1}. ${pathway.country.name} — ${pathway.name}`);
+          lines.push(`   Eligibility: ${assessment.result.replaceAll("_", " ")}`);
+          if (pathway.requirements?.length) lines.push(`   Key requirements: ${pathway.requirements.join("; ")}`);
+          lines.push("");
+        }
+        lines.push(`Reply with a number (1-${ids.length}) to move forward with one, or "compare" two others.`);
+        await this._send(user, conversation, lines.join("\n"));
+        return;
+      }
+    }
+
+    const idx = parseInt(text.trim(), 10) - 1;
+    if (Number.isNaN(idx) || idx < 0 || idx >= ids.length) {
+      await this._send(
+        user, conversation,
+        `Please reply with a number (1-${ids.length}) to pick one, or "compare" and two numbers ` +
+          'for a side-by-side (e.g. "compare 1 3").'
+      );
+      return;
+    }
+
+    const pathway = await Pathway.findByPk(ids[idx]);
+    const application = await this._getOrCreateApplication(user);
+    application.pathway_id = pathway.id;
+    if (APPLICATION_STAGE_ORDER.indexOf(application.stage) < APPLICATION_STAGE_ORDER.indexOf("pathway_selection")) {
+      application.stage = "pathway_selection";
+    }
+    await application.save();
+    await this._send(user, conversation, `Got it — we'll build your roadmap around ${pathway.name}.`);
     await this._enterNavigateMenu(user, conversation);
   }
 
@@ -1099,7 +1204,26 @@ export class ConversationManager {
   }
 
   async _sendNavigateMenu(user, conversation, prefix = null) {
-    await this._send(user, conversation, (prefix ? prefix + "\n\n" : "") + "What would you like to do?", flows.NAVIGATE_MENU_OPTIONS);
+    const hint = await this._navigateStageHint(user);
+    const parts = [prefix, hint, "What would you like to do?"].filter(Boolean);
+    await this._send(user, conversation, parts.join("\n\n"), flows.NAVIGATE_MENU_OPTIONS);
+  }
+
+  /** Computed fresh from real state every time the menu renders (same approach as the
+   * roadmap) — a light nudge toward whatever's actually the next real step, not a separate
+   * menu system. Returns null once there's nothing specific left to nudge about. */
+  async _navigateStageHint(user) {
+    const application = await Application.findOne({ where: { user_id: user.id }, order: [["created_at", "DESC"]] });
+    if (!application) return null;
+    if (!application.pathway_id) return '📌 Pick a pathway to keep moving — check "My recommended pathways".';
+
+    const pathway = await Pathway.findByPk(application.pathway_id, { include: [{ model: Country, as: "country" }] });
+    if (!pathway) return null;
+    const documents = await Document.findAll({ where: { user_id: user.id } });
+    const checklist = generateChecklist(pathway, documents);
+    const missing = checklist.items.filter((i) => i.status === "missing").length;
+    if (missing > 0) return `📌 You still have ${missing} document${missing === 1 ? "" : "s"} to upload — check "My documents".`;
+    return null;
   }
 
   async _handleNavigateMenu(user, conversation, text, interactiveId) {
@@ -1115,6 +1239,9 @@ export class ConversationManager {
       const lowered = text.toLowerCase();
       if (/progress|roadmap|what.*next/.test(lowered)) {
         await this._renderRoadmap(user, conversation);
+        return;
+      }
+      if (/\b(i have|i've got|already have|have my|have the|got my|ready)\b/i.test(text) && await this._tryMarkDocumentDeclared(user, conversation, text)) {
         return;
       }
       conversation.fallback_count += 1;
@@ -1175,15 +1302,57 @@ export class ConversationManager {
    * _handleDocumentsRequest, but returns to the Navigate menu afterward instead of the
    * Discover main menu (kept separate from _handleDocumentsRequest for that reason). */
   async _handleNavigateDocumentsRequest(user, conversation, profile) {
-    const pathway = profile.migration_objective ? await this._bestMatchingPathway(profile, profile.migration_objective) : null;
+    const application = await this._getOrCreateApplication(user);
+    const pathway = application.pathway_id
+      ? await Pathway.findByPk(application.pathway_id, { include: [{ model: Country, as: "country" }] })
+      : profile.migration_objective
+        ? await this._bestMatchingPathway(profile, profile.migration_objective)
+        : null;
     if (pathway) {
       const documents = await Document.findAll({ where: { user_id: user.id } });
       const checklist = generateChecklist(pathway, documents);
-      await this._send(user, conversation, renderChecklistWhatsappText(checklist));
+      await this._send(
+        user, conversation,
+        renderChecklistWhatsappText(checklist) +
+          '\n\nAlready have one of these but haven\'t sent it? Reply with the document name ' +
+          'and "I have it" to mark it, or just send the file directly.'
+      );
     } else {
       await this._send(user, conversation, 'I don\'t have a specific pathway on file yet — check "My recommended pathways" first.');
     }
     await this._enterNavigateMenu(user, conversation);
+  }
+
+  /** "I have my passport" style free-text from the Navigate menu — matches against the active
+   * pathway's real document list (case-insensitive substring) and marks that Document row
+   * "declared" (a real third evidence tier: they say they have it, nothing's been uploaded).
+   * Returns false (caller falls through to the generic fallback) if nothing matched, so a
+   * genuinely unrelated "I have a question" doesn't get silently swallowed. */
+  async _tryMarkDocumentDeclared(user, conversation, text) {
+    const application = await Application.findOne({ where: { user_id: user.id }, order: [["created_at", "DESC"]] });
+    if (!application?.pathway_id) return false;
+    const pathway = await Pathway.findByPk(application.pathway_id);
+    if (!pathway?.documents?.length) return false;
+
+    const lowered = text.toLowerCase();
+    const matchedName = pathway.documents.find((docName) => lowered.includes(docName.toLowerCase()));
+    if (!matchedName) return false;
+
+    let document = await Document.findOne({ where: { user_id: user.id, document_type: matchedName } });
+    if (!document) document = Document.build({ user_id: user.id, document_type: matchedName });
+    if (["uploaded", "verified"].includes(document.status)) {
+      await this._send(
+        user, conversation,
+        `Good news — "${matchedName}" is already ${document.status === "verified" ? "verified" : "uploaded and awaiting review"}.`
+      );
+      await this._enterNavigateMenu(user, conversation);
+      return true;
+    }
+    document.status = "declared";
+    await document.save();
+    await this._send(user, conversation, `Noted — I've marked "${matchedName}" as ready. Send the file whenever you're able to.`);
+    await this._enterNavigateMenu(user, conversation);
+    return true;
   }
 
   /** Stage 5 (personalised roadmap) — tasks are derived fresh from real state (profile
@@ -1201,25 +1370,45 @@ export class ConversationManager {
     const consultation = await ConsultationBooking.findOne({ where: { user_id: user.id }, order: [["created_at", "DESC"]] });
 
     const checklist = pathway ? generateChecklist(pathway, documents) : { items: [] };
-    const missingDocs = checklist.items.filter((i) => i.status === "missing").length;
+    const missingItems = checklist.items.filter((i) => i.status === "missing");
     const awaitingReview = checklist.items.filter((i) => i.status === "uploaded").length;
     const pastStage = (stage) => APPLICATION_STAGE_ORDER.indexOf(application.stage) > APPLICATION_STAGE_ORDER.indexOf(stage);
+    const sourceLink = pathway && pathway.is_verified_content && pathway.source_url ? pathway.source_url : null;
 
     const tasks = [
-      { phase: "Confirm eligibility", label: "Complete your migration profile", status: profile.navigate_profile_confirmed ? "done" : "pending" },
-      { phase: "Confirm eligibility", label: "Review your recommended pathway(s)", status: application.pathway_id ? "done" : "pending" },
+      {
+        phase: "Confirm eligibility", label: "Complete your migration profile",
+        status: profile.navigate_profile_confirmed ? "done" : "pending",
+        detail: profile.navigate_profile_confirmed ? null : "Reply \"Update my profile\" from the menu to confirm/update your details.",
+      },
+      {
+        phase: "Confirm eligibility", label: "Review your recommended pathway(s)",
+        status: application.pathway_id ? "done" : "pending",
+        detail: application.pathway_id ? (pathway ? `Selected: ${pathway.country.name} — ${pathway.name}` : null) : "Check \"My recommended pathways\" from the menu.",
+        link: application.pathway_id ? sourceLink : null,
+      },
       {
         phase: "Prepare evidence",
-        label: `Upload required documents${checklist.items.length ? ` (${missingDocs} still missing)` : ""}`,
-        status: !checklist.items.length ? "pending" : missingDocs === 0 ? "done" : missingDocs < checklist.items.length ? "in_progress" : "pending",
+        label: `Upload required documents${checklist.items.length ? ` (${missingItems.length} still missing)` : ""}`,
+        status: !checklist.items.length ? "pending" : missingItems.length === 0 ? "done" : missingItems.length < checklist.items.length ? "in_progress" : "pending",
+        detail: missingItems.length ? `Still needed: ${missingItems.map((i) => i.name).join(", ")}` : null,
       },
     ];
-    if (awaitingReview) tasks.push({ phase: "Prepare evidence", label: `${awaitingReview} document(s) awaiting specialist review`, status: "in_progress" });
-    tasks.push({ phase: "Pursue the pathway", label: "Speak with a MigraTech specialist", status: consultation ? "done" : "pending" });
+    if (awaitingReview) {
+      tasks.push({ phase: "Prepare evidence", label: `${awaitingReview} document(s) awaiting specialist review`, status: "in_progress", detail: null });
+    }
+    tasks.push({
+      phase: "Pursue the pathway", label: "Speak with a MigraTech specialist",
+      status: consultation ? "done" : "pending",
+      detail: consultation ? null : "Choose \"Find a verified expert\" from the menu to book a call.",
+    });
     tasks.push({
       phase: "Prepare for application & relocation",
       label: "Final application preparation",
       status: application.stage === "application_preparation" || pastStage("application_preparation") ? "done" : "pending",
+      detail: application.stage === "application_preparation" || pastStage("application_preparation")
+        ? null
+        : "Opens once your documents are verified and you've spoken with a specialist.",
     });
 
     application.milestones = { phase: application.stage, tasks, generated_at: new Date().toISOString() };
@@ -1234,6 +1423,8 @@ export class ConversationManager {
         currentPhase = t.phase;
       }
       lines.push(`${STATUS_EMOJI[t.status]} ${t.label}`);
+      if (t.detail) lines.push(`   ${t.detail}`);
+      if (t.link) lines.push(`   Source: ${t.link}`);
     }
     await this._send(user, conversation, lines.join("\n"));
     await this._enterNavigateMenu(user, conversation);

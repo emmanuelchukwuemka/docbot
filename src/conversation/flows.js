@@ -353,6 +353,37 @@ export const NAVIGATE_SECTIONS = [
     yesNoParser, ["Yes", "No"],
     { skipIf: (p) => !HEALTHCARE_OCCUPATION_RE.test(p.occupation || "") }
   ),
+  question(
+    "destination_specific_registration",
+    "Have you looked into your destination's specific professional registration requirements for your field? What's your status on that?",
+    textParser, [],
+    { skipIf: (p) => !HEALTHCARE_OCCUPATION_RE.test(p.occupation || "") }
+  ),
+
+  // Student — additional fields beyond admission_status/tuition_budget above.
+  question("academic_results", "What were your most recent academic results (e.g. GPA, grade average, or class of degree)?", textParser, [],
+    { skipIf: (p) => p.migration_objective !== "study" }),
+
+  // Business/entrepreneur — additional fields beyond business_model/target_market above.
+  question("business_history", "Briefly describe your business history — how long has it been running, and what has it achieved so far?", textParser, [],
+    { skipIf: (p) => p.migration_objective !== "business" }),
+  question("business_ownership", "What is your ownership stake in the business (e.g. sole owner, majority shareholder, co-founder)?", textParser, [],
+    { skipIf: (p) => p.migration_objective !== "business" }),
+
+  // Family migration — distinct from the existing family_abroad_* fields (which describe
+  // family already abroad generally): a sponsor is specifically the person petitioning for
+  // this applicant.
+  question("sponsor_status", "What is your sponsor's immigration status in the destination country (e.g. citizen, permanent resident, visa holder)?", textParser, [],
+    { skipIf: (p) => p.migration_objective !== "family" }),
+
+  // Existing job/admission offer — legitimacy check, a real fraud-prevention question (fake
+  // job offers are an explicitly named pattern in escalation.js's FRAUD_REPORT_KEYWORDS).
+  question(
+    "offer_legitimacy_confirmed",
+    "Have you independently verified this offer is genuine — for example, by contacting the employer/institution directly through their official channels?",
+    yesNoParser, ["Yes", "No"],
+    { skipIf: (p) => p.job_offer_status !== true }
+  ),
 ];
 
 export const NAVIGATE_MENU_OPTIONS = [
