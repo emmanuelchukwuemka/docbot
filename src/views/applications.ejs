@@ -6,13 +6,22 @@
     read the direct agent↔client message thread (you're not part of these conversations, but you can always see them).
   </p>
   <table>
-    <tr><th>Name</th><th>WhatsApp</th><th>Pathway</th><th>Stage</th><th>Status</th><th>Agent</th><th>Commission</th><th>Updated</th><th></th></tr>
+    <tr><th>Name</th><th>WhatsApp</th><th>Pathway</th><th>Stage</th><th>Client self-report</th><th>Status</th><th>Agent</th><th>Commission</th><th>Updated</th><th></th></tr>
     <% applications.forEach(a => { %>
       <tr>
         <td><%= a.name || '—' %></td>
         <td><%= a.whatsapp_number %></td>
         <td><%= a.pathway %></td>
-        <td><%= a.stage %></td>
+        <td>
+          <form method="post" action="/admin/applications/<%= a.id %>/stage" class="inline-form">
+            <select name="stage" onchange="this.form.submit()">
+              <% stageOptions.forEach(function(s) { %>
+                <option value="<%= s.value %>" <%= a.stage === s.value ? 'selected' : '' %>><%= s.label %></option>
+              <% }) %>
+            </select>
+          </form>
+        </td>
+        <td class="muted"><%= a.relocate_phase || '—' %></td>
         <td><%= a.status %></td>
         <td>
           <form method="post" action="/admin/applications/<%= a.id %>/vendor" class="inline-form">
@@ -64,7 +73,7 @@
         </td>
       </tr>
     <% }) %>
-    <% if (!applications.length) { %><tr><td class="muted" colspan="9">No applications yet.</td></tr><% } %>
+    <% if (!applications.length) { %><tr><td class="muted" colspan="10">No applications yet.</td></tr><% } %>
   </table>
 </div>
 

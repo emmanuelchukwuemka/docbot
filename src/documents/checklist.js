@@ -10,6 +10,8 @@ const STATUS_EMOJI = {
   under_review: "🟡",
   verified: "✅",
   rejected: "🔴",
+  expired: "⚠️",
+  inconsistent: "🟠",
 };
 
 export function renderChecklistWhatsappText(checklist) {
@@ -25,6 +27,13 @@ export function renderChecklistWhatsappText(checklist) {
     else if (item.status === "uploaded") line += " — awaiting review";
     else if (item.status === "rejected") line += " — needs resubmission";
     else if (item.status === "declared") line += " — have it, not uploaded yet";
+    // expired/inconsistent are real, staff-set outcomes (reviewDocument) — never
+    // auto-detected (no reliable automated signal exists for either).
+    else if (item.status === "expired") line += " — expired, needs to be renewed/resubmitted";
+    else if (item.status === "inconsistent") line += " — needs resubmission";
+    if ((item.status === "inconsistent" || item.status === "rejected") && item.review_notes) {
+      line += ` (${item.review_notes})`;
+    }
     lines.push(line);
   }
   lines.push("");
@@ -48,6 +57,8 @@ export function generateChecklist(pathway, existingDocuments = []) {
       status: doc ? doc.status : "missing",
       verification_status: doc ? doc.verification_status : null,
       verified_by: doc ? doc.verified_by : null,
+      expiry_date: doc ? doc.expiry_date : null,
+      review_notes: doc ? doc.review_notes : null,
     };
   });
 

@@ -15,6 +15,7 @@ import { verifyPassword } from "../security/passwords.js";
 import { LocalEncryptedStorage } from "../documents/storage.js";
 import { connectionState, whatsappClient } from "../whatsapp/baileysClient.js";
 import { logAction } from "./audit.js";
+import { RELOCATE_STAGE_LABELS, RELOCATE_STAGE_ORDER } from "../conversation/manager.js";
 
 export const router = Router();
 
@@ -215,7 +216,10 @@ router.get("/documents", async (req, res) => {
 
 router.post("/documents/:id/review", async (req, res) => {
   await withError(req, res, "/admin/documents", async () => {
-    await svc.reviewDocument(req.params.id, req.body.verification_status, req.adminUser.username);
+    await svc.reviewDocument(req.params.id, req.body.outcome, req.adminUser.username, {
+      expiryDate: req.body.expiry_date || null,
+      notes: req.body.notes || null,
+    });
     redirect(res, "/admin/documents", "Document reviewed.");
   });
 });
@@ -610,6 +614,7 @@ router.get("/applications", async (req, res) => {
     applications,
     approvedVendors: await svc.listApprovedVendorsForAssignment(),
     messagesByApplication,
+    stageOptions: RELOCATE_STAGE_ORDER.map((s) => ({ value: s, label: RELOCATE_STAGE_LABELS[s] })),
   });
 });
 
@@ -624,6 +629,13 @@ router.post("/applications/:id/mark-won", async (req, res) => {
   await withError(req, res, "/admin/applications", async () => {
     await svc.markCaseWon(req.params.id, req.body.case_value, req.adminUser.username);
     redirect(res, "/admin/applications", "Case marked won — commission recorded.");
+  });
+});
+
+router.post("/applications/:id/stage", async (req, res) => {
+  await withError(req, res, "/admin/applications", async () => {
+    await svc.updateApplicationStage(req.params.id, req.body.stage, req.adminUser.username);
+    redirect(res, "/admin/applications", "Stage updated.");
   });
 });
 

@@ -322,6 +322,13 @@ export const Document = sequelize.define(
     // extraction call succeeds; never backfilled with invented content. See
     // conversation/manager.js's handleDocumentUpload for where this gets set.
     extracted_fields: jsonColumn("extracted_fields", null),
+    // Staff-entered only (never auto-populated from extracted_fields' unstructured vision
+    // output) — drives scheduler.js's runDocumentExpirySweep, which flips status to
+    // "expired" once this passes.
+    expiry_date: { type: DataTypes.DATEONLY, allowNull: true },
+    // Staff's free-text explanation set alongside an "inconsistent"/"rejected" review outcome
+    // (admin/service.js's reviewDocument) — e.g. a name mismatch with another document on file.
+    review_notes: { type: DataTypes.TEXT, allowNull: true },
   },
   { tableName: "documents", timestamps: false }
 );
@@ -381,6 +388,14 @@ export const Application = sequelize.define(
     status: { type: DataTypes.STRING(30), defaultValue: "in_progress" },
     assigned_specialist: { type: DataTypes.STRING(255), allowNull: true },
     milestones: jsonColumn("milestones", {}),
+    // Raw, unverified client self-report from Relocate's "where are you in your journey?"
+    // onboarding question — deliberately NEVER fed into `stage`/APPLICATION_STAGE_ORDER
+    // (the one audit-worthy pipeline position, only ever advanced by a verified system
+    // event). Shown in "My Relocate Case" and used only to trigger a staff nudge if it
+    // implies the client is further along than `stage` shows. See conversation/manager.js.
+    relocate_phase: { type: DataTypes.STRING(50), allowNull: true },
+    relocate_started_at: { type: DataTypes.DATE, allowNull: true },
+    last_relocate_reminder_sent_at: { type: DataTypes.DATE, allowNull: true },
     created_at: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
     updated_at: { type: DataTypes.DATE, defaultValue: DataTypes.NOW },
   },

@@ -39,7 +39,7 @@ import {
 } from "../db/models.js";
 import { hashPassword } from "../security/passwords.js";
 import { listCaseMessages } from "../cases/messaging.js";
-import { APPLICATION_STAGE_ORDER } from "../conversation/manager.js";
+import { APPLICATION_STAGE_ORDER, RELOCATE_STAGE_ORDER } from "../conversation/manager.js";
 import { generateChecklist } from "../documents/checklist.js";
 import { whatsappClient } from "../whatsapp/baileysClient.js";
 
@@ -422,25 +422,34 @@ export async function listDocuments(status = null) {
     verification_status: d.verification_status,
     verified_by: d.verified_by,
     uploaded_at: d.uploaded_at ? d.uploaded_at.toISOString() : null,
+    expiry_date: d.expiry_date,
+    review_notes: d.review_notes,
   }));
 }
 
-export async function reviewDocument(documentId, verificationStatus, actor) {
-  if (!["verified", "rejected"].includes(verificationStatus)) {
-    throw new HttpError(400, "verification_status must be 'verified' or 'rejected'");
+/** `outcome` is "verified"/"rejected"/"inconsistent" — a finer-grained status than the
+ * verification_status column supports on its own. verification_status keeps its existing
+ * enforced 2-value contract ("inconsistent" maps to "rejected", since it genuinely wasn't
+ * accepted); `status` carries the more specific staff-chosen reason. Neither outcome is ever
+ * auto-detected — a human always picks it explicitly at review time. */
+export async function reviewDocument(documentId, outcome, actor, { expiryDate, notes } = {}) {
+  if (!["verified", "rejected", "inconsistent"].includes(outcome)) {
+    throw new HttpError(400, "outcome must be 'verified', 'rejected', or 'inconsistent'");
   }
   const document = await Document.findByPk(documentId);
   if (!document) throw new HttpError(404, "Document not found");
-  document.verification_status = verificationStatus;
+  document.verification_status = outcome === "verified" ? "verified" : "rejected";
   document.verified_by = actor;
-  document.status = verificationStatus === "verified" ? "verified" : "rejected";
+  document.status = outcome;
+  document.review_notes = notes || null;
+  if (expiryDate) document.expiry_date = expiryDate;
   await document.save();
   await logAction({
     actor,
     action: "review_document",
     targetType: "document",
     targetId: documentId,
-    details: { verification_status: verificationStatus },
+    details: { outcome, expiry_date: expiryDate || null, notes: notes || null },
   });
   await maybeAdvanceApplicationAfterDocumentReview(document.user_id);
   return { id: document.id, verification_status: document.verification_status, status: document.status };
@@ -760,11 +769,31 @@ export async function listApplications() {
     pathway: a.pathway ? `${a.pathway.country.name} — ${a.pathway.name}` : "—",
     stage: a.stage,
     status: a.status,
+    // Raw client self-report from Relocate onboarding ("where are you in your journey?") —
+    // shown for staff context only, never used to drive `stage` itself (see manager.js).
+    relocate_phase: a.relocate_phase,
     assigned_specialist: a.assigned_specialist,
     vendor: a.vendor ? { id: a.vendor.id, name: a.vendor.name } : null,
     commissions: a.commissions.map((c) => ({ id: c.id, amount: Number(c.amount), status: c.status })),
     updated_at: a.updated_at.toISOString(),
   }));
+}
+
+/** Staff-only stage advancement — nothing in this codebase can detect "actually received a
+ * visa" or "actually travelled", so reaching Relocate's pre_departure/settlement stages (or
+ * correcting any stage) is always an explicit human action, never automated. Validates against
+ * RELOCATE_STAGE_ORDER (a superset of APPLICATION_STAGE_ORDER), so this one function can
+ * correct any application's stage, Relocate subscriber or not. */
+export async function updateApplicationStage(applicationId, stage, actor) {
+  if (!RELOCATE_STAGE_ORDER.includes(stage)) {
+    throw new HttpError(400, `stage must be one of: ${RELOCATE_STAGE_ORDER.join(", ")}`);
+  }
+  const application = await Application.findByPk(applicationId);
+  if (!application) throw new HttpError(404, "Application not found");
+  application.stage = stage;
+  await application.save();
+  await logAction({ actor, action: "update_application_stage", targetType: "application", targetId: applicationId, details: { stage } });
+  return { id: application.id, stage: application.stage };
 }
 
 // --------------------------------------------------------------------------- //

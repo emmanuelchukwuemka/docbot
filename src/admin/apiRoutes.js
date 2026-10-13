@@ -56,7 +56,10 @@ router.post(
 router.get("/documents", handle((req) => svc.listDocuments(req.query.status || null)));
 router.patch(
   "/documents/:id",
-  handle((req) => svc.reviewDocument(req.params.id, req.body.verification_status, req.adminUser.username))
+  handle((req) => svc.reviewDocument(req.params.id, req.body.outcome, req.adminUser.username, {
+    expiryDate: req.body.expiry_date || null,
+    notes: req.body.notes || null,
+  }))
 );
 
 router.get("/consultations", handle((req) => svc.listConsultations(req.query.status || null)));
@@ -128,6 +131,10 @@ router.delete(
 router.get("/users", handle(() => svc.listUsers()));
 
 router.get("/applications", handle(() => svc.listApplications()));
+router.patch(
+  "/applications/:id/stage",
+  handle((req) => svc.updateApplicationStage(req.params.id, req.body.stage, req.adminUser.username))
+);
 
 router.get("/tasks", handle((req) => svc.listTasks(req.query.status || null)));
 router.post(

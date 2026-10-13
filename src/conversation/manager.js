@@ -17,6 +17,7 @@ import * as flows from "./flows.js";
 import { ESCALATION_MESSAGE, FRAUD_WARNING_MESSAGE, detectEscalationReason } from "./escalation.js";
 import {
   Application,
+  CaseMessage,
   ConsultationBooking,
   Conversation,
   Country,
@@ -28,7 +29,9 @@ import {
   Pathway,
   Payment,
   User,
+  Vendor,
 } from "../db/models.js";
+import { listCaseMessages, markCaseMessagesRead, postCaseMessage } from "../cases/messaging.js";
 import { generateChecklist, renderChecklistWhatsappText } from "../documents/checklist.js";
 import { LocalEncryptedStorage } from "../documents/storage.js";
 import { assess } from "../eligibility/engine.js";
@@ -36,6 +39,7 @@ import { getPathwaysForCountry, listCountries, searchFaqs, searchPathways } from
 import { scoreLead } from "../leads/scoring.js";
 import { initializeTransaction } from "../payments/paystackClient.js";
 import { hasPaidTier } from "../payments/tierAccess.js";
+import { findRelocateUrgentItem } from "../relocate/nudge.js";
 
 export const APPLICATION_STAGE_ORDER = [
   "profile_assessment",
@@ -54,6 +58,21 @@ export const APPLICATION_STAGE_LABELS = {
   application_preparation: "Application Preparation",
   submission: "Submission",
   decision: "Decision",
+};
+
+// Relocate-only extension of the pipeline, for pillars 4/5 (pre-departure prep, arrival &
+// settlement). Deliberately NOT appended to APPLICATION_STAGE_ORDER itself — portal/
+// service.js's stageProgressPercent computes (idx+1)/APPLICATION_STAGE_ORDER.length for
+// *every* application regardless of tier, so lengthening that array would silently drop
+// every existing Discover/Navigate-only user's progress %. Used only by _handleTrackApplication,
+// which is already 100% relocate-gated via its own _requireTier call, so switching only that
+// render is safe. Reaching these two stages is staff-only (admin's updateApplicationStage) —
+// nothing in this codebase can detect "actually received a visa" or "actually travelled".
+export const RELOCATE_STAGE_ORDER = [...APPLICATION_STAGE_ORDER, "pre_departure", "settlement"];
+export const RELOCATE_STAGE_LABELS = {
+  ...APPLICATION_STAGE_LABELS,
+  pre_departure: "Pre-Departure Preparation",
+  settlement: "Arrival & Settlement",
 };
 
 const FRAUD_EDUCATION_TIP =
@@ -199,6 +218,10 @@ export class ConversationManager {
       navigate_assessment: this._handleNavigateAssessment,
       navigate_pathway_selection: this._handleNavigatePathwaySelection,
       navigate_menu: this._handleNavigateMenu,
+      relocate_phase_question: this._handleRelocatePhaseQuestion,
+      relocate_pathway_confirm: this._handleRelocatePathwayConfirm,
+      relocate_menu: this._handleRelocateMenu,
+      relocate_expert_chat: this._handleRelocateExpertChat,
       assessment_menu: this._handleAssessmentMenu,
       faq_waiting_question: this._handleFaqWaitingQuestion,
       consultation_menu: this._handleConsultationMenu,
@@ -1430,6 +1453,460 @@ export class ConversationManager {
     await this._enterNavigateMenu(user, conversation);
   }
 
+  // ------------------------------------------------------------------ //
+  // MIGRA RELOCATE — paid execution/case-management tier. Reuses real shared primitives
+  // (checklist generation, the consultation flow, _handleTrackApplication, case messaging)
+  // but keeps its own menu/state handlers separate from Navigate's, same reasoning as
+  // Discover/Navigate's own split: protects the already-verified live flows from regression.
+  // ------------------------------------------------------------------ //
+
+  async _startRelocateOnboarding(user, conversation, pendingAction = null) {
+    await this._getOrCreateProfile(user);
+    const application = await this._getOrCreateApplication(user);
+    if (!application.relocate_started_at) {
+      application.relocate_started_at = new Date();
+      await application.save();
+    }
+
+    await this._send(
+      user, conversation,
+      "Congratulations on taking the next step with MIGRA! 🎉\n\n" +
+        "Your Navigate assessment helped us identify your preferred migration pathway. With " +
+        "MIGRA Relocate, we'll help you coordinate the next steps, manage outstanding " +
+        "requirements, and track your journey from preparation towards departure and, where " +
+        "included, settlement."
+    );
+
+    conversation.context = { ...conversation.context, flow: "relocate", relocate_pending_action: pendingAction };
+    conversation.state = "relocate_phase_question";
+    await conversation.save();
+    await this._send(
+      user, conversation,
+      "Let's set up your Relocate case. Where are you in your migration journey?",
+      flows.RELOCATE_PHASE_OPTIONS
+    );
+  }
+
+  async _handleRelocatePhaseQuestion(user, conversation, text, interactiveId) {
+    if (isGreeting(text)) {
+      await this._send(user, conversation, "Where are you in your migration journey?", flows.RELOCATE_PHASE_OPTIONS);
+      return;
+    }
+
+    const idx = resolveSelection(text, interactiveId, flows.RELOCATE_PHASE_OPTIONS);
+    if (idx === null) {
+      conversation.fallback_count += 1;
+      await conversation.save();
+      const acknowledged = await this._conversationalNudge(
+        user, conversation, text,
+        "The user is being asked where they are in their migration journey (a 7-option list) " +
+          "during MIGRA Relocate onboarding and replied with something that isn't one of the options."
+      );
+      await this._send(
+        user, conversation,
+        (acknowledged ? "" : "Sorry, I didn't quite catch that. ") + "Where are you in your migration journey?",
+        flows.RELOCATE_PHASE_OPTIONS
+      );
+      return;
+    }
+
+    conversation.fallback_count = 0;
+    await conversation.save();
+
+    const application = await this._getOrCreateApplication(user);
+    const phase = flows.RELOCATE_PHASE_CODES[idx];
+    application.relocate_phase = phase;
+    await application.save();
+
+    // Cheap, real staff signal: if the client's own self-report implies they're further along
+    // than the recorded case stage, that's worth a human checking — not something the bot
+    // should silently believe or silently ignore either way.
+    const AHEAD_PHASES = new Set(["approved_or_visa", "preparing_to_travel", "arrived_need_settlement"]);
+    if (AHEAD_PHASES.has(phase) && APPLICATION_STAGE_ORDER.indexOf(application.stage) < APPLICATION_STAGE_ORDER.indexOf("decision")) {
+      await this._escalate(
+        conversation,
+        "Relocate subscriber self-reports being further along than their recorded case stage — verify and update stage/vendor assignment."
+      );
+    }
+
+    await this._startRelocatePathwayConfirm(user, conversation);
+  }
+
+  async _startRelocatePathwayConfirm(user, conversation) {
+    const application = await this._getOrCreateApplication(user);
+    const profile = await this._getOrCreateProfile(user);
+    const pathway = application.pathway_id
+      ? await Pathway.findByPk(application.pathway_id, { include: [{ model: Country, as: "country" }] })
+      : profile.migration_objective
+        ? await this._bestMatchingPathway(profile, profile.migration_objective)
+        : null;
+
+    if (!pathway) {
+      await this._send(
+        user, conversation,
+        "I don't have a confirmed pathway on file for your case yet — a MigraTech specialist " +
+          "will confirm this with you directly."
+      );
+      await this._escalate(conversation, "Relocate case has no confirmed pathway on file — needs specialist review.");
+      await this._enterRelocateMenu(user, conversation);
+      return;
+    }
+
+    conversation.state = "relocate_pathway_confirm";
+    await conversation.save();
+    await this._send(
+      user, conversation,
+      `Which pathway are we managing? Based on your MIGRA Navigate assessment: *${pathway.country.name} — ${pathway.name}*. Is this still accurate?`,
+      flows.RELOCATE_PATHWAY_CONFIRM_OPTIONS
+    );
+  }
+
+  async _handleRelocatePathwayConfirm(user, conversation, text, interactiveId) {
+    const idx = resolveSelection(text, interactiveId, flows.RELOCATE_PATHWAY_CONFIRM_OPTIONS);
+    if (idx === null) {
+      await this._send(
+        user, conversation,
+        'Please reply "Yes, that\'s correct" or "No, something\'s changed".',
+        flows.RELOCATE_PATHWAY_CONFIRM_OPTIONS
+      );
+      return;
+    }
+
+    if (idx === 1) {
+      // Relocate executes an already-chosen pathway — it doesn't re-run Discover/Navigate's
+      // matching. A changed pathway is a specialist's call, not an automated re-match.
+      await this._send(
+        user, conversation,
+        "Thanks for flagging that — a MigraTech specialist will review your case and update your pathway directly."
+      );
+      await this._escalate(conversation, "Relocate subscriber says their pathway has changed — needs specialist review/update.");
+    }
+
+    await this._enterRelocateMenu(user, conversation);
+  }
+
+  async _enterRelocateMenu(user, conversation) {
+    conversation.state = "relocate_menu";
+    await conversation.save();
+
+    const pendingAction = conversation.context?.relocate_pending_action;
+    if (pendingAction) {
+      conversation.context = { ...conversation.context, relocate_pending_action: null };
+      await conversation.save();
+      if (pendingAction === "track_application") {
+        if (await this._handleTrackApplication(user, conversation)) await this._sendRelocateMenu(user, conversation);
+        return;
+      }
+      if (pendingAction === "consultation") {
+        await this._offerConsultation(user, conversation);
+        return;
+      }
+    }
+    await this._sendRelocateMenu(user, conversation);
+  }
+
+  async _sendRelocateMenu(user, conversation, prefix = null) {
+    const hint = await this._relocateStageHint(user);
+    const parts = [prefix, hint, "What would you like to do?"].filter(Boolean);
+    await this._send(user, conversation, parts.join("\n\n"), flows.RELOCATE_MENU_OPTIONS);
+  }
+
+  /** Computed fresh from real state every render, same approach as Navigate's
+   * _navigateStageHint — a light nudge toward the single most urgent real thing (via the
+   * shared findRelocateUrgentItem helper), never a separate stored menu system. */
+  async _relocateStageHint(user) {
+    const application = await Application.findOne({ where: { user_id: user.id }, order: [["created_at", "DESC"]] });
+    if (!application) return null;
+    if (!application.vendor_id && !application.pathway_id) return "📌 We're finalising your pathway and specialist match.";
+
+    const pathway = application.pathway_id
+      ? await Pathway.findByPk(application.pathway_id, { include: [{ model: Country, as: "country" }] })
+      : null;
+    const documents = await Document.findAll({ where: { user_id: user.id } });
+    const item = findRelocateUrgentItem(application, documents, pathway);
+    if (!item) return !application.vendor_id ? "📌 We're finalising your specialist match." : null;
+    if (item.kind === "missing_documents") return `📌 You still have ${item.names.length} document(s) to upload — check "My Documents".`;
+    if (item.kind === "expired_document") return `📌 Your ${item.name} has expired — check "My Documents".`;
+    if (item.kind === "inconsistent_document") return `📌 Your ${item.name} needs attention — check "My Documents".`;
+    return null;
+  }
+
+  async _handleRelocateMenu(user, conversation, text, interactiveId) {
+    if (isGreeting(text)) {
+      conversation.fallback_count = 0;
+      await conversation.save();
+      await this._sendRelocateMenu(user, conversation);
+      return;
+    }
+
+    const idx = resolveSelection(text, interactiveId, flows.RELOCATE_MENU_OPTIONS);
+    if (idx === null) {
+      const lowered = text.toLowerCase();
+      if (/case status|where (is|am) i|my case/.test(lowered)) {
+        await this._handleRelocateMyCase(user, conversation);
+        return;
+      }
+      if (/document|checklist|upload/.test(lowered)) {
+        await this._handleRelocateDocumentsRequest(user, conversation);
+        return;
+      }
+      if (/application|milestone|progress/.test(lowered)) {
+        if (await this._handleTrackApplication(user, conversation)) await this._sendRelocateMenu(user, conversation);
+        return;
+      }
+      if (/expert|agent|specialist/.test(lowered)) {
+        await this._handleRelocateExpertMenu(user, conversation);
+        return;
+      }
+      if (/payment|fee|receipt/.test(lowered)) {
+        await this._handleRelocateMyPayments(user, conversation);
+        return;
+      }
+      if (/depart|travel|flight/.test(lowered)) {
+        await this._handleRelocateDeparturePrep(user, conversation);
+        return;
+      }
+      if (/settle|arriv|housing/.test(lowered)) {
+        await this._handleRelocateSettlementGuidance(user, conversation);
+        return;
+      }
+      if (/support|complain/.test(lowered)) {
+        await this._offerConsultation(user, conversation);
+        return;
+      }
+      if (/\b(i have|i've got|already have|have my|have the|got my|ready)\b/i.test(text) && await this._tryMarkRelocateDocumentDeclared(user, conversation, text)) {
+        return;
+      }
+      conversation.fallback_count += 1;
+      await conversation.save();
+      const acknowledged = await this._conversationalNudge(
+        user, conversation, text,
+        "The user is at MigraTech Relocate's case workspace menu and just replied with something that isn't one of the menu options."
+      );
+      await this._sendRelocateMenu(user, conversation, acknowledged ? null : "Sorry, I didn't quite catch that.");
+      return;
+    }
+
+    conversation.fallback_count = 0;
+    await conversation.save();
+    const option = flows.RELOCATE_MENU_OPTIONS[idx];
+
+    if (option === "My Relocate Case") {
+      await this._handleRelocateMyCase(user, conversation);
+    } else if (option === "My Documents") {
+      await this._handleRelocateDocumentsRequest(user, conversation);
+    } else if (option === "My Application") {
+      if (await this._handleTrackApplication(user, conversation)) await this._sendRelocateMenu(user, conversation);
+    } else if (option === "My Expert") {
+      await this._handleRelocateExpertMenu(user, conversation);
+    } else if (option === "My Payments") {
+      await this._handleRelocateMyPayments(user, conversation);
+    } else if (option === "Prepare for Departure") {
+      await this._handleRelocateDeparturePrep(user, conversation);
+    } else if (option === "Settle at My Destination") {
+      await this._handleRelocateSettlementGuidance(user, conversation);
+    } else if (option === "Speak to Support") {
+      await this._offerConsultation(user, conversation);
+    }
+  }
+
+  async _handleRelocateMyCase(user, conversation) {
+    const application = await this._getOrCreateApplication(user);
+    const lines = ["Your Relocate Case", ""];
+    lines.push(`Status: ${RELOCATE_STAGE_LABELS[application.stage] || application.stage}`);
+    if (application.relocate_phase) {
+      lines.push(`You told us: ${flows.RELOCATE_PHASE_LABELS[application.relocate_phase] || application.relocate_phase}`);
+    }
+    if (application.assigned_specialist) {
+      lines.push(`Case owner: ${application.assigned_specialist}`);
+    } else if (application.vendor_id) {
+      const vendor = await Vendor.findByPk(application.vendor_id);
+      lines.push(`Case owner: ${vendor ? (vendor.business_name || vendor.name) : "a MigraTech partner"}`);
+    } else {
+      lines.push("Case owner: MigraTech staff are handling your case directly — no partner agent needed yet.");
+    }
+    await this._send(user, conversation, lines.join("\n"));
+    await this._sendRelocateMenu(user, conversation);
+  }
+
+  /** "My Documents" from the Relocate menu — same checklist generator/renderer Discover/
+   * Navigate already use, just returns to the Relocate menu afterward. Deliberately a thin
+   * duplicate of _handleNavigateDocumentsRequest rather than a shared call, same reasoning as
+   * the rest of this section. */
+  async _handleRelocateDocumentsRequest(user, conversation) {
+    const application = await this._getOrCreateApplication(user);
+    const profile = await this._getOrCreateProfile(user);
+    const pathway = application.pathway_id
+      ? await Pathway.findByPk(application.pathway_id, { include: [{ model: Country, as: "country" }] })
+      : profile.migration_objective
+        ? await this._bestMatchingPathway(profile, profile.migration_objective)
+        : null;
+    if (pathway) {
+      const documents = await Document.findAll({ where: { user_id: user.id } });
+      const checklist = generateChecklist(pathway, documents);
+      await this._send(
+        user, conversation,
+        renderChecklistWhatsappText(checklist) +
+          '\n\nAlready have one of these but haven\'t sent it? Reply with the document name ' +
+          'and "I have it" to mark it, or just send the file directly.'
+      );
+    } else {
+      await this._send(user, conversation, 'I don\'t have a specific pathway on file yet — check "My Relocate Case" first.');
+    }
+    await this._enterRelocateMenu(user, conversation);
+  }
+
+  /** Parallel duplicate of Navigate's _tryMarkDocumentDeclared — deliberately not shared, same
+   * reasoning as the rest of this section (protects the already-verified live Navigate path). */
+  async _tryMarkRelocateDocumentDeclared(user, conversation, text) {
+    const application = await Application.findOne({ where: { user_id: user.id }, order: [["created_at", "DESC"]] });
+    if (!application?.pathway_id) return false;
+    const pathway = await Pathway.findByPk(application.pathway_id);
+    if (!pathway?.documents?.length) return false;
+
+    const lowered = text.toLowerCase();
+    const matchedName = pathway.documents.find((docName) => lowered.includes(docName.toLowerCase()));
+    if (!matchedName) return false;
+
+    let document = await Document.findOne({ where: { user_id: user.id, document_type: matchedName } });
+    if (!document) document = Document.build({ user_id: user.id, document_type: matchedName });
+    if (["uploaded", "verified"].includes(document.status)) {
+      await this._send(
+        user, conversation,
+        `Good news — "${matchedName}" is already ${document.status === "verified" ? "verified" : "uploaded and awaiting review"}.`
+      );
+      await this._enterRelocateMenu(user, conversation);
+      return true;
+    }
+    document.status = "declared";
+    await document.save();
+    await this._send(user, conversation, `Noted — I've marked "${matchedName}" as ready. Send the file whenever you're able to.`);
+    await this._enterRelocateMenu(user, conversation);
+    return true;
+  }
+
+  async _handleRelocateExpertMenu(user, conversation) {
+    const application = await this._getOrCreateApplication(user);
+    if (!application.vendor_id) {
+      await this._send(
+        user, conversation,
+        "You don't have a verified migration professional assigned yet — MigraTech staff are " +
+          "matching you with the right partner for your case."
+      );
+      await this._escalate(conversation, "Relocate subscriber opened My Expert with no vendor assigned yet — needs vendor match.");
+      await this._sendRelocateMenu(user, conversation);
+      return;
+    }
+
+    const vendor = await Vendor.findByPk(application.vendor_id);
+    if (!vendor) {
+      await this._send(user, conversation, "Your assigned specialist's record couldn't be found — a MigraTech staff member will follow up.");
+      await this._escalate(conversation, "Relocate case has a vendor_id with no matching Vendor row.");
+      await this._sendRelocateMenu(user, conversation);
+      return;
+    }
+
+    const lines = [`Your Expert: ${vendor.business_name || vendor.name}`, ""];
+    if (vendor.services_offered) lines.push(`Services: ${vendor.services_offered}`);
+    if (vendor.countries_covered) lines.push(`Covers: ${vendor.countries_covered}`);
+
+    await markCaseMessagesRead(application.id, "user");
+    const messages = await listCaseMessages(application.id);
+    const recent = messages.slice(-10);
+    if (recent.length) {
+      lines.push("", "Recent messages:");
+      for (const m of recent) {
+        lines.push(`${m.sender_type === "vendor" ? vendor.name : "You"}: ${m.body}`);
+      }
+    }
+    lines.push("", `Type a message to send to ${vendor.name}, or reply "menu" to go back.`);
+    await this._send(user, conversation, lines.join("\n"));
+
+    conversation.context = { ...conversation.context, relocate_case_id: application.id };
+    conversation.state = "relocate_expert_chat";
+    await conversation.save();
+  }
+
+  async _handleRelocateExpertChat(user, conversation, text) {
+    const lowered = text.trim().toLowerCase();
+    if (["menu", "back"].includes(lowered)) {
+      await this._enterRelocateMenu(user, conversation);
+      return;
+    }
+
+    const application = await this._getOrCreateApplication(user);
+    if (!application.vendor_id) {
+      await this._send(user, conversation, "Your specialist assignment has changed — a MigraTech staff member will follow up.");
+      await this._escalate(conversation, "Relocate case lost its vendor assignment mid-chat.");
+      await this._enterRelocateMenu(user, conversation);
+      return;
+    }
+    const vendor = await Vendor.findByPk(application.vendor_id);
+
+    await postCaseMessage(application.id, "user", user.id, text);
+    await this._send(
+      user, conversation,
+      `Sent to ${vendor ? vendor.name : "your specialist"} — they'll see it next time they check their dashboard. ` +
+        'Reply "menu" to go back.'
+    );
+  }
+
+  /** Deliberately does not surface Commission data (MigraTech's internal payout to the
+   * assigned vendor) — that's not the client's business, only their own real Payment rows. */
+  async _handleRelocateMyPayments(user, conversation) {
+    const payments = await Payment.findAll({ where: { user_id: user.id }, order: [["created_at", "DESC"]] });
+    if (!payments.length) {
+      await this._send(user, conversation, "No payments on file yet.");
+    } else {
+      const lines = ["Your Payments", ""];
+      for (const p of payments) {
+        const date = (p.paid_at || p.created_at).toISOString().slice(0, 10);
+        lines.push(`${date} — ${p.purpose}: ${p.currency} ${Number(p.amount).toLocaleString()} (${p.status})`);
+      }
+      lines.push(
+        "",
+        "Any additional fees for a specific verified professional's services are arranged " +
+          'directly with your specialist — see "My Expert" for details.'
+      );
+      await this._send(user, conversation, lines.join("\n"));
+    }
+    await this._sendRelocateMenu(user, conversation);
+  }
+
+  /** Static, hand-authored, pathway-agnostic copy — deliberately not country-specific (the
+   * knowledge base has no real local-service/travel data to draw on), explicitly framed as
+   * general guidance rather than fabricated destination facts. */
+  async _handleRelocateDeparturePrep(user, conversation) {
+    await this._send(
+      user, conversation,
+      "Prepare for Departure\n\n" +
+        "A general checklist to start working through:\n" +
+        "• Confirm your flight booking and check passport validity against your travel date\n" +
+        "• Notify your bank of international travel and sort out local currency/cards\n" +
+        "• Arrange travel insurance\n" +
+        "• Keep copies (physical and digital) of your passport, visa, and key documents, stored separately from the originals\n" +
+        "• Share your travel itinerary with family\n\n" +
+        "This is general guidance — a MigraTech specialist will tailor this to your specific pathway and destination."
+    );
+    await this._sendRelocateMenu(user, conversation);
+  }
+
+  async _handleRelocateSettlementGuidance(user, conversation) {
+    await this._send(
+      user, conversation,
+      "Settle at My Destination\n\n" +
+        "General areas to plan for once you arrive:\n" +
+        "• Local registration/residency formalities\n" +
+        "• Opening a local bank account\n" +
+        "• A local SIM/phone plan\n" +
+        "• Temporary and longer-term housing\n" +
+        "• School or healthcare registration, if relevant to your family\n" +
+        "• Local community or diaspora groups\n\n" +
+        "This is general guidance — a MigraTech specialist will provide referrals specific to your destination."
+    );
+    await this._sendRelocateMenu(user, conversation);
+  }
+
   async _handleDocumentsRequest(user, conversation) {
     const profile = await this._getOrCreateProfile(user);
     const pathway = profile.migration_objective
@@ -1480,10 +1957,13 @@ export class ConversationManager {
     const uploadedDocs = documents.filter((d) => ["uploaded", "verified"].includes(d.status)).length;
     const docPct = requiredDocs ? Math.round((100 * uploadedDocs) / requiredDocs) : 0;
 
-    const currentIndex = APPLICATION_STAGE_ORDER.indexOf(application.stage);
+    // RELOCATE_STAGE_ORDER, not the bare APPLICATION_STAGE_ORDER — this function is already
+    // 100% relocate-gated above, so rendering the fuller pre_departure/settlement pipeline
+    // here is safe and doesn't affect any non-Relocate caller (there are none).
+    const currentIndex = RELOCATE_STAGE_ORDER.indexOf(application.stage);
     const lines = ["Migration Journey", ""];
-    APPLICATION_STAGE_ORDER.forEach((stage, i) => {
-      const label = APPLICATION_STAGE_LABELS[stage];
+    RELOCATE_STAGE_ORDER.forEach((stage, i) => {
+      const label = RELOCATE_STAGE_LABELS[stage];
       const stageIndex = i;
       if (stage === "documents" && requiredDocs) {
         lines.push(`${i + 1}. ${label} — 🟡 ${docPct}% Complete`);
@@ -1807,6 +2287,10 @@ export class ConversationManager {
     // confirmation here always means this is the moment they become a subscriber.
     if (payment.tier === "navigate") {
       await this._startNavigateOnboarding(user, conversation, pendingAction);
+      return;
+    }
+    if (payment.tier === "relocate") {
+      await this._startRelocateOnboarding(user, conversation, pendingAction);
       return;
     }
 

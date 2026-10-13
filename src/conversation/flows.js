@@ -399,6 +399,45 @@ export const NAVIGATE_MENU_OPTIONS = [
 
 export const CONSULTATION_MENU_OPTIONS = ["Book Consultation", "Talk to an Expert Now", "Continue Later"];
 
+// MIGRA Relocate — paid execution/case-management tier. Onboarding asks one self-report
+// question ("where are you in your journey?") then confirms the pathway already selected
+// during Navigate, before entering the persistent workspace menu.
+export const RELOCATE_PHASE_OPTIONS = [
+  "I am ready to begin my application",
+  "I need help completing my documents",
+  "I need a verified migration professional",
+  "I have an application in progress",
+  "I have received an approval or visa",
+  "I am preparing to travel",
+  "I have arrived and need settlement support",
+];
+export const RELOCATE_PHASE_CODES = [
+  "ready_to_begin", "need_documents_help", "need_expert", "application_in_progress",
+  "approved_or_visa", "preparing_to_travel", "arrived_need_settlement",
+];
+export const RELOCATE_PHASE_LABELS = {
+  ready_to_begin: "Ready to begin application",
+  need_documents_help: "Needs help completing documents",
+  need_expert: "Needs a verified migration professional",
+  application_in_progress: "Application in progress",
+  approved_or_visa: "Received approval or visa",
+  preparing_to_travel: "Preparing to travel",
+  arrived_need_settlement: "Arrived, needs settlement support",
+};
+
+export const RELOCATE_PATHWAY_CONFIRM_OPTIONS = ["Yes, that's correct", "No, something's changed"];
+
+export const RELOCATE_MENU_OPTIONS = [
+  "My Relocate Case",
+  "My Documents",
+  "My Application",
+  "My Expert",
+  "My Payments",
+  "Prepare for Departure",
+  "Settle at My Destination",
+  "Speak to Support",
+];
+
 export const MAIN_MENU_OPTIONS = [
   "Explore Migration Options",
   "Check My Eligibility",

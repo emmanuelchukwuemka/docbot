@@ -13,14 +13,18 @@ import cron from "node-cron";
 import { Op } from "sequelize";
 import { settings } from "./config.js";
 import { logger } from "./logger.js";
-import { AuditLog, ConsultationBooking, Conversation, Document, Lead, Message, Pathway, Payment, User, Country } from "./db/models.js";
+import { Application, AuditLog, ConsultationBooking, Conversation, Document, Lead, Message, Pathway, Payment, User, Country } from "./db/models.js";
 import { generateChecklist, renderChecklistWhatsappText } from "./documents/checklist.js";
+import { findRelocateUrgentItem } from "./relocate/nudge.js";
 import { inboundRateLimiter, sweepSeenMessageIds } from "./whatsapp/ingest.js";
 import { aiRateLimiter } from "./ai/llmClient.js";
 
 const DOCUMENT_REMINDER_INTERVAL_DAYS = 3;
 const CONSULTATION_STAFF_REMINDER_AFTER_HOURS = 24;
 const PAYMENT_REMINDER_INTERVAL_DAYS = 3;
+// Paying Relocate subscribers, not pre-conversion Leads — a longer, distinct cadence from
+// runMissingDocumentReminders' 3-day one.
+const RELOCATE_REMINDER_INTERVAL_DAYS = 5;
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -169,6 +173,80 @@ export async function runConsultationStaffReminders() {
   return sent;
 }
 
+/** Correctness sweep, not user-facing — flips a Document's status to "expired" once its
+ * staff-entered expiry_date has passed, and resets verification_status back to "unreviewed"
+ * (a verified-but-now-expired document's prior verification is void and needs re-review; this
+ * doesn't invent a new verified/rejected stamp, just the existing neutral default). Idempotent
+ * by construction: once flipped, a row no longer matches the WHERE clause. Deliberately a
+ * separate job from runRelocateCaseReminders below — this is pure data correctness, that one
+ * decides what to tell a user about it next. */
+export async function runDocumentExpirySweep() {
+  const documents = await Document.findAll({
+    where: { expiry_date: { [Op.lt]: new Date() }, status: { [Op.ne]: "expired" } },
+  });
+  for (const document of documents) {
+    document.status = "expired";
+    document.verification_status = "unreviewed";
+    await document.save();
+  }
+  return documents.length;
+}
+
+/** FR-13 proactive Relocate case reminders — unlike runMissingDocumentReminders (pre-
+ * conversion Lead nurture), this targets paying Relocate subscribers and nudges them about
+ * whatever single most urgent real thing is outstanding on their case (via the shared
+ * findRelocateUrgentItem helper — same primitive the Relocate menu's stage hint uses). */
+export async function runRelocateCaseReminders(whatsappClient) {
+  const cutoff = new Date(Date.now() - RELOCATE_REMINDER_INTERVAL_DAYS * 24 * 60 * 60 * 1000);
+
+  const relocatePayments = await Payment.findAll({ where: { tier: "relocate", status: "paid" }, attributes: ["user_id"] });
+  const userIds = [...new Set(relocatePayments.map((p) => p.user_id))];
+
+  let sent = 0;
+  for (const userId of userIds) {
+    const application = await Application.findOne({
+      where: {
+        user_id: userId,
+        status: { [Op.ne]: "complete" },
+        [Op.or]: [{ last_relocate_reminder_sent_at: null }, { last_relocate_reminder_sent_at: { [Op.lt]: cutoff } }],
+      },
+      order: [["created_at", "DESC"]],
+      include: [{ association: "user" }],
+    });
+    if (!application || !application.user) continue;
+
+    const pathway = application.pathway_id
+      ? await Pathway.findByPk(application.pathway_id, { include: [{ model: Country, as: "country" }] })
+      : null;
+    const documents = await Document.findAll({ where: { user_id: userId } });
+    const item = findRelocateUrgentItem(application, documents, pathway);
+    if (!item) continue;
+
+    let text;
+    if (item.kind === "missing_documents") {
+      text =
+        `Your ${item.names[0]} is still outstanding. This is required before the next stage ` +
+        'of your selected pathway. Reply "My Documents" to see your full checklist.';
+    } else if (item.kind === "expired_document") {
+      text = `Your ${item.name} has expired and needs to be renewed/resubmitted. Reply "My Documents" for your full checklist.`;
+    } else if (item.kind === "inconsistent_document") {
+      text = `Your ${item.name} needs attention${item.notes ? ` — ${item.notes}` : ""}. Reply "My Documents" for details.`;
+    } else {
+      continue;
+    }
+
+    if (sent > 0) await sleep(reminderGapMs());
+    const result = await whatsappClient.sendText(application.user.whatsapp_number, text);
+    if (result?.skipped) continue;
+
+    await logReminderMessage(userId, text);
+    application.last_relocate_reminder_sent_at = new Date();
+    await application.save();
+    sent += 1;
+  }
+  return sent;
+}
+
 /** Pure query, no side effects — user IDs whose most recent conversation activity is older
  * than the retention window and who aren't an active lead. Split out from
  * runDataRetentionCleanup so it's easy to unit test / dry-run without deleting. */
@@ -245,12 +323,15 @@ export function startScheduler(whatsappClient) {
     cron.schedule("0 */6 * * *", guardedJob("document_reminders", () => runMissingDocumentReminders(whatsappClient))),
     cron.schedule("0 * * * *", guardedJob("consultation_reminders", runConsultationStaffReminders)),
     cron.schedule("0 9 * * *", guardedJob("payment_reminders", () => runPaymentReminders(whatsappClient))),
+    cron.schedule("0 1 * * *", guardedJob("document_expiry_sweep", runDocumentExpirySweep)),
+    cron.schedule("0 11 * * *", guardedJob("relocate_case_reminders", () => runRelocateCaseReminders(whatsappClient))),
     cron.schedule("0 0 * * *", guardedJob("data_retention", runDataRetentionCleanup)),
     cron.schedule("30 * * * *", guardedJob("rate_limiter_sweep", () => runRateLimiterSweep(whatsappClient))),
   ];
   logger.info(
     "Scheduler started (document reminders every 6h, consultation reminders hourly, " +
-      "payment reminders daily at 9am, retention daily, rate-limiter sweep hourly)."
+      "payment reminders daily at 9am, document expiry sweep daily at 1am, Relocate case " +
+      "reminders daily at 11am, retention daily, rate-limiter sweep hourly)."
   );
   return tasks;
 }
